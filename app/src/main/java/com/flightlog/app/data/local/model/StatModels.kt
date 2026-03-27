@@ -23,3 +23,10 @@ data class LabelCount(
     val label: String,
     val count: Int
 )
+
+/** Flights per route (departure → arrival pair). */
+data class RouteCount(
+    val departureCode: String,
+    val arrivalCode: String,
+    val count: Int
+)

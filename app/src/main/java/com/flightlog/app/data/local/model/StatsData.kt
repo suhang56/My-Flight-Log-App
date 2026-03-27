@@ -13,7 +13,10 @@ data class StatsData(
     val topAirlines: List<AirlineCount> = emptyList(),
     val seatClassBreakdown: List<LabelCount> = emptyList(),
     val aircraftTypeDistribution: List<LabelCount> = emptyList(),
-    val longestFlight: LogbookFlight? = null
+    val longestFlight: LogbookFlight? = null,
+    val longestFlightByDuration: LogbookFlight? = null,
+    val topRoutes: List<RouteCount> = emptyList(),
+    val firstFlight: LogbookFlight? = null
 ) {
     /** Total hours of flight time (truncated). */
     val totalHours: Long get() = totalDurationMinutes / 60

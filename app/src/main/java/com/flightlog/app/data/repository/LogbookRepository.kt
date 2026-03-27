@@ -8,6 +8,7 @@ import com.flightlog.app.data.local.model.AirlineCount
 import com.flightlog.app.data.local.model.AirportCount
 import com.flightlog.app.data.local.model.LabelCount
 import com.flightlog.app.data.local.model.MonthlyCount
+import com.flightlog.app.data.local.model.RouteCount
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
@@ -131,4 +132,13 @@ class LogbookRepository @Inject constructor(
 
     fun getLongestFlightByDistance(): Flow<LogbookFlight?> =
         logbookFlightDao.getLongestFlightByDistance()
+
+    fun getLongestFlightByDuration(): Flow<LogbookFlight?> =
+        logbookFlightDao.getLongestFlightByDuration()
+
+    fun getTopRoutes(limit: Int = 5): Flow<List<RouteCount>> =
+        logbookFlightDao.getTopRoutes(limit)
+
+    fun getFirstFlight(): Flow<LogbookFlight?> =
+        logbookFlightDao.getFirstFlight()
 }
