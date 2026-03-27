@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
+// Seed color: Aviation Blue #1565C0
 private val LightColorScheme = lightColorScheme(
     primary = Color(0xFF1565C0),
     onPrimary = Color.White,
@@ -20,6 +21,10 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = Color.White,
     secondaryContainer = Color(0xFFD7E3F8),
     onSecondaryContainer = Color(0xFF111C2B),
+    tertiary = Color(0xFF8B5000),
+    onTertiary = Color.White,
+    tertiaryContainer = Color(0xFFFFDDB3),
+    onTertiaryContainer = Color(0xFF2C1600),
     surface = Color(0xFFFDFBFF),
     onSurface = Color(0xFF1A1C1E),
     surfaceVariant = Color(0xFFE1E2EC),
@@ -35,6 +40,10 @@ private val DarkColorScheme = darkColorScheme(
     onSecondary = Color(0xFF263141),
     secondaryContainer = Color(0xFF3C4858),
     onSecondaryContainer = Color(0xFFD7E3F8),
+    tertiary = Color(0xFFFFB951),
+    onTertiary = Color(0xFF4A2800),
+    tertiaryContainer = Color(0xFF6A3C00),
+    onTertiaryContainer = Color(0xFFFFDDB3),
     surface = Color(0xFF1A1C1E),
     onSurface = Color(0xFFE3E2E6),
     surfaceVariant = Color(0xFF44474F),

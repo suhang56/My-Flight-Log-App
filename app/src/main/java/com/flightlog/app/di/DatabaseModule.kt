@@ -3,7 +3,7 @@ package com.flightlog.app.di
 import android.content.Context
 import androidx.room.Room
 import com.flightlog.app.data.local.FlightDatabase
-import com.flightlog.app.data.local.dao.FlightDao
+import com.flightlog.app.data.local.dao.CalendarFlightDao
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -22,11 +22,13 @@ object DatabaseModule {
             context,
             FlightDatabase::class.java,
             "flight_log_db"
-        ).build()
+        )
+            .addMigrations(FlightDatabase.MIGRATION_1_2)
+            .build()
     }
 
     @Provides
-    fun provideFlightDao(database: FlightDatabase): FlightDao {
-        return database.flightDao()
+    fun provideCalendarFlightDao(database: FlightDatabase): CalendarFlightDao {
+        return database.calendarFlightDao()
     }
 }

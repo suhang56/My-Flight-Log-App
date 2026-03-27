@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Flight icon (simple airplane silhouette) -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,24L54,24C54,24 42,42 42,54L42,66L24,78L24,84L42,72L42,78L36,84L36,88L54,82L72,88L72,84L66,78L66,72L84,84L84,78L66,66L66,54C66,42 54,24 54,24Z"/>
+</vector>
