@@ -1,7 +1,6 @@
 package com.flightlog.app.ui.logbook
 
 import android.content.Intent
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,7 +20,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flight
-import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
@@ -42,8 +40,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
@@ -52,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.flightlog.app.data.AirportCoordinatesMap
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.util.DATE_FORMATTER
 import com.flightlog.app.util.DAY_DATE_FORMATTER
@@ -220,7 +221,22 @@ fun FlightDetailScreen(
                     HorizontalDivider()
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    MapPlaceholder()
+                    val departureCoords = remember(flight.departureCode) {
+                        AirportCoordinatesMap.coordinatesFor(flight.departureCode)
+                    }
+                    val arrivalCoords = remember(flight.arrivalCode) {
+                        AirportCoordinatesMap.coordinatesFor(flight.arrivalCode)
+                    }
+                    RouteMapCanvas(
+                        departure = departureCoords,
+                        arrival = arrivalCoords,
+                        departureIata = flight.departureCode,
+                        arrivalIata = flight.arrivalCode,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(160.dp)
+                            .clip(MaterialTheme.shapes.medium)
+                    )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
@@ -442,35 +458,6 @@ private fun NotesSection(notes: String) {
             text = notes,
             style = MaterialTheme.typography.bodyMedium
         )
-    }
-}
-
-@Composable
-private fun MapPlaceholder() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(160.dp)
-            .background(
-                color = MaterialTheme.colorScheme.surfaceVariant,
-                shape = MaterialTheme.shapes.medium
-            ),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Icon(
-                imageVector = Icons.Default.Map,
-                contentDescription = null,
-                modifier = Modifier.size(40.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Route map coming soon",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-            )
-        }
     }
 }
 
