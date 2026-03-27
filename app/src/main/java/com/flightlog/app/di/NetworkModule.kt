@@ -1,7 +1,7 @@
 package com.flightlog.app.di
 
 import com.flightlog.app.BuildConfig
-import com.flightlog.app.data.network.AeroDataBoxApi
+import com.flightlog.app.data.network.AviationStackApi
 import com.flightlog.app.data.network.FlightRouteService
 import com.flightlog.app.data.network.FlightRouteServiceImpl
 import com.squareup.moshi.Moshi
@@ -11,7 +11,6 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -22,19 +21,11 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "https://aerodatabox.p.rapidapi.com/"
+    private const val BASE_URL = "http://api.aviationstack.com/"
 
     @Provides
     @Singleton
     fun provideOkHttpClient(): OkHttpClient {
-        val headerInterceptor = Interceptor { chain ->
-            val request = chain.request().newBuilder()
-                .addHeader("X-RapidAPI-Key", BuildConfig.AERO_API_KEY)
-                .addHeader("X-RapidAPI-Host", "aerodatabox.p.rapidapi.com")
-                .build()
-            chain.proceed(request)
-        }
-
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BODY
@@ -44,7 +35,6 @@ object NetworkModule {
         }
 
         return OkHttpClient.Builder()
-            .addInterceptor(headerInterceptor)
             .addInterceptor(loggingInterceptor)
             .build()
     }
@@ -69,8 +59,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideAeroDataBoxApi(retrofit: Retrofit): AeroDataBoxApi {
-        return retrofit.create(AeroDataBoxApi::class.java)
+    fun provideAviationStackApi(retrofit: Retrofit): AviationStackApi {
+        return retrofit.create(AviationStackApi::class.java)
     }
 }
 

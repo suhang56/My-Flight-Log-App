@@ -21,8 +21,8 @@ android {
 
         buildConfigField(
             "String",
-            "AERO_API_KEY",
-            "\"${project.findProperty("AERO_API_KEY") ?: ""}\""
+            "AVIATION_STACK_KEY",
+            "\"${project.findProperty("AVIATION_STACK_KEY") ?: ""}\""
         )
     }
 

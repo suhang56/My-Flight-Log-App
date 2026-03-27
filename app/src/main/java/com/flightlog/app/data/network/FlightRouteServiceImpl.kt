@@ -1,27 +1,33 @@
 package com.flightlog.app.data.network
 
 import android.util.Log
+import com.flightlog.app.BuildConfig
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 class FlightRouteServiceImpl @Inject constructor(
-    private val api: AeroDataBoxApi
+    private val api: AviationStackApi
 ) : FlightRouteService {
 
     override suspend fun lookupRoute(flightNumber: String, date: LocalDate): FlightRoute? {
         return try {
-            val dateString = date.format(DateTimeFormatter.ISO_LOCAL_DATE)
-            val response = api.getFlightByNumber(flightNumber, dateString)
+            val response = api.getFlightByNumber(
+                accessKey = BuildConfig.AVIATION_STACK_KEY,
+                flightIata = flightNumber
+            )
 
             if (!response.isSuccessful) {
-                Log.w(TAG, "API returned ${response.code()} for $flightNumber on $dateString")
+                Log.w(TAG, "API returned ${response.code()} for $flightNumber")
                 return null
             }
 
-            val flight = response.body()?.firstOrNull() ?: return null
-            val departureIata = flight.departure?.airport?.iata
-            val arrivalIata = flight.arrival?.airport?.iata
+            val flight = response.body()?.data?.firstOrNull() ?: run {
+                Log.w(TAG, "No flight data returned for $flightNumber")
+                return null
+            }
+
+            val departureIata = flight.departure?.iata
+            val arrivalIata = flight.arrival?.iata
 
             if (departureIata != null && arrivalIata != null) {
                 FlightRoute(
