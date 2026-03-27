@@ -38,9 +38,6 @@ data class LogbookFilterState(
 }
 
 data class LogbookUiState(
-    val selectedFlight: LogbookFlight? = null,
-    val showDetailSheet: Boolean = false,
-    val showDeleteConfirmation: Boolean = false,
     val deletedFlight: LogbookFlight? = null,
     val snackbarMessage: String? = null
 )
@@ -133,37 +130,6 @@ class LogbookViewModel @Inject constructor(
         Instant.ofEpochMilli(flight.departureTimeUtc)
             .atZone(ZoneOffset.UTC)
             .year.toString()
-
-    fun selectFlight(flight: LogbookFlight) {
-        _uiState.update { it.copy(selectedFlight = flight, showDetailSheet = true) }
-    }
-
-    fun dismissDetailSheet() {
-        _uiState.update { it.copy(showDetailSheet = false, selectedFlight = null) }
-    }
-
-    fun requestDelete() {
-        _uiState.update { it.copy(showDeleteConfirmation = true) }
-    }
-
-    fun cancelDelete() {
-        _uiState.update { it.copy(showDeleteConfirmation = false) }
-    }
-
-    fun confirmDelete(flight: LogbookFlight) {
-        viewModelScope.launch {
-            repository.delete(flight.id)
-            _uiState.update {
-                it.copy(
-                    showDetailSheet = false,
-                    selectedFlight = null,
-                    showDeleteConfirmation = false,
-                    deletedFlight = flight,
-                    snackbarMessage = "Flight removed from logbook"
-                )
-            }
-        }
-    }
 
     fun undoDelete() {
         val flight = _uiState.value.deletedFlight ?: return

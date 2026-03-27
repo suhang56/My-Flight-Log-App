@@ -25,6 +25,8 @@ class LogbookRepository @Inject constructor(
 
     suspend fun getById(id: Long): LogbookFlight? = logbookFlightDao.getById(id)
 
+    fun getByIdFlow(id: Long): Flow<LogbookFlight?> = logbookFlightDao.getByIdFlow(id)
+
     fun getCount(): Flow<Int> = logbookFlightDao.getCount()
 
     fun getTotalDistanceNm(): Flow<Int> = logbookFlightDao.getTotalDistanceNm()

@@ -27,6 +27,10 @@ interface LogbookFlightDao {
     @Query("SELECT * FROM logbook_flights WHERE id = :id")
     suspend fun getById(id: Long): LogbookFlight?
 
+    /** Single flight by ID as a reactive Flow — used by FlightDetailScreen for live updates. */
+    @Query("SELECT * FROM logbook_flights WHERE id = :id")
+    fun getByIdFlow(id: Long): Flow<LogbookFlight?>
+
     /**
      * Returns true if a logbook entry already exists for the given calendar source.
      * Used to prevent duplicate "Add to Logbook" actions.

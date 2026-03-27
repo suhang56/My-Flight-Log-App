@@ -47,7 +47,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -58,7 +57,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -68,7 +66,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -82,7 +79,6 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.util.DATE_FORMATTER
-import com.flightlog.app.util.FULL_DATE_TIME_TZ_FORMATTER
 import com.flightlog.app.util.formatInZone
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,6 +86,7 @@ import com.flightlog.app.util.formatInZone
 fun LogbookScreen(
     onAddFlight: () -> Unit = {},
     onEditFlight: (Long) -> Unit = {},
+    onViewFlight: (Long) -> Unit = {},
     viewModel: LogbookViewModel = hiltViewModel(),
     exportViewModel: ExportViewModel = hiltViewModel()
 ) {
@@ -144,37 +141,6 @@ fun LogbookScreen(
             }
             else -> {}
         }
-    }
-
-    if (uiState.showDetailSheet && uiState.selectedFlight != null) {
-        LogbookDetailBottomSheet(
-            flight = uiState.selectedFlight!!,
-            onDismiss = viewModel::dismissDetailSheet,
-            onDelete = { viewModel.requestDelete() },
-            onEdit = { flight ->
-                viewModel.dismissDetailSheet()
-                onEditFlight(flight.id)
-            }
-        )
-    }
-
-    // Delete confirmation dialog
-    if (uiState.showDeleteConfirmation && uiState.selectedFlight != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.cancelDelete() },
-            title = { Text("Delete flight?") },
-            text = { Text("This will remove the flight from your logbook. You can undo this action briefly after deletion.") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.confirmDelete(uiState.selectedFlight!!) }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.cancelDelete() }) {
-                    Text("Cancel")
-                }
-            }
-        )
     }
 
     Scaffold(
@@ -353,7 +319,7 @@ fun LogbookScreen(
                         ) { flight ->
                             LogbookCard(
                                 flight = flight,
-                                onClick = { viewModel.selectFlight(flight) }
+                                onClick = { onViewFlight(flight.id) }
                             )
                         }
                     }
@@ -480,170 +446,6 @@ private fun LogbookCard(
                     )
                 }
             }
-        }
-    }
-}
-
-// ── Detail bottom sheet ─────────────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun LogbookDetailBottomSheet(
-    flight: LogbookFlight,
-    onDismiss: () -> Unit,
-    onDelete: (LogbookFlight) -> Unit,
-    onEdit: (LogbookFlight) -> Unit
-) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Text(
-                    text = flight.departureCode,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Icon(
-                    imageVector = Icons.Default.Flight,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(28.dp)
-                        .rotate(90f),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text(
-                    text = flight.arrivalCode,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (flight.flightNumber.isNotBlank()) {
-                Text(
-                    text = "Flight ${flight.flightNumber}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            Text(
-                text = formatInZone(flight.departureTimeUtc, flight.departureTimezone, FULL_DATE_TIME_TZ_FORMATTER),
-                style = MaterialTheme.typography.bodyLarge
-            )
-
-            flight.arrivalTimeUtc?.let { end ->
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Arrives: ${formatInZone(end, flight.arrivalTimezone, FULL_DATE_TIME_TZ_FORMATTER)}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            flight.arrivalTimeUtc?.let { end ->
-                val durationMinutes = ((end - flight.departureTimeUtc) / 60000).coerceAtLeast(0)
-                val hours = durationMinutes / 60
-                val minutes = durationMinutes % 60
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Duration: ${hours}h ${minutes}m",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            flight.distanceNm?.let { nm ->
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Distance: %,d NM".format(nm),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (flight.aircraftType.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Aircraft: ${flight.aircraftType}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            val seatInfo = listOfNotNull(
-                flight.seatClass.takeIf { it.isNotBlank() },
-                flight.seatNumber.takeIf { it.isNotBlank() }?.let { "Seat $it" }
-            ).joinToString(" \u2022 ")
-            if (seatInfo.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = seatInfo,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            if (flight.notes.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = flight.notes,
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { onDelete(flight) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-                Button(
-                    onClick = { onEdit(flight) },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Edit")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

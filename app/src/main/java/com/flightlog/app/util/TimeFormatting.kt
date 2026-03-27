@@ -17,6 +17,14 @@ val DATE_TIME_TZ_FORMATTER: DateTimeFormatter =
 val FULL_DATE_TIME_TZ_FORMATTER: DateTimeFormatter =
     DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy  HH:mm z", Locale.getDefault())
 
+/** Time with timezone only: "14:30 JST" */
+val TIME_TZ_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("HH:mm z", Locale.getDefault())
+
+/** Day of week + short date: "Thu, Mar 27" */
+val DAY_DATE_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEE, MMM d", Locale.getDefault())
+
 /** Formats epoch millis in the given IANA timezone, falling back to system default. */
 fun formatInZone(
     epochMillis: Long,
