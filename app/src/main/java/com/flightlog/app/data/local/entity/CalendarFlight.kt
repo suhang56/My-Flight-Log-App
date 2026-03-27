@@ -57,6 +57,12 @@ data class CalendarFlight(
     /** Epoch millis when this row was last written by the sync worker. */
     val syncedAt: Long = System.currentTimeMillis(),
 
+    /** IANA timezone of the departure airport, e.g. "America/Chicago". */
+    val departureTimezone: String? = null,
+
+    /** IANA timezone of the arrival airport, e.g. "America/New_York". */
+    val arrivalTimezone: String? = null,
+
     /** When true the card is hidden from lists without deleting the row. */
     val isManuallyDismissed: Boolean = false
 )

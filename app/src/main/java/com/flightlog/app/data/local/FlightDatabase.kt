@@ -9,7 +9,7 @@ import com.flightlog.app.data.local.entity.CalendarFlight
 
 @Database(
     entities = [CalendarFlight::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class FlightDatabase : RoomDatabase() {
@@ -24,6 +24,13 @@ abstract class FlightDatabase : RoomDatabase() {
                 db.execSQL("DROP INDEX IF EXISTS index_calendar_flights_calendarEventId")
                 // Create the new composite unique index.
                 db.execSQL("CREATE UNIQUE INDEX index_calendar_flights_calendarEventId_legIndex ON calendar_flights (calendarEventId, legIndex)")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE calendar_flights ADD COLUMN departureTimezone TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE calendar_flights ADD COLUMN arrivalTimezone TEXT DEFAULT NULL")
             }
         }
     }

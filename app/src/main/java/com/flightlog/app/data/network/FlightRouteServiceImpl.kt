@@ -13,7 +13,8 @@ class FlightRouteServiceImpl @Inject constructor(
         return try {
             val response = api.getFlightByNumber(
                 accessKey = BuildConfig.AVIATION_STACK_KEY,
-                flightIata = flightNumber
+                flightIata = flightNumber,
+                flightDate = date.toString()
             )
 
             if (!response.isSuccessful) {
@@ -33,7 +34,9 @@ class FlightRouteServiceImpl @Inject constructor(
                 FlightRoute(
                     flightNumber = flightNumber,
                     departureIata = departureIata,
-                    arrivalIata = arrivalIata
+                    arrivalIata = arrivalIata,
+                    departureTimezone = flight.departure?.timezone,
+                    arrivalTimezone = flight.arrival?.timezone
                 )
             } else {
                 Log.w(TAG, "Missing IATA codes in response for $flightNumber")

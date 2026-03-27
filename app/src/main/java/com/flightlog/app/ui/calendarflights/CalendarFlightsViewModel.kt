@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.repository.CalendarRepository
 import com.flightlog.app.data.repository.SyncResult
-import com.flightlog.app.util.toRelativeTimeLabel
+import com.flightlog.app.util.toRelativeElapsedLabel
 import com.flightlog.app.worker.CalendarSyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,7 +68,7 @@ data class CalendarFlightsUiState(
         SyncStatus.FAILED       -> "Sync failed -- tap to retry"
         SyncStatus.IDLE         -> {
             val millis = lastSyncedAtMillis ?: return "Never synced"
-            "Last synced: ${millis.toRelativeTimeLabel()}"
+            "Last synced: ${millis.toRelativeElapsedLabel()}"
         }
     }
 }

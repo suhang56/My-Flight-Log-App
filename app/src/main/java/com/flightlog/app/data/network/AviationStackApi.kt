@@ -10,7 +10,8 @@ interface AviationStackApi {
     @GET("v1/flights")
     suspend fun getFlightByNumber(
         @Query("access_key") accessKey: String,
-        @Query("flight_iata") flightIata: String
+        @Query("flight_iata") flightIata: String,
+        @Query("flight_date") flightDate: String? = null
     ): Response<AviationStackResponse>
 }
 
@@ -24,5 +25,6 @@ data class AviationStackFlight(
 )
 
 data class AviationStackEndpoint(
-    @Json(name = "iata") val iata: String?
+    @Json(name = "iata") val iata: String?,
+    @Json(name = "timezone") val timezone: String?
 )

@@ -9,5 +9,7 @@ interface FlightRouteService {
 data class FlightRoute(
     val flightNumber: String,
     val departureIata: String,
-    val arrivalIata: String
+    val arrivalIata: String,
+    val departureTimezone: String? = null,
+    val arrivalTimezone: String? = null
 )

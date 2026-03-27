@@ -2,6 +2,7 @@ package com.flightlog.app.data.local.dao
 
 import androidx.room.Dao
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Upsert
 import com.flightlog.app.data.local.entity.CalendarFlight
 import kotlinx.coroutines.flow.Flow
@@ -55,15 +56,33 @@ interface CalendarFlightDao {
     suspend fun getById(id: Long): CalendarFlight?
 
     /**
-     * Insert-or-replace all [flights] in a single transaction.
-     * Conflicts on the `calendarEventId` unique index cause a replace, effectively
-     * updating existing rows while preserving the autoGenerate primary key sequence.
+     * Low-level upsert keyed on the autoGenerate primary key.
+     * Callers must set [CalendarFlight.id] to the existing row's id (or 0 for new
+     * rows) before calling — otherwise autoGenerate always INSERTs, hitting the
+     * unique constraint on (calendarEventId, legIndex).
      *
-     * NOTE: This raw upsert overwrites ALL columns including isManuallyDismissed.
-     * Use [upsertPreservingDismissed] in sync flows to avoid un-dismissing flights.
+     * Prefer [upsertAll] which resolves existing IDs automatically.
      */
     @Upsert
-    suspend fun upsertAll(flights: List<CalendarFlight>)
+    suspend fun upsertAllRaw(flights: List<CalendarFlight>)
+
+    /** Returns the id for an existing row matching [calendarEventId] and [legIndex], or null. */
+    @Query("SELECT id FROM calendar_flights WHERE calendarEventId = :calendarEventId AND legIndex = :legIndex")
+    suspend fun findIdByEventAndLeg(calendarEventId: Long, legIndex: Int): Long?
+
+    /**
+     * Insert-or-update all [flights] in a single transaction.
+     * Resolves existing primary-key IDs via the (calendarEventId, legIndex) unique
+     * index so that @Upsert correctly UPDATEs rather than always INSERTing.
+     */
+    @Transaction
+    suspend fun upsertAll(flights: List<CalendarFlight>) {
+        val resolved = flights.map { flight ->
+            val existingId = findIdByEventAndLeg(flight.calendarEventId, flight.legIndex)
+            if (existingId != null) flight.copy(id = existingId) else flight
+        }
+        upsertAllRaw(resolved)
+    }
 
     /**
      * Returns the set of calendarEventIds that have been manually dismissed.

@@ -23,7 +23,7 @@ object DatabaseModule {
             FlightDatabase::class.java,
             "flight_log_db"
         )
-            .addMigrations(FlightDatabase.MIGRATION_1_2)
+            .addMigrations(FlightDatabase.MIGRATION_1_2, FlightDatabase.MIGRATION_2_3)
             .build()
     }
 

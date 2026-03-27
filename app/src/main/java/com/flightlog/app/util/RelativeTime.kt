@@ -42,6 +42,32 @@ fun Long.toRelativeTimeLabel(
 }
 
 /**
+ * Converts an epoch-millis timestamp to a human-readable elapsed-time label,
+ * suitable for "Last synced: ..." subtitles where precision matters more than
+ * calendar-day comparison.
+ *
+ * Rules:
+ *  - < 1 min     -> "Just now"
+ *  - 1-59 min    -> "N min ago"
+ *  - 1-23 hours  -> "N hr ago"
+ *  - >= 24 hours -> delegates to [toRelativeTimeLabel] for day-based labels
+ */
+fun Long.toRelativeElapsedLabel(
+    now: Long = System.currentTimeMillis()
+): String {
+    val deltaMillis = (now - this).coerceAtLeast(0)
+    val deltaMinutes = deltaMillis / 60_000
+    val deltaHours = deltaMinutes / 60
+
+    return when {
+        deltaMinutes < 1  -> "Just now"
+        deltaMinutes < 60 -> "$deltaMinutes min ago"
+        deltaHours < 24   -> "$deltaHours hr ago"
+        else              -> toRelativeTimeLabel(now)
+    }
+}
+
+/**
  * Convenience that accepts a [LocalDate] directly — useful in unit tests
  * where you want to control both the flight date and "today" without epoch math.
  */

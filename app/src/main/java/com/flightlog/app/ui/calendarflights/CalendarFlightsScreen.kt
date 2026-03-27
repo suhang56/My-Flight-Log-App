@@ -75,8 +75,9 @@ import androidx.core.app.ActivityCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.util.toRelativeTimeLabel
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 // ── Badge colors (exact spec values with light/dark variants) ──────────────────
@@ -397,6 +398,21 @@ private fun PermissionFullScreen(
     }
 }
 
+// ── Timezone-aware time formatting ──────────────────────────────────────────────
+
+private val DATE_TIME_TZ_FORMATTER = DateTimeFormatter.ofPattern("MMM d, yyyy  HH:mm z", Locale.getDefault())
+private val FULL_DATE_TIME_TZ_FORMATTER = DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy  HH:mm z", Locale.getDefault())
+
+/** Formats epoch millis in the given IANA timezone (e.g. "Asia/Tokyo"), with zone abbreviation. */
+private fun formatInZone(
+    epochMillis: Long,
+    ianaTimezone: String?,
+    formatter: DateTimeFormatter = DATE_TIME_TZ_FORMATTER
+): String {
+    val zone = ianaTimezone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneId.systemDefault()
+    return Instant.ofEpochMilli(epochMillis).atZone(zone).format(formatter)
+}
+
 // ── Flight card ────────────────────────────────────────────────────────────────
 
 @Composable
@@ -404,12 +420,10 @@ private fun FlightCard(
     flight: CalendarFlight,
     onClick: () -> Unit
 ) {
-    val now = remember { System.currentTimeMillis() }
+    val now = System.currentTimeMillis()
     val isUpcoming = flight.scheduledTime >= now
     val relativeLabel = flight.scheduledTime.toRelativeTimeLabel(now)
     val isToday = relativeLabel == "Today"
-
-    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy  HH:mm", Locale.getDefault()) }
 
     ElevatedCard(
         onClick = onClick,
@@ -452,7 +466,7 @@ private fun FlightCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = dateFormat.format(Date(flight.scheduledTime)),
+                    text = formatInZone(flight.scheduledTime, flight.departureTimezone),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -514,7 +528,6 @@ private fun FlightDetailBottomSheet(
     onDismissFlight: (CalendarFlight) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val dateFormat = remember { SimpleDateFormat("EEEE, MMM d, yyyy  HH:mm", Locale.getDefault()) }
     val relativeLabel = flight.scheduledTime.toRelativeTimeLabel()
 
     ModalBottomSheet(
@@ -585,14 +598,14 @@ private fun FlightDetailBottomSheet(
             }
 
             Text(
-                text = dateFormat.format(Date(flight.scheduledTime)),
+                text = formatInZone(flight.scheduledTime, flight.departureTimezone, FULL_DATE_TIME_TZ_FORMATTER),
                 style = MaterialTheme.typography.bodyLarge
             )
 
             flight.endTime?.let { end ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Arrives: ${dateFormat.format(Date(end))}",
+                    text = "Arrives: ${formatInZone(end, flight.arrivalTimezone, FULL_DATE_TIME_TZ_FORMATTER)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

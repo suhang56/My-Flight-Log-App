@@ -1,6 +1,7 @@
 package com.flightlog.app.data.repository
 
 import android.content.ContentResolver
+import com.flightlog.app.data.AirportTimezoneMap
 import com.flightlog.app.data.calendar.CalendarDataSource
 import com.flightlog.app.data.calendar.FlightEventParser
 import com.flightlog.app.data.local.dao.CalendarFlightDao
@@ -80,13 +81,19 @@ class CalendarRepository @Inject constructor(
                     description = event.description,
                     location    = event.location
                 )
-                val eventDate = Instant.ofEpochMilli(event.dtStart)
-                    .atZone(ZoneId.systemDefault())
-                    .toLocalDate()
-
                 parsedLegs.mapIndexed { legIndex, parsed ->
                     var depCode = parsed.departureCode
                     var arrCode = parsed.arrivalCode
+                    var depTz: String? = null
+                    var arrTz: String? = null
+
+                    // Use departure airport timezone for date computation when available.
+                    val depZone = if (depCode.isNotEmpty()) {
+                        AirportTimezoneMap.timezoneFor(depCode)?.let { ZoneId.of(it) }
+                    } else null
+                    val eventDate = Instant.ofEpochMilli(event.dtStart)
+                        .atZone(depZone ?: ZoneId.systemDefault())
+                        .toLocalDate()
 
                     // Resolve routes via API for legs missing airport codes.
                     if (depCode.isEmpty() && arrCode.isEmpty() && parsed.flightNumber.isNotEmpty()) {
@@ -94,19 +101,31 @@ class CalendarRepository @Inject constructor(
                         if (route != null) {
                             depCode = route.departureIata
                             arrCode = route.arrivalIata
+                            depTz = route.departureTimezone
+                            arrTz = route.arrivalTimezone
                         }
                     }
 
+                    // Resolve timezones: prefer API response, fall back to static map.
+                    if (depTz == null && depCode.isNotEmpty()) {
+                        depTz = AirportTimezoneMap.timezoneFor(depCode)
+                    }
+                    if (arrTz == null && arrCode.isNotEmpty()) {
+                        arrTz = AirportTimezoneMap.timezoneFor(arrCode)
+                    }
+
                     CalendarFlight(
-                        calendarEventId = event.eventId,
-                        legIndex        = legIndex,
-                        flightNumber    = parsed.flightNumber,
-                        departureCode   = depCode,
-                        arrivalCode     = arrCode,
-                        rawTitle        = event.title,
-                        scheduledTime   = event.dtStart,
-                        endTime         = event.dtEnd,
-                        syncedAt        = now
+                        calendarEventId   = event.eventId,
+                        legIndex          = legIndex,
+                        flightNumber      = parsed.flightNumber,
+                        departureCode     = depCode,
+                        arrivalCode       = arrCode,
+                        rawTitle          = event.title,
+                        scheduledTime     = event.dtStart,
+                        endTime           = event.dtEnd,
+                        departureTimezone = depTz,
+                        arrivalTimezone   = arrTz,
+                        syncedAt          = now
                     )
                 }
             }
