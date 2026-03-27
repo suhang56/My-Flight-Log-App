@@ -1,7 +1,9 @@
 package com.flightlog.app.data.export
 
 import com.squareup.moshi.Json
+import com.squareup.moshi.JsonClass
 
+@JsonClass(generateAdapter = true)
 data class LogbookFlightExport(
     val id: Long,
     val date: String,
@@ -22,6 +24,7 @@ data class LogbookFlightExport(
     val notes: String?
 )
 
+@JsonClass(generateAdapter = true)
 data class LogbookFlightExportWrapper(
     @Json(name = "exported_at") val exportedAt: String,
     @Json(name = "flight_count") val flightCount: Int,

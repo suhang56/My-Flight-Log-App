@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -43,7 +42,7 @@ class ExportServiceTest {
     @Before
     fun setUp() {
         val context: Context = ApplicationProvider.getApplicationContext()
-        moshi = Moshi.Builder().addLast(KotlinJsonAdapterFactory()).build()
+        moshi = Moshi.Builder().build()
         service = ExportService(context, moshi)
     }
 
@@ -295,7 +294,7 @@ class ExportServiceTest {
         )
         val file = service.exportToJson(listOf(flight))
         val json = file.readText(Charsets.UTF_8)
-        // KotlinJsonAdapterFactory may serialize null as "key": null or omit it — both acceptable
+        // Moshi codegen may serialize null as "key": null or omit it — both acceptable
         // Verify the key is either absent or null-valued
         val hasNullValue = json.contains("\"flight_number\": null")
         val hasNoKey = !json.contains("\"flight_number\"")
