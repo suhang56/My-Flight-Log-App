@@ -14,7 +14,7 @@ data class AirportCount(
 
 /** Flights per airline prefix (2-letter IATA, e.g. "AA", "NH"). */
 data class AirlineCount(
-    val airline: String,
+    val code: String,
     val count: Int
 )
 

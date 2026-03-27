@@ -32,7 +32,7 @@ import com.flightlog.app.ui.statistics.StatisticsScreen
 object Routes {
     const val CALENDAR_FLIGHTS = "calendar_flights"
     const val LOGBOOK = "logbook"
-    const val STATISTICS = "statistics"
+    const val STATISTICS = "stats"
     const val LOGBOOK_ADD = "logbook/add"
     const val LOGBOOK_EDIT = "logbook/edit/{flightId}"
 

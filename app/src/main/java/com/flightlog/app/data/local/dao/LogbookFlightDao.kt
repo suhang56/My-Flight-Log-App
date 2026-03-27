@@ -75,24 +75,37 @@ interface LogbookFlightDao {
     /** Total flight time in minutes (sum of arrival - departure for flights with both times). */
     @Query(
         """
-        SELECT COALESCE(SUM((arrivalTimeUtc - departureTimeUtc) / 60000), 0)
+        SELECT SUM((arrivalTimeUtc - departureTimeUtc) / 60000)
         FROM logbook_flights
         WHERE arrivalTimeUtc IS NOT NULL
         """
     )
-    fun getTotalFlightTimeMinutes(): Flow<Long>
+    fun getTotalDurationMinutes(): Flow<Long?>
 
-    /** Number of distinct airports visited (as departure or arrival), excluding empty codes. */
+    /** All distinct airport codes (departure + arrival), excluding empty strings. */
     @Query(
         """
-        SELECT COUNT(DISTINCT code) FROM (
+        SELECT code FROM (
             SELECT departureCode AS code FROM logbook_flights WHERE departureCode != ''
             UNION
             SELECT arrivalCode AS code FROM logbook_flights WHERE arrivalCode != ''
         )
         """
     )
-    fun getUniqueAirportCount(): Flow<Int>
+    fun getDistinctAirportCodes(): Flow<List<String>>
+
+    /** Airline prefixes (2-letter IATA from flightNumber), grouped by count descending. */
+    @Query(
+        """
+        SELECT UPPER(SUBSTR(flightNumber, 1, 2)) AS code,
+               COUNT(*) AS count
+        FROM logbook_flights
+        WHERE LENGTH(flightNumber) >= 2 AND flightNumber != ''
+        GROUP BY code
+        ORDER BY count DESC
+        """
+    )
+    fun getDistinctAirlinePrefixes(): Flow<List<AirlineCount>>
 
     /** Flights grouped by year-month (YYYY-MM), ordered chronologically. */
     @Query(
@@ -104,50 +117,45 @@ interface LogbookFlightDao {
         ORDER BY yearMonth ASC
         """
     )
-    fun getMonthlyFlightCounts(): Flow<List<MonthlyCount>>
+    fun getFlightsPerMonth(): Flow<List<MonthlyCount>>
 
-    /** Top airports by visit count (departure + arrival combined), descending. */
+    /** Top departure airports by count, descending. */
     @Query(
         """
-        SELECT code, SUM(cnt) AS count FROM (
-            SELECT departureCode AS code, COUNT(*) AS cnt
-            FROM logbook_flights WHERE departureCode != ''
-            GROUP BY departureCode
-            UNION ALL
-            SELECT arrivalCode AS code, COUNT(*) AS cnt
-            FROM logbook_flights WHERE arrivalCode != ''
-            GROUP BY arrivalCode
-        )
-        GROUP BY code
-        ORDER BY count DESC
-        """
-    )
-    fun getTopAirports(): Flow<List<AirportCount>>
-
-    /** Top airlines by 2-letter IATA prefix of flightNumber, excluding empty flight numbers. */
-    @Query(
-        """
-        SELECT UPPER(SUBSTR(flightNumber, 1, 2)) AS airline,
-               COUNT(*) AS count
+        SELECT departureCode AS code, COUNT(*) AS count
         FROM logbook_flights
-        WHERE LENGTH(flightNumber) >= 2 AND flightNumber != ''
-        GROUP BY airline
+        WHERE departureCode != ''
+        GROUP BY departureCode
         ORDER BY count DESC
+        LIMIT :limit
         """
     )
-    fun getTopAirlines(): Flow<List<AirlineCount>>
+    fun getTopDepartureAirports(limit: Int = 5): Flow<List<AirportCount>>
+
+    /** Top arrival airports by count, descending. */
+    @Query(
+        """
+        SELECT arrivalCode AS code, COUNT(*) AS count
+        FROM logbook_flights
+        WHERE arrivalCode != ''
+        GROUP BY arrivalCode
+        ORDER BY count DESC
+        LIMIT :limit
+        """
+    )
+    fun getTopArrivalAirports(limit: Int = 5): Flow<List<AirportCount>>
 
     /** Flights grouped by seat class, excluding empty values. */
     @Query(
         """
         SELECT seatClass AS label, COUNT(*) AS count
         FROM logbook_flights
-        WHERE seatClass != ''
+        WHERE seatClass IS NOT NULL AND seatClass != ''
         GROUP BY seatClass
         ORDER BY count DESC
         """
     )
-    fun getSeatClassDistribution(): Flow<List<LabelCount>>
+    fun getSeatClassBreakdown(): Flow<List<LabelCount>>
 
     /** Flights grouped by aircraft type, excluding empty values. */
     @Query(
@@ -163,5 +171,5 @@ interface LogbookFlightDao {
 
     /** Longest flight by distance. */
     @Query("SELECT * FROM logbook_flights WHERE distanceNm IS NOT NULL ORDER BY distanceNm DESC LIMIT 1")
-    fun getLongestFlight(): Flow<LogbookFlight?>
+    fun getLongestFlightByDistance(): Flow<LogbookFlight?>
 }

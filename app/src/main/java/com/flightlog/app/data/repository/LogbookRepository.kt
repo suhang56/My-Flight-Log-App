@@ -9,6 +9,7 @@ import com.flightlog.app.data.local.model.AirportCount
 import com.flightlog.app.data.local.model.LabelCount
 import com.flightlog.app.data.local.model.MonthlyCount
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -87,19 +88,41 @@ class LogbookRepository @Inject constructor(
 
     // ── Statistics ────────────────────────────────────────────────────────────
 
-    fun getTotalFlightTimeMinutes(): Flow<Long> = logbookFlightDao.getTotalFlightTimeMinutes()
+    fun getTotalDurationMinutes(): Flow<Long?> = logbookFlightDao.getTotalDurationMinutes()
 
-    fun getUniqueAirportCount(): Flow<Int> = logbookFlightDao.getUniqueAirportCount()
+    fun getDistinctAirportCodes(): Flow<List<String>> = logbookFlightDao.getDistinctAirportCodes()
 
-    fun getMonthlyFlightCounts(): Flow<List<MonthlyCount>> = logbookFlightDao.getMonthlyFlightCounts()
+    fun getFlightsPerMonth(): Flow<List<MonthlyCount>> = logbookFlightDao.getFlightsPerMonth()
 
-    fun getTopAirports(): Flow<List<AirportCount>> = logbookFlightDao.getTopAirports()
+    fun getTopDepartureAirports(limit: Int = 5): Flow<List<AirportCount>> =
+        logbookFlightDao.getTopDepartureAirports(limit)
 
-    fun getTopAirlines(): Flow<List<AirlineCount>> = logbookFlightDao.getTopAirlines()
+    fun getTopArrivalAirports(limit: Int = 5): Flow<List<AirportCount>> =
+        logbookFlightDao.getTopArrivalAirports(limit)
 
-    fun getSeatClassDistribution(): Flow<List<LabelCount>> = logbookFlightDao.getSeatClassDistribution()
+    /** Combines departure and arrival airport counts, sorted by total count descending. */
+    fun getTopAirports(limit: Int = 5): Flow<List<AirportCount>> =
+        combine(
+            logbookFlightDao.getTopDepartureAirports(limit * 2),
+            logbookFlightDao.getTopArrivalAirports(limit * 2)
+        ) { dep, arr ->
+            val combined = mutableMapOf<String, Int>()
+            dep.forEach { combined[it.code] = (combined[it.code] ?: 0) + it.count }
+            arr.forEach { combined[it.code] = (combined[it.code] ?: 0) + it.count }
+            combined.entries
+                .sortedByDescending { it.value }
+                .take(limit)
+                .map { AirportCount(it.key, it.value) }
+        }
 
-    fun getAircraftTypeDistribution(): Flow<List<LabelCount>> = logbookFlightDao.getAircraftTypeDistribution()
+    fun getDistinctAirlinePrefixes(): Flow<List<AirlineCount>> =
+        logbookFlightDao.getDistinctAirlinePrefixes()
 
-    fun getLongestFlight(): Flow<LogbookFlight?> = logbookFlightDao.getLongestFlight()
+    fun getSeatClassBreakdown(): Flow<List<LabelCount>> = logbookFlightDao.getSeatClassBreakdown()
+
+    fun getAircraftTypeDistribution(): Flow<List<LabelCount>> =
+        logbookFlightDao.getAircraftTypeDistribution()
+
+    fun getLongestFlightByDistance(): Flow<LogbookFlight?> =
+        logbookFlightDao.getLongestFlightByDistance()
 }

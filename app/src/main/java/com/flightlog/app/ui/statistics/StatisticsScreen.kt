@@ -32,25 +32,26 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.flightlog.app.data.local.entity.LogbookFlight
-import com.flightlog.app.data.local.model.AirlineCount
-import com.flightlog.app.data.local.model.AirportCount
 import com.flightlog.app.data.local.model.LabelCount
 import com.flightlog.app.data.local.model.MonthlyCount
 import com.flightlog.app.data.local.model.StatsData
+import java.time.YearMonth
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +65,7 @@ fun StatisticsScreen(
             TopAppBar(title = { Text("Statistics") })
         }
     ) { padding ->
-        if (stats.flightCount == 0) {
+        if (stats.isEmpty) {
             StatisticsEmptyState(
                 modifier = Modifier
                     .fillMaxSize()
@@ -84,7 +85,7 @@ fun StatisticsScreen(
                         MonthlyBarChart(stats.monthlyFlightCounts)
                     }
                 }
-                if (stats.topAirports.isNotEmpty()) {
+                if (stats.topAirports.size >= 2) {
                     item(key = "airports") {
                         TopListSection(
                             title = "Top Airports",
@@ -93,26 +94,26 @@ fun StatisticsScreen(
                         )
                     }
                 }
-                if (stats.topAirlines.isNotEmpty()) {
+                if (stats.topAirlines.size >= 2) {
                     item(key = "airlines") {
                         TopListSection(
                             title = "Top Airlines",
                             icon = Icons.Default.AirplanemodeActive,
-                            items = stats.topAirlines.take(5).map { it.airline to it.count }
+                            items = stats.topAirlines.take(5).map { it.code to it.count }
                         )
                     }
                 }
-                if (stats.longestFlight != null) {
+                if (stats.longestFlight?.distanceNm != null) {
                     item(key = "longest") {
                         LongestFlightCard(stats.longestFlight!!)
                     }
                 }
-                if (stats.seatClassDistribution.isNotEmpty()) {
+                if (stats.seatClassBreakdown.isNotEmpty()) {
                     item(key = "seats") {
-                        SeatClassBreakdown(stats.seatClassDistribution)
+                        SeatClassBreakdown(stats.seatClassBreakdown)
                     }
                 }
-                if (stats.aircraftTypeDistribution.isNotEmpty()) {
+                if (stats.aircraftTypeDistribution.size >= 2) {
                     item(key = "aircraft") {
                         TopListSection(
                             title = "Aircraft Types",
@@ -131,9 +132,13 @@ fun StatisticsScreen(
 
 @Composable
 private fun HeroStatsRow(stats: StatsData) {
-    val hours = stats.totalFlightTimeMinutes / 60
-    val minutes = stats.totalFlightTimeMinutes % 60
-    val timeLabel = if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+    val hours = stats.totalDurationMinutes / 60
+    val minutes = stats.totalDurationMinutes % 60
+    val timeLabel = when {
+        stats.totalDurationMinutes == 0L -> "\u2014"
+        hours > 0 -> "${hours}h ${minutes}m"
+        else -> "${minutes}m"
+    }
 
     Row(
         modifier = Modifier
@@ -148,7 +153,7 @@ private fun HeroStatsRow(stats: StatsData) {
         )
         HeroStatItem(
             icon = Icons.Default.Route,
-            value = "%,d".format(stats.totalDistanceNm),
+            value = if (stats.totalDistanceNm > 0) "%,d".format(stats.totalDistanceNm) else "\u2014",
             label = "NM"
         )
         HeroStatItem(
@@ -158,7 +163,7 @@ private fun HeroStatsRow(stats: StatsData) {
         )
         HeroStatItem(
             icon = Icons.Default.LocationOn,
-            value = "${stats.uniqueAirportCount}",
+            value = if (stats.uniqueAirportCount > 0) "${stats.uniqueAirportCount}" else "\u2014",
             label = if (stats.uniqueAirportCount == 1) "Airport" else "Airports"
         )
     }
@@ -193,8 +198,23 @@ private fun HeroStatItem(
 
 // ── Monthly bar chart ───────────────────────────────────────────────────────────
 
+private val MONTH_LABEL_FORMATTER = DateTimeFormatter.ofPattern("MMM", Locale.getDefault())
+
 @Composable
 private fun MonthlyBarChart(data: List<MonthlyCount>) {
+    // Zero-fill the last 12 months
+    val filledData = remember(data) {
+        val now = YearMonth.now()
+        val dataMap = data.associate { it.yearMonth to it.count }
+        (11 downTo 0).map { offset ->
+            val ym = now.minusMonths(offset.toLong())
+            val key = ym.toString() // "YYYY-MM"
+            MonthlyCount(key, dataMap[key] ?: 0)
+        }
+    }
+
+    val currentYearMonth = remember { YearMonth.now().toString() }
+
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(
@@ -204,53 +224,60 @@ private fun MonthlyBarChart(data: List<MonthlyCount>) {
             )
             Spacer(modifier = Modifier.height(12.dp))
 
-            val maxCount = data.maxOf { it.count }.coerceAtLeast(1)
-            val barColor = MaterialTheme.colorScheme.primary
-            val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+            val maxCount = filledData.maxOf { it.count }.coerceAtLeast(1)
+            val barColor = MaterialTheme.colorScheme.primaryContainer
+            val highlightColor = MaterialTheme.colorScheme.primary
 
             Canvas(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(140.dp)
             ) {
-                val barCount = data.size
-                if (barCount == 0) return@Canvas
-
+                val barCount = filledData.size
                 val barSpacing = 4.dp.toPx()
                 val totalSpacing = barSpacing * (barCount - 1)
                 val barWidth = ((size.width - totalSpacing) / barCount).coerceAtLeast(4f)
-                val chartHeight = size.height - 20.dp.toPx() // leave room for labels
+                val chartHeight = size.height
 
-                data.forEachIndexed { index, item ->
-                    val barHeight = (item.count.toFloat() / maxCount) * chartHeight
+                filledData.forEachIndexed { index, item ->
+                    val barHeight = if (item.count > 0)
+                        (item.count.toFloat() / maxCount) * chartHeight
+                    else
+                        0f
                     val x = index * (barWidth + barSpacing)
+                    val isCurrentMonth = item.yearMonth == currentYearMonth
+                    val color = if (isCurrentMonth) highlightColor else barColor
 
-                    drawRect(
-                        color = barColor,
-                        topLeft = Offset(x, chartHeight - barHeight),
-                        size = Size(barWidth, barHeight)
-                    )
+                    if (barHeight > 0) {
+                        drawRoundRect(
+                            color = color,
+                            topLeft = Offset(x, chartHeight - barHeight),
+                            size = Size(barWidth, barHeight),
+                            cornerRadius = CornerRadius(2.dp.toPx())
+                        )
+                    }
                 }
             }
 
-            // Month labels row
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Month labels — show every 3rd month to avoid crowding
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                val displayData = if (data.size > 6) {
-                    // Show first, middle, and last labels to avoid crowding
-                    listOf(data.first(), data[data.size / 2], data.last())
-                } else {
-                    data
-                }
-                displayData.forEach { item ->
-                    val shortLabel = item.yearMonth.takeLast(5) // "MM" from "YYYY-MM"
-                    Text(
-                        text = shortLabel,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = labelColor
-                    )
+                filledData.forEachIndexed { index, item ->
+                    if (index % 3 == 0 || index == filledData.lastIndex) {
+                        val ym = runCatching { YearMonth.parse(item.yearMonth) }.getOrNull()
+                        val label = ym?.format(MONTH_LABEL_FORMATTER) ?: item.yearMonth.takeLast(2)
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.width(1.dp))
+                    }
                 }
             }
         }
@@ -308,7 +335,11 @@ private fun TopListSection(
                                 .fillMaxWidth(fraction)
                                 .height(20.dp)
                         ) {
-                            drawRect(color = barColor, size = size)
+                            drawRoundRect(
+                                color = barColor,
+                                size = size,
+                                cornerRadius = CornerRadius(4.dp.toPx())
+                            )
                         }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
