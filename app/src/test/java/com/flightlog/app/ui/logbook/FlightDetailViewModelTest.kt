@@ -362,4 +362,5 @@ private class FakeDetailLogbookFlightDao : LogbookFlightDao {
     override fun getFirstFlight(): Flow<LogbookFlight?> = flowOf(null)
     override fun getDistinctYears(): Flow<List<String>> = flowOf(emptyList())
     override fun getDistinctSeatClasses(): Flow<List<String>> = flowOf(emptyList())
+    override suspend fun getMostRecentFlight(): LogbookFlight? = null
 }

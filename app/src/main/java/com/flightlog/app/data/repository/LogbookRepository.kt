@@ -31,6 +31,8 @@ class LogbookRepository @Inject constructor(
 
     fun getTotalDistanceNm(): Flow<Int> = logbookFlightDao.getTotalDistanceNm()
 
+    suspend fun getMostRecentFlight(): LogbookFlight? = logbookFlightDao.getMostRecentFlight()
+
     /**
      * Checks whether a [CalendarFlight] has already been added to the logbook.
      * Returns true if a matching (sourceCalendarEventId, sourceLegIndex) row exists.

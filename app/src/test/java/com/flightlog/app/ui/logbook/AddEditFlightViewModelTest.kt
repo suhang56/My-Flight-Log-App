@@ -559,4 +559,5 @@ private class FakeLogbookFlightDao : LogbookFlightDao {
     override fun getDistinctSeatClasses(): Flow<List<String>> = flowOf(emptyList())
     override suspend fun getAllOnce(): List<LogbookFlight> = emptyList()
     override fun getByIdFlow(id: Long): Flow<LogbookFlight?> = flowOf(null)
+    override suspend fun getMostRecentFlight(): LogbookFlight? = null
 }
