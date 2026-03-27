@@ -57,6 +57,10 @@ interface LogbookFlightDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(flight: LogbookFlight): Long
 
+    /** Insert or replace — used by undo-delete to restore a flight with its original ID. */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(flight: LogbookFlight): Long
+
     @Update
     suspend fun update(flight: LogbookFlight)
 
@@ -78,6 +82,7 @@ interface LogbookFlightDao {
         SELECT SUM((arrivalTimeUtc - departureTimeUtc) / 60000)
         FROM logbook_flights
         WHERE arrivalTimeUtc IS NOT NULL
+          AND arrivalTimeUtc > departureTimeUtc
         """
     )
     fun getTotalDurationMinutes(): Flow<Long?>

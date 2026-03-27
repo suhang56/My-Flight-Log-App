@@ -73,8 +73,8 @@ class LogbookViewModel @Inject constructor(
     fun undoDelete() {
         val flight = _uiState.value.deletedFlight ?: return
         viewModelScope.launch {
-            // Re-insert with id=0 so Room generates a new ID
-            repository.insert(flight.copy(id = 0))
+            // Upsert to preserve the original ID (and any sourceCalendarEventId link)
+            repository.upsert(flight)
             _uiState.update { it.copy(deletedFlight = null, snackbarMessage = null) }
         }
     }

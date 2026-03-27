@@ -205,7 +205,7 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                 repository.insert(flight)
             }
 
-            _form.update { it.copy(isSaving = false, savedSuccessfully = true) }
+            _form.update { it.copy(isSaving = false, savedSuccessfully = true, duplicateCheckPassed = false) }
         }
     }
 

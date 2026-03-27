@@ -49,6 +49,9 @@ class LogbookRepository @Inject constructor(
             calendarFlight.arrivalCode
         )
 
+        // Null-out arrival time if it's not after departure (bad calendar data / cross-midnight issue)
+        val safeArrivalUtc = calendarFlight.endTime?.takeIf { it > calendarFlight.scheduledTime }
+
         val logbookFlight = LogbookFlight(
             sourceCalendarEventId = calendarFlight.calendarEventId,
             sourceLegIndex = calendarFlight.legIndex,
@@ -56,7 +59,7 @@ class LogbookRepository @Inject constructor(
             departureCode = calendarFlight.departureCode,
             arrivalCode = calendarFlight.arrivalCode,
             departureTimeUtc = calendarFlight.scheduledTime,
-            arrivalTimeUtc = calendarFlight.endTime,
+            arrivalTimeUtc = safeArrivalUtc,
             departureTimezone = calendarFlight.departureTimezone,
             arrivalTimezone = calendarFlight.arrivalTimezone,
             distanceNm = distance
@@ -80,6 +83,9 @@ class LogbookRepository @Inject constructor(
     }
 
     suspend fun insert(flight: LogbookFlight): Long = logbookFlightDao.insert(flight)
+
+    /** Insert or replace — preserves the original ID on undo-delete. */
+    suspend fun upsert(flight: LogbookFlight): Long = logbookFlightDao.upsert(flight)
 
     suspend fun update(flight: LogbookFlight) =
         logbookFlightDao.update(flight.copy(updatedAt = System.currentTimeMillis()))
