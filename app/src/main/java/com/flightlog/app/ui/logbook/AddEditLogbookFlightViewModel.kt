@@ -137,6 +137,8 @@ class AddEditLogbookFlightViewModel @Inject constructor(
         searchJob = viewModelScope.launch {
             val route = try {
                 flightRouteService.lookupRoute(query, _form.value.flightSearchDate)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (_: Exception) {
                 null
             }
@@ -223,10 +225,11 @@ class AddEditLogbookFlightViewModel @Inject constructor(
 
             val distance = AirportCoordinatesMap.distanceNm(current.departureCode, current.arrivalCode)
 
-            if (editId != null && existingFlight != null) {
+            val existing = existingFlight
+            if (editId != null && existing != null) {
                 // copy() preserves id, sourceCalendarEventId, sourceLegIndex, and addedAt
                 // from the original flight — only user-editable fields are overwritten.
-                val updated = existingFlight!!.copy(
+                val updated = existing.copy(
                     flightNumber = current.flightNumber.trim(),
                     departureCode = current.departureCode.trim(),
                     arrivalCode = current.arrivalCode.trim(),

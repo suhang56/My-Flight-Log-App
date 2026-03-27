@@ -47,6 +47,8 @@ class WidgetRefreshWorker @AssistedInject constructor(
 
             FlightLogWidget().updateAll(applicationContext)
             Result.success()
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.retry()
         }

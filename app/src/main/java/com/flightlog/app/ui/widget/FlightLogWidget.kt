@@ -119,7 +119,7 @@ private fun SmallWidgetContent(
                 )
             } else {
                 Text(
-                    text = "$flightCount flights",
+                    text = "$flightCount ${if (flightCount == 1) "flight" else "flights"}",
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurface,
                         fontSize = 20.sp,
@@ -195,7 +195,7 @@ private fun MediumWidgetContent(
                     verticalAlignment = Alignment.Bottom
                 ) {
                     Text(
-                        text = "$flightCount flights",
+                        text = "$flightCount ${if (flightCount == 1) "flight" else "flights"}",
                         style = TextStyle(
                             color = GlanceTheme.colors.onSurface,
                             fontSize = 20.sp,
