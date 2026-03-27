@@ -11,7 +11,7 @@ import com.flightlog.app.data.local.entity.LogbookFlight
 
 @Database(
     entities = [CalendarFlight::class, LogbookFlight::class],
-    version = 4,
+    version = 5,
     exportSchema = true
 )
 abstract class FlightDatabase : RoomDatabase() {
@@ -64,6 +64,14 @@ abstract class FlightDatabase : RoomDatabase() {
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS index_logbook_flights_departureTimeUtc ON logbook_flights (departureTimeUtc)"
                 )
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE logbook_flights ADD COLUMN aircraftType TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE logbook_flights ADD COLUMN seatClass TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE logbook_flights ADD COLUMN seatNumber TEXT NOT NULL DEFAULT ''")
             }
         }
     }

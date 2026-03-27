@@ -52,6 +52,15 @@ data class LogbookFlight(
     /** Great-circle distance in nautical miles; null when coordinates are unknown. */
     val distanceNm: Int? = null,
 
+    /** Aircraft type, e.g. "Boeing 737-800". */
+    val aircraftType: String = "",
+
+    /** Seat class, e.g. "Economy", "Business", "First". */
+    val seatClass: String = "",
+
+    /** Seat number, e.g. "12A". */
+    val seatNumber: String = "",
+
     /** User-editable notes. */
     val notes: String = "",
 

@@ -15,17 +15,22 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.FlightTakeoff
 import androidx.compose.material.icons.filled.Route
+import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -68,6 +73,8 @@ private fun formatDateTime(epochMillis: Long, ianaTimezone: String?): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LogbookScreen(
+    onAddFlight: () -> Unit = {},
+    onEditFlight: (Long) -> Unit = {},
     viewModel: LogbookViewModel = hiltViewModel()
 ) {
     val flights by viewModel.flights.collectAsState()
@@ -79,21 +86,36 @@ fun LogbookScreen(
         LogbookDetailBottomSheet(
             flight = uiState.selectedFlight!!,
             onDismiss = viewModel::dismissDetailSheet,
-            onDelete = { viewModel.deleteFlight(it.id) }
+            onDelete = { viewModel.deleteFlight(it.id) },
+            onEdit = { flight ->
+                viewModel.dismissDetailSheet()
+                onEditFlight(flight.id)
+            }
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = { Text("Logbook") }
-        )
-
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("Logbook") })
+        },
+        floatingActionButton = {
+            FloatingActionButton(onClick = onAddFlight) {
+                Icon(Icons.Default.Add, contentDescription = "Add flight")
+            }
+        }
+    ) { padding ->
         if (flights.isEmpty()) {
-            LogbookEmptyState(modifier = Modifier.fillMaxSize())
+            LogbookEmptyState(
+                onAddFlight = onAddFlight,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            )
         } else {
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(padding)
             ) {
                 item(key = "stats") {
                     StatsRow(
@@ -241,7 +263,8 @@ private fun LogbookCard(
 private fun LogbookDetailBottomSheet(
     flight: LogbookFlight,
     onDismiss: () -> Unit,
-    onDelete: (LogbookFlight) -> Unit
+    onDelete: (LogbookFlight) -> Unit,
+    onEdit: (LogbookFlight) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -339,18 +362,35 @@ private fun LogbookDetailBottomSheet(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            OutlinedButton(
-                onClick = { onDelete(flight) },
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.error
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Remove from Logbook", color = MaterialTheme.colorScheme.error)
+                OutlinedButton(
+                    onClick = { onDelete(flight) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                        tint = MaterialTheme.colorScheme.error
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+                Button(
+                    onClick = { onEdit(flight) },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Edit,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Edit")
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -361,7 +401,10 @@ private fun LogbookDetailBottomSheet(
 // ── Empty state ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun LogbookEmptyState(modifier: Modifier = Modifier) {
+private fun LogbookEmptyState(
+    onAddFlight: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
     Box(
         modifier = modifier,
         contentAlignment = Alignment.Center
@@ -384,12 +427,22 @@ private fun LogbookEmptyState(modifier: Modifier = Modifier) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Tap \"Add to Logbook\" on any calendar flight to start building your logbook.",
+                text = "Tap \"Add to Logbook\" on any calendar flight, or use the + button to add one manually.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.outline,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 40.dp)
             )
+            Spacer(modifier = Modifier.height(16.dp))
+            Button(onClick = onAddFlight) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Add Flight")
+            }
         }
     }
 }

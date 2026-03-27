@@ -60,6 +60,8 @@ class LogbookRepository @Inject constructor(
         return logbookFlightDao.insert(logbookFlight)
     }
 
+    suspend fun insert(flight: LogbookFlight): Long = logbookFlightDao.insert(flight)
+
     suspend fun update(flight: LogbookFlight) = logbookFlightDao.update(flight)
 
     suspend fun delete(id: Long) = logbookFlightDao.deleteById(id)
