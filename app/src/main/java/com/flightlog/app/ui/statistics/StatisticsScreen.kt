@@ -362,6 +362,14 @@ private fun MonthlyBarChart(data: List<MonthlyCount>) {
             val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
             val density = LocalDensity.current
 
+            val textPaint = remember {
+                android.graphics.Paint().apply {
+                    textSize = 28f
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isAntiAlias = true
+                }
+            }
+
             val needsScroll = showAllTime && filledData.size > 24
             val scrollModifier = if (needsScroll) {
                 Modifier.horizontalScroll(rememberScrollState())
@@ -388,12 +396,6 @@ private fun MonthlyBarChart(data: List<MonthlyCount>) {
                     val chartHeight = size.height
                     val labelPadding = 2.dp.toPx()
 
-                    val textPaint = android.graphics.Paint().apply {
-                        textSize = 28f
-                        textAlign = android.graphics.Paint.Align.CENTER
-                        isAntiAlias = true
-                    }
-
                     filledData.forEachIndexed { index, item ->
                         val barHeight = if (item.count > 0)
                             (item.count.toFloat() / maxCount) * chartHeight
@@ -419,7 +421,8 @@ private fun MonthlyBarChart(data: List<MonthlyCount>) {
                             } else {
                                 onSurfaceColor.toArgb()
                             }
-                            val labelY = (chartHeight - barHeight - 4.dp.toPx()).coerceAtMost(chartHeight - labelPadding)
+                            val labelY = (chartHeight - barHeight - 4.dp.toPx())
+                                .coerceIn(textPaint.textSize, chartHeight - labelPadding)
                             drawContext.canvas.nativeCanvas.drawText(
                                 "${item.count}",
                                 x + barWidth / 2,
