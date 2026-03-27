@@ -205,4 +205,21 @@ interface LogbookFlightDao {
     /** First flight ever logged by departure time. */
     @Query("SELECT * FROM logbook_flights ORDER BY departureTimeUtc ASC LIMIT 1")
     fun getFirstFlight(): Flow<LogbookFlight?>
+
+    /** Distinct years present in the logbook (UTC-based), descending. */
+    @Query("""
+        SELECT DISTINCT strftime('%Y', departureTimeUtc / 1000, 'unixepoch') AS year
+        FROM logbook_flights
+        ORDER BY year DESC
+    """)
+    fun getDistinctYears(): Flow<List<String>>
+
+    /** Distinct seat class values present in the logbook, alphabetical. */
+    @Query("""
+        SELECT DISTINCT seatClass
+        FROM logbook_flights
+        WHERE seatClass IS NOT NULL AND seatClass != ''
+        ORDER BY seatClass ASC
+    """)
+    fun getDistinctSeatClasses(): Flow<List<String>>
 }
