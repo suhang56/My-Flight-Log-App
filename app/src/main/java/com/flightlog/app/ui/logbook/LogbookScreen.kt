@@ -1,5 +1,6 @@
 package com.flightlog.app.ui.logbook
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,23 +15,38 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.FlightTakeoff
 import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -44,11 +60,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -71,8 +91,12 @@ fun LogbookScreen(
     val flights by viewModel.flights.collectAsState()
     val flightCount by viewModel.flightCount.collectAsState()
     val totalDistanceNm by viewModel.totalDistanceNm.collectAsState()
+    val filterState by viewModel.filterState.collectAsState()
+    val availableYears by viewModel.availableYears.collectAsState()
+    val availableSeatClasses by viewModel.availableSeatClasses.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showSortMenu by remember { mutableStateOf(false) }
 
     // Undo-delete snackbar
     LaunchedEffect(uiState.snackbarMessage) {
@@ -123,7 +147,44 @@ fun LogbookScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Logbook") })
+            TopAppBar(
+                title = { Text("Logbook") },
+                actions = {
+                    if (filterState.isActive) {
+                        TextButton(onClick = { viewModel.clearFilters() }) {
+                            Text("Clear")
+                        }
+                    }
+                    Box {
+                        IconButton(onClick = { showSortMenu = true }) {
+                            Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort")
+                        }
+                        DropdownMenu(
+                            expanded = showSortMenu,
+                            onDismissRequest = { showSortMenu = false }
+                        ) {
+                            LogbookSortOrder.entries.forEach { order ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = order.displayName,
+                                            fontWeight = if (order == filterState.sortOrder)
+                                                FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    },
+                                    onClick = {
+                                        viewModel.setSortOrder(order)
+                                        showSortMenu = false
+                                    },
+                                    leadingIcon = if (order == filterState.sortOrder) {
+                                        { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                                    } else null
+                                )
+                            }
+                        }
+                    }
+                }
+            )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onAddFlight) {
@@ -132,33 +193,102 @@ fun LogbookScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        if (flights.isEmpty()) {
-            LogbookEmptyState(
-                onAddFlight = onAddFlight,
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            // Search bar — fixed above list
+            val focusManager = LocalFocusManager.current
+            OutlinedTextField(
+                value = filterState.searchQuery,
+                onValueChange = { viewModel.updateSearchQuery(it) },
+                placeholder = { Text("Search flights...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (filterState.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.updateSearchQuery("") }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                 modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             )
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.padding(padding)
-            ) {
-                item(key = "stats") {
-                    StatsRow(
-                        flightCount = flightCount,
-                        totalDistanceNm = totalDistanceNm
+
+            // Filter chips row
+            if (availableYears.isNotEmpty() || availableSeatClasses.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    availableYears.forEach { year ->
+                        FilterChip(
+                            selected = filterState.selectedYear == year,
+                            onClick = { viewModel.toggleYearFilter(year) },
+                            label = { Text(year) },
+                            leadingIcon = if (filterState.selectedYear == year) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                            } else null
+                        )
+                    }
+                    availableSeatClasses.forEach { seatClass ->
+                        FilterChip(
+                            selected = filterState.selectedSeatClass == seatClass,
+                            onClick = { viewModel.toggleSeatClassFilter(seatClass) },
+                            label = { Text(seatClass) },
+                            leadingIcon = if (filterState.selectedSeatClass == seatClass) {
+                                { Icon(Icons.Default.Check, contentDescription = null, modifier = Modifier.size(FilterChipDefaults.IconSize)) }
+                            } else null
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            // Content area
+            when {
+                flights.isEmpty() && !filterState.isActive -> {
+                    LogbookEmptyState(
+                        onAddFlight = onAddFlight,
+                        modifier = Modifier.fillMaxSize()
                     )
                 }
-                items(
-                    items = flights,
-                    key = { it.id }
-                ) { flight ->
-                    LogbookCard(
-                        flight = flight,
-                        onClick = { viewModel.selectFlight(flight) }
+                flights.isEmpty() && filterState.isActive -> {
+                    NoResultsState(
+                        onClearFilters = { viewModel.clearFilters() },
+                        modifier = Modifier.fillMaxSize()
                     )
+                }
+                else -> {
+                    LazyColumn(
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        item(key = "stats") {
+                            StatsRow(
+                                flightCount = flightCount,
+                                totalDistanceNm = totalDistanceNm,
+                                isFiltered = filterState.isActive
+                            )
+                        }
+                        items(
+                            items = flights,
+                            key = { it.id }
+                        ) { flight ->
+                            LogbookCard(
+                                flight = flight,
+                                onClick = { viewModel.selectFlight(flight) }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -170,8 +300,10 @@ fun LogbookScreen(
 @Composable
 private fun StatsRow(
     flightCount: Int,
-    totalDistanceNm: Int
+    totalDistanceNm: Int,
+    isFiltered: Boolean = false
 ) {
+    val suffix = if (isFiltered) " (filtered)" else ""
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -181,12 +313,12 @@ private fun StatsRow(
         StatItem(
             icon = Icons.Default.FlightTakeoff,
             value = "$flightCount",
-            label = if (flightCount == 1) "Flight" else "Flights"
+            label = (if (flightCount == 1) "Flight" else "Flights") + suffix
         )
         StatItem(
             icon = Icons.Default.Route,
             value = "%,d".format(totalDistanceNm),
-            label = "NM Total"
+            label = "NM Total$suffix"
         )
     }
 }
@@ -444,6 +576,55 @@ private fun LogbookDetailBottomSheet(
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+// ── No results state ────────────────────────────────────────────────────────────
+
+@Composable
+private fun NoResultsState(
+    onClearFilters: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.SearchOff,
+                contentDescription = null,
+                modifier = Modifier.size(64.dp),
+                tint = MaterialTheme.colorScheme.outlineVariant
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = "No flights match your search",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Try adjusting your search or filters.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.outline,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 40.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            OutlinedButton(onClick = onClearFilters) {
+                Icon(
+                    imageVector = Icons.Default.Clear,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Clear Filters")
+            }
         }
     }
 }

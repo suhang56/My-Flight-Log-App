@@ -141,4 +141,8 @@ class LogbookRepository @Inject constructor(
 
     fun getFirstFlight(): Flow<LogbookFlight?> =
         logbookFlightDao.getFirstFlight()
+
+    fun getDistinctYears(): Flow<List<String>> = logbookFlightDao.getDistinctYears()
+
+    fun getDistinctSeatClasses(): Flow<List<String>> = logbookFlightDao.getDistinctSeatClasses()
 }
