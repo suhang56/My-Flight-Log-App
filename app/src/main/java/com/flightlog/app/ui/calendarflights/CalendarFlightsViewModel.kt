@@ -16,7 +16,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 // -- Permission state --
@@ -171,7 +173,7 @@ class CalendarFlightsViewModel @Inject constructor(
             _isRefreshing.value = true
             _uiState.update { it.copy(syncStatus = SyncStatus.SYNCING, syncMessage = null) }
 
-            when (val result = repository.syncFromCalendar(contentResolver)) {
+            when (val result = withContext(Dispatchers.IO) { repository.syncFromCalendar(contentResolver) }) {
                 is SyncResult.Success -> {
                     val msg = when {
                         result.syncedCount == 0 && result.removedCount == 0 -> "No flights found"
