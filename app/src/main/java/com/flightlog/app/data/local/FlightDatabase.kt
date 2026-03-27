@@ -11,7 +11,7 @@ import com.flightlog.app.data.local.entity.LogbookFlight
 
 @Database(
     entities = [CalendarFlight::class, LogbookFlight::class],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class FlightDatabase : RoomDatabase() {
@@ -72,6 +72,12 @@ abstract class FlightDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE logbook_flights ADD COLUMN aircraftType TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE logbook_flights ADD COLUMN seatClass TEXT NOT NULL DEFAULT ''")
                 db.execSQL("ALTER TABLE logbook_flights ADD COLUMN seatNumber TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE logbook_flights ADD COLUMN updatedAt INTEGER DEFAULT NULL")
             }
         }
     }

@@ -11,6 +11,12 @@ import androidx.room.PrimaryKey
  * The [sourceCalendarEventId] + [sourceLegIndex] pair links back to the original
  * calendar row and prevents duplicate imports.
  */
+/**
+ * Note on the unique index: SQLite treats each NULL pair as distinct, so manually created
+ * flights (sourceCalendarEventId=NULL, sourceLegIndex=NULL) will never conflict with each
+ * other via this index. This is intentional — manual flights are de-duplicated at the UI
+ * level via a same-route-and-date warning, not a hard database constraint.
+ */
 @Entity(
     tableName = "logbook_flights",
     indices = [
@@ -65,5 +71,8 @@ data class LogbookFlight(
     val notes: String = "",
 
     /** Epoch millis when this row was added to the logbook. */
-    val addedAt: Long = System.currentTimeMillis()
+    val addedAt: Long = System.currentTimeMillis(),
+
+    /** Epoch millis when this row was last updated; null if never edited. */
+    val updatedAt: Long? = null
 )

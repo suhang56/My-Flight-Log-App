@@ -60,9 +60,24 @@ class LogbookRepository @Inject constructor(
         return logbookFlightDao.insert(logbookFlight)
     }
 
+    /**
+     * Returns true if a flight with the same route and UTC departure day already exists.
+     * [excludeId] allows the current flight to be ignored (for edit mode).
+     */
+    suspend fun existsByRouteAndDate(
+        depCode: String,
+        arrCode: String,
+        departureTimeUtc: Long,
+        excludeId: Long? = null
+    ): Boolean {
+        val utcDay = departureTimeUtc / 86400000
+        return logbookFlightDao.existsByRouteAndDate(depCode, arrCode, utcDay, excludeId)
+    }
+
     suspend fun insert(flight: LogbookFlight): Long = logbookFlightDao.insert(flight)
 
-    suspend fun update(flight: LogbookFlight) = logbookFlightDao.update(flight)
+    suspend fun update(flight: LogbookFlight) =
+        logbookFlightDao.update(flight.copy(updatedAt = System.currentTimeMillis()))
 
     suspend fun delete(id: Long) = logbookFlightDao.deleteById(id)
 }

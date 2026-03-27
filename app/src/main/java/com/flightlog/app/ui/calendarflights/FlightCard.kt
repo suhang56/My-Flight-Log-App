@@ -22,12 +22,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.flightlog.app.data.local.entity.CalendarFlight
+import com.flightlog.app.util.DATE_TIME_TZ_FORMATTER
+import com.flightlog.app.util.FULL_DATE_TIME_TZ_FORMATTER
+import com.flightlog.app.util.formatInZone
 import com.flightlog.app.util.toRelativeTimeLabel
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 // ── Badge colors (exact spec values with light/dark variants) ──────────────────
 
@@ -47,24 +48,6 @@ internal object BadgeColors {
     val upcomingTextDark = Color(0xFF0D1B2A)
     val pastBgDark = Color(0xFF424242)
     val pastTextDark = Color(0xFFBDBDBD)
-}
-
-// ── Timezone-aware time formatting ──────────────────────────────────────────────
-
-internal val DATE_TIME_TZ_FORMATTER: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("MMM d, yyyy  HH:mm z", Locale.getDefault())
-
-internal val FULL_DATE_TIME_TZ_FORMATTER: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy  HH:mm z", Locale.getDefault())
-
-/** Formats epoch millis in the given IANA timezone (e.g. "Asia/Tokyo"), with zone abbreviation. */
-internal fun formatInZone(
-    epochMillis: Long,
-    ianaTimezone: String?,
-    formatter: DateTimeFormatter = DATE_TIME_TZ_FORMATTER
-): String {
-    val zone = ianaTimezone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneId.systemDefault()
-    return Instant.ofEpochMilli(epochMillis).atZone(zone).format(formatter)
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────

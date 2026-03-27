@@ -27,6 +27,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.flightlog.app.data.local.entity.CalendarFlight
+import com.flightlog.app.util.FULL_DATE_TIME_TZ_FORMATTER
+import com.flightlog.app.util.formatInZone
 import com.flightlog.app.util.toRelativeTimeLabel
 
 @OptIn(ExperimentalMaterial3Api::class)

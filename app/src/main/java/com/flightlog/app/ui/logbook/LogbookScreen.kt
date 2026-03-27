@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.FlightTakeoff
 import androidx.compose.material.icons.filled.Route
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -31,12 +32,19 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -49,26 +57,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.flightlog.app.data.local.entity.LogbookFlight
-import java.time.Instant
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
-import java.util.Locale
-
-private val DATE_FORMATTER: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
-
-private val FULL_DATE_TIME_FORMATTER: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy  HH:mm z", Locale.getDefault())
-
-private fun formatDate(epochMillis: Long, ianaTimezone: String?): String {
-    val zone = ianaTimezone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneId.systemDefault()
-    return Instant.ofEpochMilli(epochMillis).atZone(zone).format(DATE_FORMATTER)
-}
-
-private fun formatDateTime(epochMillis: Long, ianaTimezone: String?): String {
-    val zone = ianaTimezone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneId.systemDefault()
-    return Instant.ofEpochMilli(epochMillis).atZone(zone).format(FULL_DATE_TIME_FORMATTER)
-}
+import com.flightlog.app.util.DATE_FORMATTER
+import com.flightlog.app.util.FULL_DATE_TIME_TZ_FORMATTER
+import com.flightlog.app.util.formatInZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,15 +72,51 @@ fun LogbookScreen(
     val flightCount by viewModel.flightCount.collectAsState()
     val totalDistanceNm by viewModel.totalDistanceNm.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Undo-delete snackbar
+    LaunchedEffect(uiState.snackbarMessage) {
+        uiState.snackbarMessage?.let { msg ->
+            val result = snackbarHostState.showSnackbar(
+                message = msg,
+                actionLabel = if (uiState.deletedFlight != null) "Undo" else null,
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                viewModel.undoDelete()
+            } else {
+                viewModel.clearSnackbar()
+            }
+        }
+    }
 
     if (uiState.showDetailSheet && uiState.selectedFlight != null) {
         LogbookDetailBottomSheet(
             flight = uiState.selectedFlight!!,
             onDismiss = viewModel::dismissDetailSheet,
-            onDelete = { viewModel.deleteFlight(it.id) },
+            onDelete = { viewModel.requestDelete() },
             onEdit = { flight ->
                 viewModel.dismissDetailSheet()
                 onEditFlight(flight.id)
+            }
+        )
+    }
+
+    // Delete confirmation dialog
+    if (uiState.showDeleteConfirmation && uiState.selectedFlight != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.cancelDelete() },
+            title = { Text("Delete flight?") },
+            text = { Text("This will remove the flight from your logbook. You can undo this action briefly after deletion.") },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmDelete(uiState.selectedFlight!!) }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.cancelDelete() }) {
+                    Text("Cancel")
+                }
             }
         )
     }
@@ -102,7 +129,8 @@ fun LogbookScreen(
             FloatingActionButton(onClick = onAddFlight) {
                 Icon(Icons.Default.Add, contentDescription = "Add flight")
             }
-        }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
         if (flights.isEmpty()) {
             LogbookEmptyState(
@@ -229,7 +257,7 @@ private fun LogbookCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = formatDate(flight.departureTimeUtc, flight.departureTimezone),
+                    text = formatInZone(flight.departureTimeUtc, flight.departureTimezone, DATE_FORMATTER),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -318,14 +346,14 @@ private fun LogbookDetailBottomSheet(
             }
 
             Text(
-                text = formatDateTime(flight.departureTimeUtc, flight.departureTimezone),
+                text = formatInZone(flight.departureTimeUtc, flight.departureTimezone, FULL_DATE_TIME_TZ_FORMATTER),
                 style = MaterialTheme.typography.bodyLarge
             )
 
             flight.arrivalTimeUtc?.let { end ->
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Arrives: ${formatDateTime(end, flight.arrivalTimezone)}",
+                    text = "Arrives: ${formatInZone(end, flight.arrivalTimezone, FULL_DATE_TIME_TZ_FORMATTER)}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -347,6 +375,28 @@ private fun LogbookDetailBottomSheet(
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Distance: %,d NM".format(nm),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            if (flight.aircraftType.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Aircraft: ${flight.aircraftType}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            val seatInfo = listOfNotNull(
+                flight.seatClass.takeIf { it.isNotBlank() },
+                flight.seatNumber.takeIf { it.isNotBlank() }?.let { "Seat $it" }
+            ).joinToString(" \u2022 ")
+            if (seatInfo.isNotBlank()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = seatInfo,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

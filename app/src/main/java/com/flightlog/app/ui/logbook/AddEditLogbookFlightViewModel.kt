@@ -34,7 +34,9 @@ data class AddEditFormState(
     val isSaving: Boolean = false,
     val savedSuccessfully: Boolean = false,
     val departureCodeError: String? = null,
-    val arrivalCodeError: String? = null
+    val arrivalCodeError: String? = null,
+    val duplicateWarning: String? = null,
+    val duplicateCheckPassed: Boolean = false
 )
 
 @HiltViewModel
@@ -89,18 +91,27 @@ class AddEditLogbookFlightViewModel @Inject constructor(
 
     fun updateFlightNumber(value: String) { _form.update { it.copy(flightNumber = value) } }
     fun updateDepartureCode(value: String) {
-        _form.update { it.copy(departureCode = value.uppercase(), departureCodeError = null) }
+        _form.update { it.copy(departureCode = value.uppercase(), departureCodeError = null, duplicateCheckPassed = false) }
     }
     fun updateArrivalCode(value: String) {
-        _form.update { it.copy(arrivalCode = value.uppercase(), arrivalCodeError = null) }
+        _form.update { it.copy(arrivalCode = value.uppercase(), arrivalCodeError = null, duplicateCheckPassed = false) }
     }
-    fun updateDate(value: LocalDate) { _form.update { it.copy(date = value) } }
+    fun updateDate(value: LocalDate) { _form.update { it.copy(date = value, duplicateCheckPassed = false) } }
     fun updateDepartureTime(value: LocalTime) { _form.update { it.copy(departureTime = value) } }
     fun updateArrivalTime(value: LocalTime?) { _form.update { it.copy(arrivalTime = value) } }
     fun updateAircraftType(value: String) { _form.update { it.copy(aircraftType = value) } }
     fun updateSeatClass(value: String) { _form.update { it.copy(seatClass = value) } }
     fun updateSeatNumber(value: String) { _form.update { it.copy(seatNumber = value) } }
     fun updateNotes(value: String) { _form.update { it.copy(notes = value) } }
+
+    fun dismissDuplicateWarning() {
+        _form.update { it.copy(duplicateWarning = null) }
+    }
+
+    fun confirmSaveDespiteDuplicate() {
+        _form.update { it.copy(duplicateWarning = null, duplicateCheckPassed = true) }
+        save()
+    }
 
     fun save() {
         val current = _form.value
@@ -137,9 +148,30 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                 arrDate.atTime(arrTime).atZone(arrZone).toInstant().toEpochMilli()
             }
 
+            // Duplicate guard: warn if same route + same UTC day already exists
+            if (!current.duplicateCheckPassed) {
+                val isDuplicate = repository.existsByRouteAndDate(
+                    depCode = current.departureCode.trim(),
+                    arrCode = current.arrivalCode.trim(),
+                    departureTimeUtc = departureUtc,
+                    excludeId = editId
+                )
+                if (isDuplicate) {
+                    _form.update {
+                        it.copy(
+                            isSaving = false,
+                            duplicateWarning = "A flight ${current.departureCode} \u2192 ${current.arrivalCode} on this date already exists in your logbook."
+                        )
+                    }
+                    return@launch
+                }
+            }
+
             val distance = AirportCoordinatesMap.distanceNm(current.departureCode, current.arrivalCode)
 
             if (editId != null && existingFlight != null) {
+                // copy() preserves id, sourceCalendarEventId, sourceLegIndex, and addedAt
+                // from the original flight — only user-editable fields are overwritten.
                 val updated = existingFlight!!.copy(
                     flightNumber = current.flightNumber.trim(),
                     departureCode = current.departureCode.trim(),

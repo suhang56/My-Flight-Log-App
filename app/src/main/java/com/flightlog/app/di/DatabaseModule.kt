@@ -28,7 +28,8 @@ object DatabaseModule {
                 FlightDatabase.MIGRATION_1_2,
                 FlightDatabase.MIGRATION_2_3,
                 FlightDatabase.MIGRATION_3_4,
-                FlightDatabase.MIGRATION_4_5
+                FlightDatabase.MIGRATION_4_5,
+                FlightDatabase.MIGRATION_5_6
             )
             .build()
     }

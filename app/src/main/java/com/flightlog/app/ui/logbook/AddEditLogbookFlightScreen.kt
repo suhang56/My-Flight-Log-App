@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -69,9 +70,49 @@ fun AddEditLogbookFlightScreen(
     viewModel: AddEditLogbookFlightViewModel = hiltViewModel()
 ) {
     val form by viewModel.form.collectAsState()
+    var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     LaunchedEffect(form.savedSuccessfully) {
         if (form.savedSuccessfully) onNavigateBack()
+    }
+
+    form.duplicateWarning?.let { warning ->
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissDuplicateWarning() },
+            title = { Text("Possible duplicate") },
+            text = { Text(warning) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.confirmSaveDespiteDuplicate() }) {
+                    Text("Save Anyway")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.dismissDuplicateWarning() }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showDeleteConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = false },
+            title = { Text("Delete flight?") },
+            text = { Text("This will permanently remove the flight from your logbook.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteConfirmation = false
+                    viewModel.delete()
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -232,7 +273,7 @@ fun AddEditLogbookFlightScreen(
             if (form.isEditMode) {
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedButton(
-                    onClick = { viewModel.delete() },
+                    onClick = { showDeleteConfirmation = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Icon(
