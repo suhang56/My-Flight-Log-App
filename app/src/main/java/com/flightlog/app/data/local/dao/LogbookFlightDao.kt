@@ -83,6 +83,10 @@ interface LogbookFlightDao {
     @Query("SELECT COALESCE(SUM(distanceNm), 0) FROM logbook_flights")
     fun getTotalDistanceNm(): Flow<Int>
 
+    /** Most recent flight by departure time — used by widget worker for one-shot read. */
+    @Query("SELECT * FROM logbook_flights ORDER BY departureTimeUtc DESC LIMIT 1")
+    suspend fun getMostRecentFlight(): LogbookFlight?
+
     // ── Statistics queries ───────────────────────────────────────────────────────
 
     /** Total flight time in minutes (sum of arrival - departure for flights with both times). */

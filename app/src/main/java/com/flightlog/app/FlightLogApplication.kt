@@ -3,6 +3,7 @@ package com.flightlog.app
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.flightlog.app.ui.widget.WidgetRefreshWorker
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
@@ -16,4 +17,9 @@ class FlightLogApplication : Application(), Configuration.Provider {
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
+
+    override fun onCreate() {
+        super.onCreate()
+        WidgetRefreshWorker.enqueuePeriodic(this)
+    }
 }

@@ -45,3 +45,6 @@
 # Keep line number info for crash reports
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
+
+# ── Glance (Home Screen Widget) ───────────────────────────────────────────
+-keep class androidx.glance.** { *; }
