@@ -1,0 +1,28 @@
+# Node
+node_modules/
+dist/
+
+# Android
+*.iml
+.gradle/
+/local.properties
+.idea/
+*.apk
+*.aab
+*.ap_
+*.dex
+/build/
+/app/build/
+/android/app/build/
+/android/build/
+/android/.gradle/
+/android/local.properties
+/android/.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.local
