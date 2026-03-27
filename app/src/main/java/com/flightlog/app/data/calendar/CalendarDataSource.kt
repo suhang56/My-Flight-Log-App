@@ -7,18 +7,6 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Raw calendar event as read from the device ContentProvider before any flight-specific parsing.
- */
-data class RawCalendarEvent(
-    val eventId: Long,
-    val title: String,
-    val description: String,
-    val location: String,
-    val dtStart: Long,   // epoch millis (DTSTART)
-    val dtEnd: Long?     // epoch millis (DTEND); null when absent or zero
-)
-
-/**
  * ContentResolver wrapper that queries CalendarContract.Events.
  *
  * Query window: events starting within the last 30 days through 90 days in the future.

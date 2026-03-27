@@ -10,7 +10,7 @@ import com.flightlog.app.data.local.entity.CalendarFlight
 @Database(
     entities = [CalendarFlight::class],
     version = 3,
-    exportSchema = false
+    exportSchema = true
 )
 abstract class FlightDatabase : RoomDatabase() {
     abstract fun calendarFlightDao(): CalendarFlightDao

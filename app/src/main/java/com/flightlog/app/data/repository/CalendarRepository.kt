@@ -4,6 +4,8 @@ import android.content.ContentResolver
 import com.flightlog.app.data.AirportTimezoneMap
 import com.flightlog.app.data.calendar.CalendarDataSource
 import com.flightlog.app.data.calendar.FlightEventParser
+import com.flightlog.app.data.calendar.ParsedFlight
+import com.flightlog.app.data.calendar.RawCalendarEvent
 import com.flightlog.app.data.local.dao.CalendarFlightDao
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.network.FlightRouteService
@@ -12,12 +14,6 @@ import java.time.Instant
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
-
-/** Outcome of a [CalendarRepository.syncFromCalendar] call. */
-sealed class SyncResult {
-    data class Success(val syncedCount: Int, val removedCount: Int) : SyncResult()
-    data class Error(val message: String, val cause: Throwable? = null) : SyncResult()
-}
 
 /**
  * Single source of truth for calendar-derived flight data.
@@ -82,51 +78,7 @@ class CalendarRepository @Inject constructor(
                     location    = event.location
                 )
                 parsedLegs.mapIndexed { legIndex, parsed ->
-                    var depCode = parsed.departureCode
-                    var arrCode = parsed.arrivalCode
-                    var depTz: String? = null
-                    var arrTz: String? = null
-
-                    // Use departure airport timezone for date computation when available.
-                    val depZone = if (depCode.isNotEmpty()) {
-                        AirportTimezoneMap.timezoneFor(depCode)?.let { ZoneId.of(it) }
-                    } else null
-                    val eventDate = Instant.ofEpochMilli(event.dtStart)
-                        .atZone(depZone ?: ZoneId.systemDefault())
-                        .toLocalDate()
-
-                    // Resolve routes via API for legs missing airport codes.
-                    if (depCode.isEmpty() && arrCode.isEmpty() && parsed.flightNumber.isNotEmpty()) {
-                        val route = flightRouteService.lookupRoute(parsed.flightNumber, eventDate)
-                        if (route != null) {
-                            depCode = route.departureIata
-                            arrCode = route.arrivalIata
-                            depTz = route.departureTimezone
-                            arrTz = route.arrivalTimezone
-                        }
-                    }
-
-                    // Resolve timezones: prefer API response, fall back to static map.
-                    if (depTz == null && depCode.isNotEmpty()) {
-                        depTz = AirportTimezoneMap.timezoneFor(depCode)
-                    }
-                    if (arrTz == null && arrCode.isNotEmpty()) {
-                        arrTz = AirportTimezoneMap.timezoneFor(arrCode)
-                    }
-
-                    CalendarFlight(
-                        calendarEventId   = event.eventId,
-                        legIndex          = legIndex,
-                        flightNumber      = parsed.flightNumber,
-                        departureCode     = depCode,
-                        arrivalCode       = arrCode,
-                        rawTitle          = event.title,
-                        scheduledTime     = event.dtStart,
-                        endTime           = event.dtEnd,
-                        departureTimezone = depTz,
-                        arrivalTimezone   = arrTz,
-                        syncedAt          = now
-                    )
+                    resolveFlight(event, parsed, legIndex, now)
                 }
             }
 
@@ -165,5 +117,64 @@ class CalendarRepository @Inject constructor(
         } catch (e: Exception) {
             SyncResult.Error("Sync failed: ${e.message}", e)
         }
+    }
+
+    /**
+     * Resolves a single parsed leg into a [CalendarFlight] entity.
+     *
+     * Fills in missing airport codes via [FlightRouteService] and resolves
+     * timezones from the API response or the static [AirportTimezoneMap].
+     */
+    private suspend fun resolveFlight(
+        event: RawCalendarEvent,
+        parsed: ParsedFlight,
+        legIndex: Int,
+        syncTimestamp: Long
+    ): CalendarFlight {
+        var depCode = parsed.departureCode
+        var arrCode = parsed.arrivalCode
+        var depTz: String? = null
+        var arrTz: String? = null
+
+        // Use departure airport timezone for date computation when available.
+        val depZone = if (depCode.isNotEmpty()) {
+            AirportTimezoneMap.timezoneFor(depCode)?.let { ZoneId.of(it) }
+        } else null
+        val eventDate = Instant.ofEpochMilli(event.dtStart)
+            .atZone(depZone ?: ZoneId.systemDefault())
+            .toLocalDate()
+
+        // Resolve routes via API for legs missing airport codes.
+        if (depCode.isEmpty() && arrCode.isEmpty() && parsed.flightNumber.isNotEmpty()) {
+            val route = flightRouteService.lookupRoute(parsed.flightNumber, eventDate)
+            if (route != null) {
+                depCode = route.departureIata
+                arrCode = route.arrivalIata
+                depTz = route.departureTimezone
+                arrTz = route.arrivalTimezone
+            }
+        }
+
+        // Resolve timezones: prefer API response, fall back to static map.
+        if (depTz == null && depCode.isNotEmpty()) {
+            depTz = AirportTimezoneMap.timezoneFor(depCode)
+        }
+        if (arrTz == null && arrCode.isNotEmpty()) {
+            arrTz = AirportTimezoneMap.timezoneFor(arrCode)
+        }
+
+        return CalendarFlight(
+            calendarEventId   = event.eventId,
+            legIndex          = legIndex,
+            flightNumber      = parsed.flightNumber,
+            departureCode     = depCode,
+            arrivalCode       = arrCode,
+            rawTitle          = event.title,
+            scheduledTime     = event.dtStart,
+            endTime           = event.dtEnd,
+            departureTimezone = depTz,
+            arrivalTimezone   = arrTz,
+            syncedAt          = syncTimestamp
+        )
     }
 }

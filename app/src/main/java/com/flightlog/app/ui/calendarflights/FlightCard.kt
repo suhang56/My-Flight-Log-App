@@ -1,0 +1,201 @@
+package com.flightlog.app.ui.calendarflights
+
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.flightlog.app.data.local.entity.CalendarFlight
+import com.flightlog.app.util.toRelativeTimeLabel
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+// ── Badge colors (exact spec values with light/dark variants) ──────────────────
+
+internal object BadgeColors {
+    // Light mode
+    val todayBgLight = Color(0xFF1565C0)
+    val todayTextLight = Color.White
+    val upcomingBgLight = Color(0xFF2E7D32)
+    val upcomingTextLight = Color.White
+    val pastBgLight = Color(0xFFE0E0E0)
+    val pastTextLight = Color(0xFF616161)
+
+    // Dark mode
+    val todayBgDark = Color(0xFF42A5F5)
+    val todayTextDark = Color(0xFF0D1B2A)
+    val upcomingBgDark = Color(0xFF66BB6A)
+    val upcomingTextDark = Color(0xFF0D1B2A)
+    val pastBgDark = Color(0xFF424242)
+    val pastTextDark = Color(0xFFBDBDBD)
+}
+
+// ── Timezone-aware time formatting ──────────────────────────────────────────────
+
+internal val DATE_TIME_TZ_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MMM d, yyyy  HH:mm z", Locale.getDefault())
+
+internal val FULL_DATE_TIME_TZ_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("EEEE, MMM d, yyyy  HH:mm z", Locale.getDefault())
+
+/** Formats epoch millis in the given IANA timezone (e.g. "Asia/Tokyo"), with zone abbreviation. */
+internal fun formatInZone(
+    epochMillis: Long,
+    ianaTimezone: String?,
+    formatter: DateTimeFormatter = DATE_TIME_TZ_FORMATTER
+): String {
+    val zone = ianaTimezone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneId.systemDefault()
+    return Instant.ofEpochMilli(epochMillis).atZone(zone).format(formatter)
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────────
+
+/**
+ * "Today" flights appear in BOTH tabs. Merge them into each tab's list.
+ */
+internal fun flightsForTab(
+    tab: FlightTab,
+    upcoming: List<CalendarFlight>,
+    past: List<CalendarFlight>
+): List<CalendarFlight> {
+    val today = LocalDate.now()
+    val todayFlights = (upcoming + past).distinctBy { it.id }.filter {
+        Instant.ofEpochMilli(it.scheduledTime).atZone(ZoneId.systemDefault()).toLocalDate() == today
+    }
+    return when (tab) {
+        FlightTab.UPCOMING -> {
+            val ids = upcoming.map { it.id }.toSet()
+            val missing = todayFlights.filter { it.id !in ids }
+            (upcoming + missing).sortedBy { it.scheduledTime }
+        }
+        FlightTab.PAST -> {
+            val ids = past.map { it.id }.toSet()
+            val missing = todayFlights.filter { it.id !in ids }
+            (missing + past).sortedByDescending { it.scheduledTime }
+        }
+    }
+}
+
+// ── Flight card ────────────────────────────────────────────────────────────────
+
+@Composable
+internal fun FlightCard(
+    flight: CalendarFlight,
+    onClick: () -> Unit
+) {
+    val now = System.currentTimeMillis()
+    val isUpcoming = flight.scheduledTime >= now
+    val relativeLabel = flight.scheduledTime.toRelativeTimeLabel(now)
+    val isToday = relativeLabel == "Today"
+
+    ElevatedCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                if (flight.flightNumber.isNotBlank()) {
+                    Text(
+                        text = flight.flightNumber,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+
+                val routeText = if (flight.departureCode.isBlank() && flight.arrivalCode.isBlank()) {
+                    "Route pending"
+                } else {
+                    "${flight.departureCode}  \u2192  ${flight.arrivalCode}"
+                }
+                Text(
+                    text = routeText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (flight.departureCode.isBlank() && flight.arrivalCode.isBlank())
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    else
+                        Color.Unspecified
+                )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = formatInZone(flight.scheduledTime, flight.departureTimezone),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            RelativeTimeBadge(
+                label = relativeLabel,
+                isUpcoming = isUpcoming,
+                isToday = isToday
+            )
+        }
+    }
+}
+
+// ── Relative time badge with exact spec colors (light + dark) ──────────────────
+
+@Composable
+private fun RelativeTimeBadge(
+    label: String,
+    isUpcoming: Boolean,
+    isToday: Boolean
+) {
+    val isDark = isSystemInDarkTheme()
+
+    val containerColor = when {
+        isToday -> if (isDark) BadgeColors.todayBgDark else BadgeColors.todayBgLight
+        isUpcoming -> if (isDark) BadgeColors.upcomingBgDark else BadgeColors.upcomingBgLight
+        else -> if (isDark) BadgeColors.pastBgDark else BadgeColors.pastBgLight
+    }
+    val contentColor = when {
+        isToday -> if (isDark) BadgeColors.todayTextDark else BadgeColors.todayTextLight
+        isUpcoming -> if (isDark) BadgeColors.upcomingTextDark else BadgeColors.upcomingTextLight
+        else -> if (isDark) BadgeColors.pastTextDark else BadgeColors.pastTextLight
+    }
+
+    Surface(
+        shape = RoundedCornerShape(8.dp),
+        color = containerColor
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = contentColor,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+        )
+    }
+}
