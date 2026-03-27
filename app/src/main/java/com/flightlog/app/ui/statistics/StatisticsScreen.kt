@@ -99,7 +99,7 @@ fun StatisticsScreen(
                         TopListSection(
                             title = "Top Airlines",
                             icon = Icons.Default.AirplanemodeActive,
-                            items = stats.topAirlines.take(5).map { it.code to it.count }
+                            items = stats.topAirlines.take(5).map { it.airline to it.count }
                         )
                     }
                 }

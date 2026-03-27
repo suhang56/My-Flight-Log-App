@@ -97,11 +97,11 @@ interface LogbookFlightDao {
     /** Airline prefixes (2-letter IATA from flightNumber), grouped by count descending. */
     @Query(
         """
-        SELECT UPPER(SUBSTR(flightNumber, 1, 2)) AS code,
+        SELECT UPPER(SUBSTR(flightNumber, 1, 2)) AS airline,
                COUNT(*) AS count
         FROM logbook_flights
         WHERE LENGTH(flightNumber) >= 2 AND flightNumber != ''
-        GROUP BY code
+        GROUP BY airline
         ORDER BY count DESC
         """
     )
