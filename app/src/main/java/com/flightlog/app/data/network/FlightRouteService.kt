@@ -11,5 +11,8 @@ data class FlightRoute(
     val departureIata: String,
     val arrivalIata: String,
     val departureTimezone: String? = null,
-    val arrivalTimezone: String? = null
+    val arrivalTimezone: String? = null,
+    val departureScheduledUtc: Long? = null,
+    val arrivalScheduledUtc: Long? = null,
+    val aircraftType: String? = null
 )

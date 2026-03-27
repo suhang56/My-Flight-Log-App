@@ -3,6 +3,7 @@ package com.flightlog.app.data.network
 import android.util.Log
 import com.flightlog.app.BuildConfig
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import javax.inject.Inject
 
 class FlightRouteServiceImpl @Inject constructor(
@@ -33,12 +34,20 @@ class FlightRouteServiceImpl @Inject constructor(
             val arrivalIata = flight.arrival?.iata
 
             if (departureIata != null && arrivalIata != null) {
+                val depUtc = parseScheduledToUtc(flight.departure?.scheduled)
+                val arrUtc = parseScheduledToUtc(flight.arrival?.scheduled)
+                val aircraft = flight.aircraft?.iata?.takeIf { it.isNotBlank() }
+                    ?: flight.aircraft?.icao?.takeIf { it.isNotBlank() }
+
                 FlightRoute(
                     flightNumber = flightNumber,
                     departureIata = departureIata,
                     arrivalIata = arrivalIata,
                     departureTimezone = flight.departure?.timezone,
-                    arrivalTimezone = flight.arrival?.timezone
+                    arrivalTimezone = flight.arrival?.timezone,
+                    departureScheduledUtc = depUtc,
+                    arrivalScheduledUtc = arrUtc,
+                    aircraftType = aircraft
                 )
             } else {
                 Log.w(TAG, "Missing IATA codes in response for $flightNumber")
@@ -49,6 +58,9 @@ class FlightRouteServiceImpl @Inject constructor(
             null
         }
     }
+
+    private fun parseScheduledToUtc(iso: String?): Long? =
+        iso?.let { runCatching { OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() }
 
     companion object {
         private const val TAG = "FlightRouteService"

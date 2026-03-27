@@ -30,6 +30,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AddEditFlightViewModelTest {
@@ -491,6 +494,141 @@ class AddEditFlightViewModelTest {
         assertTrue(vm.form.value.autoFillApplied)
         assertFalse(vm.form.value.isSearching)
         assertFalse(vm.form.value.duplicateCheckPassed)
+    }
+
+    // ── Search enrichment: times + aircraft auto-fill ─────────────────────────
+
+    @Test
+    fun `enrichment - departure and arrival times auto-filled from API`() = runTest {
+        // 2026-03-27T18:20:00+09:00 JST → 09:20 UTC → 18:20 local in Asia/Tokyo
+        val depUtc = OffsetDateTime.of(2026, 3, 27, 9, 20, 0, 0, ZoneOffset.UTC)
+            .toInstant().toEpochMilli()
+        // 2026-03-27T20:45:00+09:00 JST → 11:45 UTC → 20:45 local in Asia/Tokyo
+        val arrUtc = OffsetDateTime.of(2026, 3, 27, 11, 45, 0, 0, ZoneOffset.UTC)
+            .toInstant().toEpochMilli()
+
+        fakeFlightRouteService.result = FlightRoute(
+            flightNumber = "JL5",
+            departureIata = "NRT",
+            arrivalIata = "HND",
+            departureTimezone = "Asia/Tokyo",
+            arrivalTimezone = "Asia/Tokyo",
+            departureScheduledUtc = depUtc,
+            arrivalScheduledUtc = arrUtc,
+            aircraftType = "B77W"
+        )
+        val vm = createViewModel()
+        vm.updateFlightSearchQuery("JL5")
+        vm.searchFlight()
+        advanceUntilIdle()
+
+        assertEquals(LocalTime.of(18, 20), vm.form.value.departureTime)
+        assertEquals(LocalTime.of(20, 45), vm.form.value.arrivalTime)
+        assertEquals("B77W", vm.form.value.aircraftType)
+    }
+
+    @Test
+    fun `enrichment - null departure scheduled keeps form default time`() = runTest {
+        fakeFlightRouteService.result = FlightRoute(
+            flightNumber = "JL5",
+            departureIata = "NRT",
+            arrivalIata = "HND",
+            departureScheduledUtc = null,
+            arrivalScheduledUtc = null,
+            aircraftType = null
+        )
+        val vm = createViewModel()
+        val defaultDepTime = vm.form.value.departureTime
+        val defaultArrTime = vm.form.value.arrivalTime
+        val defaultAircraft = vm.form.value.aircraftType
+
+        vm.updateFlightSearchQuery("JL5")
+        vm.searchFlight()
+        advanceUntilIdle()
+
+        assertEquals(defaultDepTime, vm.form.value.departureTime)
+        assertEquals(defaultArrTime, vm.form.value.arrivalTime)
+        assertEquals(defaultAircraft, vm.form.value.aircraftType)
+    }
+
+    @Test
+    fun `enrichment - null aircraft keeps user pre-filled value`() = runTest {
+        fakeFlightRouteService.result = FlightRoute(
+            flightNumber = "JL5",
+            departureIata = "NRT",
+            arrivalIata = "HND",
+            aircraftType = null
+        )
+        val vm = createViewModel()
+        vm.updateAircraftType("A320")
+        vm.updateFlightSearchQuery("JL5")
+        vm.searchFlight()
+        advanceUntilIdle()
+
+        assertEquals("A320", vm.form.value.aircraftType)
+    }
+
+    @Test
+    fun `enrichment - API aircraft overwrites user value when non-null`() = runTest {
+        fakeFlightRouteService.result = FlightRoute(
+            flightNumber = "JL5",
+            departureIata = "NRT",
+            arrivalIata = "HND",
+            aircraftType = "B789"
+        )
+        val vm = createViewModel()
+        vm.updateAircraftType("A320")
+        vm.updateFlightSearchQuery("JL5")
+        vm.searchFlight()
+        advanceUntilIdle()
+
+        assertEquals("B789", vm.form.value.aircraftType)
+    }
+
+    @Test
+    fun `enrichment - null timezone falls back to system default without crash`() = runTest {
+        val depUtc = OffsetDateTime.of(2026, 3, 27, 12, 0, 0, 0, ZoneOffset.UTC)
+            .toInstant().toEpochMilli()
+        fakeFlightRouteService.result = FlightRoute(
+            flightNumber = "JL5",
+            departureIata = "NRT",
+            arrivalIata = "HND",
+            departureTimezone = null,
+            arrivalTimezone = null,
+            departureScheduledUtc = depUtc,
+            arrivalScheduledUtc = null
+        )
+        val vm = createViewModel()
+        vm.updateFlightSearchQuery("JL5")
+        vm.searchFlight()
+        advanceUntilIdle()
+
+        // Should not crash; time is converted using system default zone
+        assertFalse(vm.form.value.isSearching)
+        assertTrue(vm.form.value.autoFillApplied)
+        assertNotNull(vm.form.value.departureTime)
+    }
+
+    @Test
+    fun `enrichment - only departure time filled when arrival is null`() = runTest {
+        val depUtc = OffsetDateTime.of(2026, 3, 27, 9, 20, 0, 0, ZoneOffset.UTC)
+            .toInstant().toEpochMilli()
+        fakeFlightRouteService.result = FlightRoute(
+            flightNumber = "JL5",
+            departureIata = "NRT",
+            arrivalIata = "HND",
+            departureTimezone = "Asia/Tokyo",
+            arrivalTimezone = "Asia/Tokyo",
+            departureScheduledUtc = depUtc,
+            arrivalScheduledUtc = null
+        )
+        val vm = createViewModel()
+        vm.updateFlightSearchQuery("JL5")
+        vm.searchFlight()
+        advanceUntilIdle()
+
+        assertEquals(LocalTime.of(18, 20), vm.form.value.departureTime)
+        assertNull(vm.form.value.arrivalTime)
     }
 }
 

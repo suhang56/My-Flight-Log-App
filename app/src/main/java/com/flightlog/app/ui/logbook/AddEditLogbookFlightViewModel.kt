@@ -143,6 +143,13 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                 null
             }
             if (route != null) {
+                val depZone = route.departureTimezone
+                    ?.let { tz -> runCatching { ZoneId.of(tz) }.getOrNull() }
+                    ?: ZoneId.systemDefault()
+                val arrZone = route.arrivalTimezone
+                    ?.let { tz -> runCatching { ZoneId.of(tz) }.getOrNull() }
+                    ?: ZoneId.systemDefault()
+
                 _form.update {
                     it.copy(
                         isSearching = false,
@@ -150,6 +157,13 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                         departureCode = route.departureIata,
                         arrivalCode = route.arrivalIata,
                         date = it.flightSearchDate,
+                        departureTime = route.departureScheduledUtc
+                            ?.let { ms -> Instant.ofEpochMilli(ms).atZone(depZone).toLocalTime() }
+                            ?: it.departureTime,
+                        arrivalTime = route.arrivalScheduledUtc
+                            ?.let { ms -> Instant.ofEpochMilli(ms).atZone(arrZone).toLocalTime() }
+                            ?: it.arrivalTime,
+                        aircraftType = route.aircraftType ?: it.aircraftType,
                         autoFillApplied = true,
                         duplicateCheckPassed = false
                     )

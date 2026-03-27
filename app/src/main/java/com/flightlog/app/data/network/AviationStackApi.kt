@@ -24,11 +24,19 @@ data class AviationStackResponse(
 @JsonClass(generateAdapter = true)
 data class AviationStackFlight(
     @Json(name = "departure") val departure: AviationStackEndpoint?,
-    @Json(name = "arrival") val arrival: AviationStackEndpoint?
+    @Json(name = "arrival") val arrival: AviationStackEndpoint?,
+    @Json(name = "aircraft") val aircraft: AviationStackAircraft?
 )
 
 @JsonClass(generateAdapter = true)
 data class AviationStackEndpoint(
     @Json(name = "iata") val iata: String?,
-    @Json(name = "timezone") val timezone: String?
+    @Json(name = "timezone") val timezone: String?,
+    @Json(name = "scheduled") val scheduled: String?
+)
+
+@JsonClass(generateAdapter = true)
+data class AviationStackAircraft(
+    @Json(name = "iata") val iata: String?,
+    @Json(name = "icao") val icao: String?
 )
