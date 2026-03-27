@@ -89,6 +89,9 @@ class LogbookViewModel @Inject constructor(
         list.sumOf { it.distanceNm ?: 0 }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
+    val totalFlightCount: StateFlow<Int> = allFlights.map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
     private val _uiState = MutableStateFlow(LogbookUiState())
     val uiState: StateFlow<LogbookUiState> = _uiState.asStateFlow()
 

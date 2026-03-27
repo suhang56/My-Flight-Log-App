@@ -20,6 +20,10 @@ interface LogbookFlightDao {
     @Query("SELECT * FROM logbook_flights ORDER BY departureTimeUtc DESC, id DESC")
     fun getAll(): Flow<List<LogbookFlight>>
 
+    /** All logbook entries ordered chronologically (oldest first) — one-shot for export. */
+    @Query("SELECT * FROM logbook_flights ORDER BY departureTimeUtc ASC")
+    suspend fun getAllOnce(): List<LogbookFlight>
+
     @Query("SELECT * FROM logbook_flights WHERE id = :id")
     suspend fun getById(id: Long): LogbookFlight?
 
