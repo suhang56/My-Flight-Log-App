@@ -26,6 +26,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
 import com.flightlog.app.ui.calendarflights.CalendarFlightsScreen
 import com.flightlog.app.ui.logbook.AddEditLogbookFlightScreen
+import com.flightlog.app.ui.logbook.FlightDetailScreen
 import com.flightlog.app.ui.logbook.LogbookScreen
 import com.flightlog.app.ui.statistics.StatisticsScreen
 
@@ -35,8 +36,10 @@ object Routes {
     const val STATISTICS = "stats"
     const val LOGBOOK_ADD = "logbook/add"
     const val LOGBOOK_EDIT = "logbook/edit/{flightId}"
+    const val LOGBOOK_DETAIL = "logbook/detail/{flightId}"
 
     fun logbookEdit(flightId: Long) = "logbook/edit/$flightId"
+    fun logbookDetail(flightId: Long) = "logbook/detail/$flightId"
 }
 
 private data class BottomNavItem(
@@ -68,7 +71,7 @@ private val bottomNavItems = listOf(
 )
 
 /** Routes that should hide the bottom navigation bar. */
-private val hideBottomBarRoutes = setOf(Routes.LOGBOOK_ADD, Routes.LOGBOOK_EDIT)
+private val hideBottomBarRoutes = setOf(Routes.LOGBOOK_ADD, Routes.LOGBOOK_EDIT, Routes.LOGBOOK_DETAIL)
 
 @Composable
 fun FlightNavGraph(navController: NavHostController) {
@@ -117,7 +120,8 @@ fun FlightNavGraph(navController: NavHostController) {
             composable(Routes.LOGBOOK) {
                 LogbookScreen(
                     onAddFlight = { navController.navigate(Routes.LOGBOOK_ADD) },
-                    onEditFlight = { id -> navController.navigate(Routes.logbookEdit(id)) }
+                    onEditFlight = { id -> navController.navigate(Routes.logbookEdit(id)) },
+                    onViewFlight = { id -> navController.navigate(Routes.logbookDetail(id)) }
                 )
             }
             composable(Routes.STATISTICS) {
@@ -134,6 +138,15 @@ fun FlightNavGraph(navController: NavHostController) {
             ) {
                 AddEditLogbookFlightScreen(
                     onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(
+                route = Routes.LOGBOOK_DETAIL,
+                arguments = listOf(navArgument("flightId") { type = NavType.LongType })
+            ) {
+                FlightDetailScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToEdit = { id -> navController.navigate(Routes.logbookEdit(id)) }
                 )
             }
         }

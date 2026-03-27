@@ -590,4 +590,5 @@ private class FakeSearchLogbookFlightDao : LogbookFlightDao {
     override fun getDistinctYears(): Flow<List<String>> = flowOf(distinctYears)
     override fun getDistinctSeatClasses(): Flow<List<String>> = flowOf(distinctSeatClasses)
     override suspend fun getAllOnce(): List<LogbookFlight> = allFlightsFlow.value
+    override fun getByIdFlow(id: Long): Flow<LogbookFlight?> = flowOf(allFlightsFlow.value.find { it.id == id })
 }
