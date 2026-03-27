@@ -2,8 +2,10 @@ package com.flightlog.app.ui.navigation
 
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Icon
@@ -25,10 +27,12 @@ import androidx.navigation.navArgument
 import com.flightlog.app.ui.calendarflights.CalendarFlightsScreen
 import com.flightlog.app.ui.logbook.AddEditLogbookFlightScreen
 import com.flightlog.app.ui.logbook.LogbookScreen
+import com.flightlog.app.ui.statistics.StatisticsScreen
 
 object Routes {
     const val CALENDAR_FLIGHTS = "calendar_flights"
     const val LOGBOOK = "logbook"
+    const val STATISTICS = "statistics"
     const val LOGBOOK_ADD = "logbook/add"
     const val LOGBOOK_EDIT = "logbook/edit/{flightId}"
 
@@ -54,6 +58,12 @@ private val bottomNavItems = listOf(
         label = "Logbook",
         selectedIcon = Icons.Filled.Book,
         unselectedIcon = Icons.Outlined.Book
+    ),
+    BottomNavItem(
+        route = Routes.STATISTICS,
+        label = "Stats",
+        selectedIcon = Icons.Filled.BarChart,
+        unselectedIcon = Icons.Outlined.BarChart
     )
 )
 
@@ -109,6 +119,9 @@ fun FlightNavGraph(navController: NavHostController) {
                     onAddFlight = { navController.navigate(Routes.LOGBOOK_ADD) },
                     onEditFlight = { id -> navController.navigate(Routes.logbookEdit(id)) }
                 )
+            }
+            composable(Routes.STATISTICS) {
+                StatisticsScreen()
             }
             composable(Routes.LOGBOOK_ADD) {
                 AddEditLogbookFlightScreen(

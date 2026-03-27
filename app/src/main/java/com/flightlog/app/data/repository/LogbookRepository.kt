@@ -4,6 +4,10 @@ import com.flightlog.app.data.AirportCoordinatesMap
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.data.local.model.AirlineCount
+import com.flightlog.app.data.local.model.AirportCount
+import com.flightlog.app.data.local.model.LabelCount
+import com.flightlog.app.data.local.model.MonthlyCount
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -80,4 +84,22 @@ class LogbookRepository @Inject constructor(
         logbookFlightDao.update(flight.copy(updatedAt = System.currentTimeMillis()))
 
     suspend fun delete(id: Long) = logbookFlightDao.deleteById(id)
+
+    // ── Statistics ────────────────────────────────────────────────────────────
+
+    fun getTotalFlightTimeMinutes(): Flow<Long> = logbookFlightDao.getTotalFlightTimeMinutes()
+
+    fun getUniqueAirportCount(): Flow<Int> = logbookFlightDao.getUniqueAirportCount()
+
+    fun getMonthlyFlightCounts(): Flow<List<MonthlyCount>> = logbookFlightDao.getMonthlyFlightCounts()
+
+    fun getTopAirports(): Flow<List<AirportCount>> = logbookFlightDao.getTopAirports()
+
+    fun getTopAirlines(): Flow<List<AirlineCount>> = logbookFlightDao.getTopAirlines()
+
+    fun getSeatClassDistribution(): Flow<List<LabelCount>> = logbookFlightDao.getSeatClassDistribution()
+
+    fun getAircraftTypeDistribution(): Flow<List<LabelCount>> = logbookFlightDao.getAircraftTypeDistribution()
+
+    fun getLongestFlight(): Flow<LogbookFlight?> = logbookFlightDao.getLongestFlight()
 }
