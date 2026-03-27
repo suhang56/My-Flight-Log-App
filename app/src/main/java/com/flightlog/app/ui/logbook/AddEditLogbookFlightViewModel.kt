@@ -6,8 +6,10 @@ import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.AirportCoordinatesMap
 import com.flightlog.app.data.AirportTimezoneMap
 import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.data.network.FlightRouteService
 import com.flightlog.app.data.repository.LogbookRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,12 +38,18 @@ data class AddEditFormState(
     val departureCodeError: String? = null,
     val arrivalCodeError: String? = null,
     val duplicateWarning: String? = null,
-    val duplicateCheckPassed: Boolean = false
+    val duplicateCheckPassed: Boolean = false,
+    val flightSearchQuery: String = "",
+    val flightSearchDate: LocalDate = LocalDate.now(),
+    val isSearching: Boolean = false,
+    val searchError: String? = null,
+    val autoFillApplied: Boolean = false
 )
 
 @HiltViewModel
 class AddEditLogbookFlightViewModel @Inject constructor(
     private val repository: LogbookRepository,
+    private val flightRouteService: FlightRouteService,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -51,6 +59,7 @@ class AddEditLogbookFlightViewModel @Inject constructor(
     val form: StateFlow<AddEditFormState> = _form.asStateFlow()
 
     private var existingFlight: LogbookFlight? = null
+    private var searchJob: Job? = null
 
     init {
         if (editId != null) {
@@ -91,10 +100,10 @@ class AddEditLogbookFlightViewModel @Inject constructor(
 
     fun updateFlightNumber(value: String) { _form.update { it.copy(flightNumber = value) } }
     fun updateDepartureCode(value: String) {
-        _form.update { it.copy(departureCode = value.uppercase(), departureCodeError = null, duplicateCheckPassed = false) }
+        _form.update { it.copy(departureCode = value.uppercase(), departureCodeError = null, duplicateCheckPassed = false, autoFillApplied = false) }
     }
     fun updateArrivalCode(value: String) {
-        _form.update { it.copy(arrivalCode = value.uppercase(), arrivalCodeError = null, duplicateCheckPassed = false) }
+        _form.update { it.copy(arrivalCode = value.uppercase(), arrivalCodeError = null, duplicateCheckPassed = false, autoFillApplied = false) }
     }
     fun updateDate(value: LocalDate) { _form.update { it.copy(date = value, duplicateCheckPassed = false) } }
     fun updateDepartureTime(value: LocalTime) { _form.update { it.copy(departureTime = value) } }
@@ -111,6 +120,51 @@ class AddEditLogbookFlightViewModel @Inject constructor(
     fun confirmSaveDespiteDuplicate() {
         _form.update { it.copy(duplicateWarning = null, duplicateCheckPassed = true) }
         save()
+    }
+
+    fun updateFlightSearchQuery(value: String) {
+        _form.update { it.copy(flightSearchQuery = value.uppercase(), searchError = null) }
+    }
+
+    fun updateFlightSearchDate(value: LocalDate) {
+        _form.update { it.copy(flightSearchDate = value, searchError = null) }
+    }
+
+    fun searchFlight() {
+        val query = _form.value.flightSearchQuery.trim().ifBlank { return }
+        searchJob?.cancel()
+        _form.update { it.copy(isSearching = true, searchError = null) }
+        searchJob = viewModelScope.launch {
+            val route = try {
+                flightRouteService.lookupRoute(query, _form.value.flightSearchDate)
+            } catch (_: Exception) {
+                null
+            }
+            if (route != null) {
+                _form.update {
+                    it.copy(
+                        isSearching = false,
+                        flightNumber = route.flightNumber,
+                        departureCode = route.departureIata,
+                        arrivalCode = route.arrivalIata,
+                        date = it.flightSearchDate,
+                        autoFillApplied = true,
+                        duplicateCheckPassed = false
+                    )
+                }
+            } else {
+                _form.update {
+                    it.copy(
+                        isSearching = false,
+                        searchError = "Flight not found. Check the flight number and date, or enter details manually."
+                    )
+                }
+            }
+        }
+    }
+
+    fun dismissAutoFillBanner() {
+        _form.update { it.copy(autoFillApplied = false) }
     }
 
     fun save() {

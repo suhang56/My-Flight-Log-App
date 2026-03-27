@@ -1,6 +1,7 @@
 package com.flightlog.app.ui.logbook
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,19 +12,27 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AssistChip
+import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -127,7 +137,7 @@ fun AddEditLogbookFlightScreen(
                 actions = {
                     TextButton(
                         onClick = { viewModel.save() },
-                        enabled = !form.isSaving
+                        enabled = !form.isSaving && !form.isSearching
                     ) {
                         Text("Save")
                     }
@@ -145,6 +155,99 @@ fun AddEditLogbookFlightScreen(
         ) {
             Spacer(modifier = Modifier.height(4.dp))
 
+            // Flight Search section (add mode only)
+            if (!form.isEditMode) {
+                Text(
+                    "Flight Search",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.Top
+                ) {
+                    OutlinedTextField(
+                        value = form.flightSearchQuery,
+                        onValueChange = { viewModel.updateFlightSearchQuery(it) },
+                        label = { Text("Flight No.") },
+                        placeholder = { Text("JL5") },
+                        singleLine = true,
+                        enabled = !form.isSearching,
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Characters,
+                            imeAction = ImeAction.Search
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onSearch = { viewModel.searchFlight() }
+                        ),
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    DatePickerField(
+                        date = form.flightSearchDate,
+                        onDateSelected = { viewModel.updateFlightSearchDate(it) },
+                        label = "Date",
+                        enabled = !form.isSearching,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (form.isSearching) {
+                        Box(
+                            modifier = Modifier.size(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    } else {
+                        FilledIconButton(
+                            onClick = { viewModel.searchFlight() },
+                            enabled = form.flightSearchQuery.isNotBlank(),
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(Icons.Default.Search, contentDescription = "Search flight")
+                        }
+                    }
+                }
+
+                if (form.searchError != null) {
+                    Text(
+                        text = form.searchError!!,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (form.autoFillApplied) {
+                    AssistChip(
+                        onClick = { viewModel.dismissAutoFillBanner() },
+                        label = { Text("Auto-filled from flight data") },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Default.Close,
+                                contentDescription = "Dismiss",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        colors = AssistChipDefaults.assistChipColors(
+                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 4.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+            }
+
             // Route section
             Text("Route", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 
@@ -160,6 +263,7 @@ fun AddEditLogbookFlightScreen(
                     isError = form.departureCodeError != null,
                     supportingText = form.departureCodeError?.let { err -> { Text(err) } },
                     singleLine = true,
+                    enabled = !form.isSearching,
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Characters,
                         imeAction = ImeAction.Next
@@ -174,6 +278,7 @@ fun AddEditLogbookFlightScreen(
                     isError = form.arrivalCodeError != null,
                     supportingText = form.arrivalCodeError?.let { err -> { Text(err) } },
                     singleLine = true,
+                    enabled = !form.isSearching,
                     keyboardOptions = KeyboardOptions(
                         capitalization = KeyboardCapitalization.Characters,
                         imeAction = ImeAction.Next
@@ -188,6 +293,7 @@ fun AddEditLogbookFlightScreen(
                 label = { Text("Flight Number") },
                 placeholder = { Text("AA11") },
                 singleLine = true,
+                enabled = !form.isSearching,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Characters,
                     imeAction = ImeAction.Next
@@ -202,7 +308,8 @@ fun AddEditLogbookFlightScreen(
             DatePickerField(
                 date = form.date,
                 onDateSelected = { viewModel.updateDate(it) },
-                label = "Date"
+                label = "Date",
+                enabled = !form.isSearching
             )
 
             Row(
@@ -233,6 +340,7 @@ fun AddEditLogbookFlightScreen(
                 label = { Text("Aircraft Type") },
                 placeholder = { Text("Boeing 737-800") },
                 singleLine = true,
+                enabled = !form.isSearching,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -248,6 +356,7 @@ fun AddEditLogbookFlightScreen(
                 label = { Text("Seat Number") },
                 placeholder = { Text("12A") },
                 singleLine = true,
+                enabled = !form.isSearching,
                 keyboardOptions = KeyboardOptions(
                     capitalization = KeyboardCapitalization.Characters,
                     imeAction = ImeAction.Next
@@ -264,6 +373,7 @@ fun AddEditLogbookFlightScreen(
                 onValueChange = { viewModel.updateNotes(it) },
                 label = { Text("Notes") },
                 placeholder = { Text("Add any notes about this flight...") },
+                enabled = !form.isSearching,
                 minLines = 3,
                 maxLines = 5,
                 modifier = Modifier.fillMaxWidth()
@@ -299,7 +409,9 @@ fun AddEditLogbookFlightScreen(
 private fun DatePickerField(
     date: LocalDate,
     onDateSelected: (LocalDate) -> Unit,
-    label: String
+    label: String,
+    enabled: Boolean = true,
+    modifier: Modifier = Modifier.fillMaxWidth()
 ) {
     var showDialog by remember { mutableStateOf(false) }
 
@@ -307,17 +419,22 @@ private fun DatePickerField(
         initialSelectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
     )
 
+    LaunchedEffect(date) {
+        datePickerState.selectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+    }
+
     OutlinedTextField(
         value = date.format(DISPLAY_DATE_FORMATTER),
         onValueChange = {},
         label = { Text(label) },
         readOnly = true,
+        enabled = enabled,
         trailingIcon = {
-            IconButton(onClick = { showDialog = true }) {
+            IconButton(onClick = { showDialog = true }, enabled = enabled) {
                 Icon(Icons.Default.CalendarMonth, contentDescription = "Pick date")
             }
         },
-        modifier = Modifier.fillMaxWidth()
+        modifier = modifier
     )
 
     if (showDialog) {
