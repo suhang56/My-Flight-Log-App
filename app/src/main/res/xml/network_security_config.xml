@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Allow cleartext (HTTP) only for AviationStack free tier -->
+    <!-- AviationStack free tier API (http://api.aviationstack.com) uses HTTP.
+         Cleartext is explicitly permitted for this domain only.
+         If upgrading to a paid AviationStack plan (which uses HTTPS), remove this block. -->
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">api.aviationstack.com</domain>
     </domain-config>

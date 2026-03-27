@@ -26,9 +26,22 @@ android {
         )
     }
 
+    signingConfigs {
+        create("release") {
+            val storePath = project.findProperty("FLIGHT_LOG_STORE_FILE") as String? ?: ""
+            if (storePath.isNotBlank()) {
+                storeFile = file(storePath)
+            }
+            storePassword = project.findProperty("FLIGHT_LOG_STORE_PASSWORD") as String? ?: ""
+            keyAlias = project.findProperty("FLIGHT_LOG_KEY_ALIAS") as String? ?: ""
+            keyPassword = project.findProperty("FLIGHT_LOG_KEY_PASSWORD") as String? ?: ""
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -100,7 +113,7 @@ dependencies {
     implementation(libs.okhttp.core)
     implementation(libs.okhttp.logging)
     implementation(libs.moshi.core)
-    implementation(libs.moshi.kotlin)
+    ksp(libs.moshi.kotlin.codegen)
 
     // Core library desugaring for java.time on older APIs
     coreLibraryDesugaring(libs.desugar.jdk.libs)
