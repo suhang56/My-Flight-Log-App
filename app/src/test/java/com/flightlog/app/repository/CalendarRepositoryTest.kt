@@ -349,6 +349,75 @@ class CalendarRepositoryTest {
 
     // ── syncedCount accuracy ─────────────────────────────────────────────────
 
+    // ── Orphaned row cleanup (DAY→ADD bug fix) ─────────────────────────────
+
+    @Test
+    fun `events that no longer parse as flights have their rows removed`() = runTest {
+        // Simulate: event 42 exists in calendar but parser now returns empty (false positive fixed)
+        val realFlight = rawEvent(eventId = 1, title = "Flight AA11 ORD-CMH")
+        val falsePositive = rawEvent(eventId = 42, title = "Day to Add")
+
+        every { calendarDataSource.queryEvents(contentResolver) } returns listOf(realFlight, falsePositive)
+        every { flightEventParser.parse(realFlight.title, realFlight.description, realFlight.location) } returns listOf(parsed())
+        every { flightEventParser.parse(falsePositive.title, falsePositive.description, falsePositive.location) } returns emptyList()
+        coEvery { calendarFlightDao.getDismissedCalendarEventIds() } returns emptyList()
+        // Event 42 has rows in the DB from a previous sync (before the parser fix)
+        coEvery { calendarFlightDao.getAllCalendarEventIds() } returns listOf(1L, 42L)
+
+        val result = repository.syncFromCalendar(contentResolver)
+
+        assertTrue(result is SyncResult.Success)
+        assertEquals(1, (result as SyncResult.Success).syncedCount)
+        // Event 42's rows should be removed as orphaned
+        assertEquals(1, result.removedCount)
+        coVerify { calendarFlightDao.removeByEventIds(listOf(42L)) }
+    }
+
+    @Test
+    fun `orphaned cleanup skipped when unparsed event has no stored rows`() = runTest {
+        val realFlight = rawEvent(eventId = 1, title = "Flight AA11 ORD-CMH")
+        val nonFlight = rawEvent(eventId = 99, title = "Team meeting")
+
+        every { calendarDataSource.queryEvents(contentResolver) } returns listOf(realFlight, nonFlight)
+        every { flightEventParser.parse(realFlight.title, realFlight.description, realFlight.location) } returns listOf(parsed())
+        every { flightEventParser.parse(nonFlight.title, nonFlight.description, nonFlight.location) } returns emptyList()
+        coEvery { calendarFlightDao.getDismissedCalendarEventIds() } returns emptyList()
+        // Event 99 has no stored rows — nothing to clean up
+        coEvery { calendarFlightDao.getAllCalendarEventIds() } returns listOf(1L)
+
+        val result = repository.syncFromCalendar(contentResolver)
+
+        assertTrue(result is SyncResult.Success)
+        assertEquals(0, (result as SyncResult.Success).removedCount)
+        coVerify(exactly = 0) { calendarFlightDao.removeByEventIds(any()) }
+    }
+
+    @Test
+    fun `both stale and orphaned rows removed in same sync`() = runTest {
+        // Event 1: real flight, still in calendar
+        // Event 2: deleted from calendar entirely (stale)
+        // Event 3: still in calendar but no longer parses (orphaned)
+        val realFlight = rawEvent(eventId = 1, title = "Flight AA11 ORD-CMH")
+        val orphan = rawEvent(eventId = 3, title = "Day to Add")
+
+        every { calendarDataSource.queryEvents(contentResolver) } returns listOf(realFlight, orphan)
+        every { flightEventParser.parse(realFlight.title, realFlight.description, realFlight.location) } returns listOf(parsed())
+        every { flightEventParser.parse(orphan.title, orphan.description, orphan.location) } returns emptyList()
+        coEvery { calendarFlightDao.getDismissedCalendarEventIds() } returns emptyList()
+        // DB has events 1, 2, 3. Event 2 no longer in calendar (stale). Event 3 no longer parses (orphan).
+        coEvery { calendarFlightDao.getAllCalendarEventIds() } returns listOf(1L, 2L, 3L)
+
+        val result = repository.syncFromCalendar(contentResolver)
+
+        assertTrue(result is SyncResult.Success)
+        // 1 stale (event 2) + 1 orphaned (event 3) = 2 removed
+        assertEquals(2, (result as SyncResult.Success).removedCount)
+        coVerify { calendarFlightDao.removeStaleIds(listOf(1L, 3L)) }
+        coVerify { calendarFlightDao.removeByEventIds(listOf(3L)) }
+    }
+
+    // ── syncedCount accuracy ─────────────────────────────────────────────────
+
     @Test
     fun `syncedCount counts all legs across multiple events`() = runTest {
         val event1 = rawEvent(eventId = 1, title = "Flight 1")

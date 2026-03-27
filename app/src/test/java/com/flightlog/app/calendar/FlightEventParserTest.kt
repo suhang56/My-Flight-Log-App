@@ -311,4 +311,55 @@ class FlightEventParserTest {
         assertEquals(1, result.size)
         assertEquals("AA0011", result[0].flightNumber)
     }
+
+    // ── False positive rejection ──────────────────────────────────────────────
+
+    @Test
+    fun `false positive - Day to Add rejected by pattern3`() {
+        val result = parser.parse("Day to Add")
+        assertTrue("'Day to Add' must not parse as a flight", result.isEmpty())
+    }
+
+    @Test
+    fun `false positive - Day to Add in combined fields rejected`() {
+        val result = parser.parse(
+            title = "Day to Add",
+            description = "Some calendar note",
+            location = ""
+        )
+        assertTrue("'Day to Add' with description must not parse as a flight", result.isEmpty())
+    }
+
+    @Test
+    fun `false positive - pattern1 rejects unknown airport codes`() {
+        // "Flight XX12 FOO-BAR" — XX12 has flight code format but FOO/BAR are not airports
+        val result = parser.parse("Flight XX12 FOO-BAR")
+        assertTrue("Unknown airport codes in pattern1 must be rejected", result.isEmpty())
+    }
+
+    @Test
+    fun `false positive - pattern2 rejects unknown airport codes`() {
+        // "XX12 FOO-BAR" — same without Flight keyword
+        val result = parser.parse("XX12 FOO-BAR")
+        assertTrue("Unknown airport codes in pattern2 must be rejected", result.isEmpty())
+    }
+
+    @Test
+    fun `pattern1 accepts when at least one airport is known`() {
+        // ORD is known, ZZZ is not — should still parse
+        val result = parser.parse("Flight AA11 ORD-ZZZ")
+        assertEquals(1, result.size)
+        assertEquals("AA11", result[0].flightNumber)
+        assertEquals("ORD", result[0].departureCode)
+        assertEquals("ZZZ", result[0].arrivalCode)
+    }
+
+    @Test
+    fun `pattern2 accepts when at least one airport is known`() {
+        val result = parser.parse("AA11 ZZZ-CMH")
+        assertEquals(1, result.size)
+        assertEquals("AA11", result[0].flightNumber)
+        assertEquals("ZZZ", result[0].departureCode)
+        assertEquals("CMH", result[0].arrivalCode)
+    }
 }

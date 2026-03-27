@@ -71,12 +71,20 @@ class CalendarRepository @Inject constructor(
 
             // 2. Parse; discard events that don't contain recognisable flight data.
             //    A single calendar event can produce multiple legs (e.g. "WN1946/3034").
+            //    Track which eventIds produced flights vs which produced nothing.
+            val parsedEventIds = mutableSetOf<Long>()
+            val unparsedEventIds = mutableSetOf<Long>()
             val flights = rawEvents.flatMap { event ->
                 val parsedLegs = flightEventParser.parse(
                     title       = event.title,
                     description = event.description,
                     location    = event.location
                 )
+                if (parsedLegs.isNotEmpty()) {
+                    parsedEventIds.add(event.eventId)
+                } else {
+                    unparsedEventIds.add(event.eventId)
+                }
                 parsedLegs.mapIndexed { legIndex, parsed ->
                     resolveFlight(event, parsed, legIndex, now)
                 }
@@ -96,14 +104,25 @@ class CalendarRepository @Inject constructor(
             }
 
             // 4. Remove stale rows — only safe with a non-empty valid-ID set.
+            //    Also remove rows for events that still exist in the calendar but
+            //    no longer parse as flights (e.g. false positives fixed by parser update).
             val removedCount = if (rawEvents.isNotEmpty()) {
                 val validIds  = rawEvents.map { it.eventId }
                 val storedIds = calendarFlightDao.getAllCalendarEventIds().toSet()
-                val stale     = (storedIds - validIds.toSet()).size
+
+                // 4a. Remove rows for calendar events that no longer exist.
+                val deletedFromCalendar = (storedIds - validIds.toSet()).size
                 if (validIds.isNotEmpty()) {
                     calendarFlightDao.removeStaleIds(validIds)
                 }
-                stale
+
+                // 4b. Remove rows for events that exist but no longer parse as flights.
+                val orphanedIds = unparsedEventIds.intersect(storedIds)
+                if (orphanedIds.isNotEmpty()) {
+                    calendarFlightDao.removeByEventIds(orphanedIds.toList())
+                }
+
+                deletedFromCalendar + orphanedIds.size
             } else {
                 // Empty result could mean no calendar events or a silent permission problem.
                 // Skip removal to avoid wiping existing data.

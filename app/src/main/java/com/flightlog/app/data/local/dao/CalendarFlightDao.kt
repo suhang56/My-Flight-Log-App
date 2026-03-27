@@ -109,6 +109,14 @@ interface CalendarFlightDao {
     )
     suspend fun removeStaleIds(validIds: List<Long>)
 
+    /**
+     * Removes rows whose calendarEventId is in [eventIds].
+     * Used to clean up rows for calendar events that still exist but no longer
+     * parse as flights (e.g. after a parser fix rejects false positives).
+     */
+    @Query("DELETE FROM calendar_flights WHERE calendarEventId IN (:eventIds)")
+    suspend fun removeByEventIds(eventIds: List<Long>)
+
     /** Soft-delete: hides a flight card without removing historical data. */
     @Query("UPDATE calendar_flights SET isManuallyDismissed = 1 WHERE id = :id")
     suspend fun dismiss(id: Long)

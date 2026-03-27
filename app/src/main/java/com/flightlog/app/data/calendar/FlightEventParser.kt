@@ -208,19 +208,27 @@ class FlightEventParser @Inject constructor(
 
     private fun parseWithFlightKeyword(text: String): ParsedFlight? {
         val m = PATTERN_FLIGHT_KEYWORD.find(text) ?: return null
+        val dep = m.groupValues[2].uppercase()
+        val arr = m.groupValues[3].uppercase()
+        // Validate at least one airport code is known to avoid false positives
+        if (!isKnownAirport(dep) && !isKnownAirport(arr)) return null
         return ParsedFlight(
             flightNumber  = m.groupValues[1].uppercase(),
-            departureCode = m.groupValues[2].uppercase(),
-            arrivalCode   = m.groupValues[3].uppercase()
+            departureCode = dep,
+            arrivalCode   = arr
         )
     }
 
     private fun parseCodeRoute(text: String): ParsedFlight? {
         val m = PATTERN_CODE_ROUTE.find(text) ?: return null
+        val dep = m.groupValues[2].uppercase()
+        val arr = m.groupValues[3].uppercase()
+        // Validate at least one airport code is known to avoid false positives
+        if (!isKnownAirport(dep) && !isKnownAirport(arr)) return null
         return ParsedFlight(
             flightNumber  = m.groupValues[1].uppercase(),
-            departureCode = m.groupValues[2].uppercase(),
-            arrivalCode   = m.groupValues[3].uppercase()
+            departureCode = dep,
+            arrivalCode   = arr
         )
     }
 
@@ -230,7 +238,7 @@ class FlightEventParser @Inject constructor(
         val arr = routeMatch.groupValues[2].uppercase()
         // Validate at least one code is a known airport to avoid false positives
         // like "Day to Add" being parsed as DAY → ADD
-        if (!isKnownAirport(dep) && !isKnownAirport(arr)) return null
+        if (!isKnownAirport(dep) || !isKnownAirport(arr)) return null
         val flightNumber = PATTERN_FLIGHT_NUMBER.find(text)
             ?.groupValues?.get(1)?.uppercase()
             .orEmpty()
@@ -242,7 +250,7 @@ class FlightEventParser @Inject constructor(
         val dep = routeMatch.groupValues[1].uppercase()
         val arr = routeMatch.groupValues[2].uppercase()
         // Validate at least one code is a known airport
-        if (!isKnownAirport(dep) && !isKnownAirport(arr)) return null
+        if (!isKnownAirport(dep) || !isKnownAirport(arr)) return null
         val flightNumber = PATTERN_FLIGHT_NUMBER.find(text)
             ?.groupValues?.get(1)?.uppercase()
             .orEmpty()
