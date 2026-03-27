@@ -11,10 +11,12 @@ class FlightRouteServiceImpl @Inject constructor(
 
     override suspend fun lookupRoute(flightNumber: String, date: LocalDate): FlightRoute? {
         return try {
+            // Note: flight_date parameter requires a paid AviationStack plan.
+            // On the free tier, omit it to avoid "function_access_restricted" error.
             val response = api.getFlightByNumber(
                 accessKey = BuildConfig.AVIATION_STACK_KEY,
                 flightIata = flightNumber,
-                flightDate = date.toString()
+                flightDate = null
             )
 
             if (!response.isSuccessful) {
