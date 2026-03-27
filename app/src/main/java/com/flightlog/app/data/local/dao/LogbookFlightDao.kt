@@ -10,6 +10,7 @@ import com.flightlog.app.data.local.model.AirlineCount
 import com.flightlog.app.data.local.model.AirportCount
 import com.flightlog.app.data.local.model.LabelCount
 import com.flightlog.app.data.local.model.MonthlyCount
+import com.flightlog.app.data.local.model.RouteCount
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -177,4 +178,31 @@ interface LogbookFlightDao {
     /** Longest flight by distance. */
     @Query("SELECT * FROM logbook_flights WHERE distanceNm IS NOT NULL ORDER BY distanceNm DESC LIMIT 1")
     fun getLongestFlightByDistance(): Flow<LogbookFlight?>
+
+    /** Longest flight by duration (arrival - departure). */
+    @Query(
+        """
+        SELECT * FROM logbook_flights
+        WHERE arrivalTimeUtc IS NOT NULL AND arrivalTimeUtc > departureTimeUtc
+        ORDER BY (arrivalTimeUtc - departureTimeUtc) DESC LIMIT 1
+        """
+    )
+    fun getLongestFlightByDuration(): Flow<LogbookFlight?>
+
+    /** Top routes by frequency. */
+    @Query(
+        """
+        SELECT departureCode, arrivalCode, COUNT(*) AS count
+        FROM logbook_flights
+        WHERE departureCode != '' AND arrivalCode != ''
+        GROUP BY departureCode, arrivalCode
+        ORDER BY count DESC
+        LIMIT :limit
+        """
+    )
+    fun getTopRoutes(limit: Int = 5): Flow<List<RouteCount>>
+
+    /** First flight ever logged by departure time. */
+    @Query("SELECT * FROM logbook_flights ORDER BY departureTimeUtc ASC LIMIT 1")
+    fun getFirstFlight(): Flow<LogbookFlight?>
 }

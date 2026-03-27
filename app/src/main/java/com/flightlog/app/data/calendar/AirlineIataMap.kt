@@ -40,6 +40,45 @@ class AirlineIataMap @Inject constructor() {
     }
 
     /**
+     * Reverse lookup: maps IATA codes to their canonical full names.
+     * Used by the Statistics screen to display full airline names.
+     */
+    private val canonicalNames: Map<String, String> = mapOf(
+        "WN" to "Southwest Airlines",
+        "AA" to "American Airlines",
+        "DL" to "Delta Air Lines",
+        "UA" to "United Airlines",
+        "B6" to "JetBlue Airways",
+        "AS" to "Alaska Airlines",
+        "NK" to "Spirit Airlines",
+        "F9" to "Frontier Airlines",
+        "HA" to "Hawaiian Airlines",
+        "SY" to "Sun Country Airlines",
+        "G4" to "Allegiant Air",
+        "NH" to "ANA",
+        "JL" to "Japan Airlines",
+        "BA" to "British Airways",
+        "LH" to "Lufthansa",
+        "AF" to "Air France",
+        "EK" to "Emirates",
+        "SQ" to "Singapore Airlines",
+        "CX" to "Cathay Pacific",
+        "QF" to "Qantas",
+        "AC" to "Air Canada",
+        "KE" to "Korean Air",
+        "OZ" to "Asiana Airlines",
+        "TK" to "Turkish Airlines",
+        "QR" to "Qatar Airways"
+    )
+
+    /**
+     * Returns the full airline name for a given IATA code.
+     * Falls back to the uppercase IATA code itself if unknown.
+     */
+    fun getFullName(iataCode: String): String =
+        canonicalNames[iataCode.uppercase()] ?: iataCode.uppercase()
+
+    /**
      * Attempts to find an IATA code for an airline mentioned in [text].
      *
      * @return the 2-letter IATA code, or null when no known airline is found.
