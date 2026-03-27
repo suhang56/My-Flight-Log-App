@@ -21,6 +21,8 @@ class LogbookRepository @Inject constructor(
 
     fun getAll(): Flow<List<LogbookFlight>> = logbookFlightDao.getAll()
 
+    suspend fun getAllOnce(): List<LogbookFlight> = logbookFlightDao.getAllOnce()
+
     suspend fun getById(id: Long): LogbookFlight? = logbookFlightDao.getById(id)
 
     fun getCount(): Flow<Int> = logbookFlightDao.getCount()

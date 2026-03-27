@@ -1,5 +1,6 @@
 package com.flightlog.app.ui.logbook
 
+import android.content.Intent
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -28,12 +29,14 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.FlightTakeoff
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
@@ -67,6 +70,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -86,17 +90,22 @@ import com.flightlog.app.util.formatInZone
 fun LogbookScreen(
     onAddFlight: () -> Unit = {},
     onEditFlight: (Long) -> Unit = {},
-    viewModel: LogbookViewModel = hiltViewModel()
+    viewModel: LogbookViewModel = hiltViewModel(),
+    exportViewModel: ExportViewModel = hiltViewModel()
 ) {
     val flights by viewModel.flights.collectAsState()
     val flightCount by viewModel.flightCount.collectAsState()
     val totalDistanceNm by viewModel.totalDistanceNm.collectAsState()
+    val totalFlightCount by viewModel.totalFlightCount.collectAsState()
     val filterState by viewModel.filterState.collectAsState()
     val availableYears by viewModel.availableYears.collectAsState()
     val availableSeatClasses by viewModel.availableSeatClasses.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
+    val exportState by exportViewModel.exportState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showExportMenu by remember { mutableStateOf(false) }
+    val activityContext = LocalContext.current
 
     // Undo-delete snackbar
     LaunchedEffect(uiState.snackbarMessage) {
@@ -111,6 +120,29 @@ fun LogbookScreen(
             } else {
                 viewModel.clearSnackbar()
             }
+        }
+    }
+
+    // Handle export state: share on Ready, snackbar on Error
+    LaunchedEffect(exportState) {
+        when (val state = exportState) {
+            is ExportState.Ready -> {
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = state.mimeType
+                    putExtra(Intent.EXTRA_STREAM, state.uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                activityContext.startActivity(Intent.createChooser(intent, "Share flight log"))
+                exportViewModel.clearExportState()
+            }
+            is ExportState.Error -> {
+                snackbarHostState.showSnackbar(
+                    message = state.message,
+                    duration = SnackbarDuration.Short
+                )
+                exportViewModel.clearExportState()
+            }
+            else -> {}
         }
     }
 
@@ -181,6 +213,42 @@ fun LogbookScreen(
                                     } else null
                                 )
                             }
+                        }
+                    }
+                    // Export overflow menu
+                    Box {
+                        if (exportState is ExportState.Loading) {
+                            IconButton(onClick = {}, enabled = false) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = { showExportMenu = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = showExportMenu,
+                            onDismissRequest = { showExportMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Export as CSV") },
+                                onClick = {
+                                    showExportMenu = false
+                                    exportViewModel.exportCsv()
+                                },
+                                enabled = totalFlightCount > 0
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Export as JSON") },
+                                onClick = {
+                                    showExportMenu = false
+                                    exportViewModel.exportJson()
+                                },
+                                enabled = totalFlightCount > 0
+                            )
                         }
                     }
                 }
