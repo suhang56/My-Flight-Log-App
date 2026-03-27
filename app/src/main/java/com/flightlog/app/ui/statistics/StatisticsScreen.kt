@@ -93,9 +93,9 @@ fun StatisticsScreen(
                 item(key = "hero") {
                     HeroStatsRow(stats)
                 }
-                if (stats.firstFlight != null) {
+                stats.firstFlight?.let { flight ->
                     item(key = "firstFlight") {
-                        FirstFlightCard(stats.firstFlight!!)
+                        FirstFlightCard(flight)
                     }
                 }
                 if (stats.monthlyFlightCounts.isNotEmpty()) {
@@ -127,14 +127,14 @@ fun StatisticsScreen(
                         )
                     }
                 }
-                if (stats.longestFlight?.distanceNm != null) {
+                stats.longestFlight?.takeIf { it.distanceNm != null }?.let { flight ->
                     item(key = "longest") {
-                        LongestFlightCard(stats.longestFlight!!)
+                        LongestFlightCard(flight)
                     }
                 }
-                if (stats.longestFlightByDuration != null) {
+                stats.longestFlightByDuration?.let { flight ->
                     item(key = "longestDuration") {
-                        LongestFlightByDurationCard(stats.longestFlightByDuration!!)
+                        LongestFlightByDurationCard(flight)
                     }
                 }
                 if (stats.seatClassBreakdown.isNotEmpty()) {
@@ -367,12 +367,6 @@ private fun MonthlyBarChart(data: List<MonthlyCount>) {
                 Modifier.horizontalScroll(rememberScrollState())
             } else {
                 Modifier
-            }
-            val canvasWidth = if (needsScroll) {
-                // Allocate ~24dp per bar when scrolling
-                with(density) { (filledData.size * 24).dp }
-            } else {
-                Modifier.fillMaxWidth()
             }
 
             Box(modifier = scrollModifier) {
@@ -783,6 +777,11 @@ private fun SeatClassBreakdown(data: List<LabelCount>) {
                 text = "Seat Class",
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "of flights with seat class recorded",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(12.dp))
 
