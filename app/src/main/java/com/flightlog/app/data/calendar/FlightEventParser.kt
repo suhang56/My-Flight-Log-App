@@ -1,6 +1,8 @@
 package com.flightlog.app.data.calendar
 
+import com.flightlog.app.data.AirportCoordinatesMap
 import com.flightlog.app.data.AirportNameMap
+import com.flightlog.app.data.AirportTimezoneMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -226,6 +228,9 @@ class FlightEventParser @Inject constructor(
         val routeMatch = PATTERN_ROUTE_TO.find(text) ?: return null
         val dep = routeMatch.groupValues[1].uppercase()
         val arr = routeMatch.groupValues[2].uppercase()
+        // Validate at least one code is a known airport to avoid false positives
+        // like "Day to Add" being parsed as DAY → ADD
+        if (!isKnownAirport(dep) && !isKnownAirport(arr)) return null
         val flightNumber = PATTERN_FLIGHT_NUMBER.find(text)
             ?.groupValues?.get(1)?.uppercase()
             .orEmpty()
@@ -236,9 +241,16 @@ class FlightEventParser @Inject constructor(
         val routeMatch = PATTERN_ROUTE_ARROW.find(text) ?: return null
         val dep = routeMatch.groupValues[1].uppercase()
         val arr = routeMatch.groupValues[2].uppercase()
+        // Validate at least one code is a known airport
+        if (!isKnownAirport(dep) && !isKnownAirport(arr)) return null
         val flightNumber = PATTERN_FLIGHT_NUMBER.find(text)
             ?.groupValues?.get(1)?.uppercase()
             .orEmpty()
         return ParsedFlight(flightNumber = flightNumber, departureCode = dep, arrivalCode = arr)
     }
+
+    /** Checks if a 3-letter code is a known IATA airport code. */
+    private fun isKnownAirport(code: String): Boolean =
+        AirportCoordinatesMap.coordinatesFor(code) != null ||
+        AirportTimezoneMap.timezoneFor(code) != null
 }
