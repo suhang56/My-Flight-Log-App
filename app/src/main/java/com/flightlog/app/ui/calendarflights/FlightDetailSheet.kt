@@ -34,7 +34,8 @@ import com.flightlog.app.util.toRelativeTimeLabel
 internal fun FlightDetailBottomSheet(
     flight: CalendarFlight,
     onDismiss: () -> Unit,
-    onDismissFlight: (CalendarFlight) -> Unit
+    onDismissFlight: (CalendarFlight) -> Unit,
+    onAddToLogbook: (CalendarFlight) -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val relativeLabel = flight.scheduledTime.toRelativeTimeLabel()
@@ -152,7 +153,7 @@ internal fun FlightDetailBottomSheet(
                     Text("Dismiss")
                 }
                 Button(
-                    onClick = { /* TODO: Add to logbook */ },
+                    onClick = { onAddToLogbook(flight) },
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Add to Logbook")

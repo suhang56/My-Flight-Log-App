@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.repository.CalendarRepository
+import com.flightlog.app.data.repository.LogbookRepository
 import com.flightlog.app.data.repository.SyncResult
 import com.flightlog.app.worker.CalendarSyncWorker
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class CalendarFlightsViewModel @Inject constructor(
     private val application: Application,
-    private val repository: CalendarRepository
+    private val repository: CalendarRepository,
+    private val logbookRepository: LogbookRepository
 ) : AndroidViewModel(application) {
 
     // -- Permission --
@@ -108,6 +110,30 @@ class CalendarFlightsViewModel @Inject constructor(
         viewModelScope.launch {
             repository.dismiss(id)
             _uiState.update { it.copy(showDetailSheet = false, selectedFlight = null) }
+        }
+    }
+
+    fun addToLogbook(flight: CalendarFlight) {
+        viewModelScope.launch {
+            val alreadyLogged = logbookRepository.isAlreadyLogged(flight)
+            if (alreadyLogged) {
+                _uiState.update {
+                    it.copy(
+                        syncMessage = "This flight is already in your logbook",
+                        showDetailSheet = false,
+                        selectedFlight = null
+                    )
+                }
+                return@launch
+            }
+            logbookRepository.addFromCalendarFlight(flight)
+            _uiState.update {
+                it.copy(
+                    syncMessage = "Added to logbook",
+                    showDetailSheet = false,
+                    selectedFlight = null
+                )
+            }
         }
     }
 

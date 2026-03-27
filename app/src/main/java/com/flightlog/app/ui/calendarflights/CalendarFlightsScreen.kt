@@ -98,7 +98,8 @@ fun CalendarFlightsScreen(
         FlightDetailBottomSheet(
             flight = uiState.selectedFlight!!,
             onDismiss = viewModel::dismissDetailSheet,
-            onDismissFlight = { viewModel.dismissFlight(it.id) }
+            onDismissFlight = { viewModel.dismissFlight(it.id) },
+            onAddToLogbook = { viewModel.addToLogbook(it) }
         )
     }
 
