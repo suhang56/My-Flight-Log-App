@@ -1,5 +1,6 @@
 package com.flightlog.app.ui.logbook
 
+import android.content.Context
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.local.model.AirlineCount
@@ -87,7 +88,8 @@ class LogbookViewModelSearchTest {
         val airportRepository = AirportRepository(mockAirportDao)
         val mockAchievementRepo = mockk<AchievementRepository>(relaxUnitFun = true)
         coEvery { mockAchievementRepo.checkAndUnlock() } returns Unit
-        repository = LogbookRepository(fakeDao, airportRepository, mockAchievementRepo)
+        val mockContext = mockk<Context>(relaxed = true)
+        repository = LogbookRepository(mockContext, fakeDao, airportRepository, mockAchievementRepo)
         vm = LogbookViewModel(repository)
     }
 
@@ -601,5 +603,6 @@ private class FakeSearchLogbookFlightDao : LogbookFlightDao {
     override fun getDistinctSeatClasses(): Flow<List<String>> = flowOf(distinctSeatClasses)
     override suspend fun getAllOnce(): List<LogbookFlight> = allFlightsFlow.value
     override fun getByIdFlow(id: Long): Flow<LogbookFlight?> = flowOf(allFlightsFlow.value.find { it.id == id })
+    override suspend fun insertAll(flights: List<LogbookFlight>): List<Long> = flights.map { 1L }
     override suspend fun getMostRecentFlight(): LogbookFlight? = allFlightsFlow.value.firstOrNull()
 }

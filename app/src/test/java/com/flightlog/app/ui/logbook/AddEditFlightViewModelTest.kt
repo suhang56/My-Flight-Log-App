@@ -1,5 +1,6 @@
 package com.flightlog.app.ui.logbook
 
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import com.flightlog.app.data.local.entity.LogbookFlight
@@ -59,7 +60,8 @@ class AddEditFlightViewModelTest {
         airportRepository = AirportRepository(mockAirportDao)
         val mockAchievementRepo = mockk<AchievementRepository>(relaxUnitFun = true)
         coEvery { mockAchievementRepo.checkAndUnlock() } returns Unit
-        repository = LogbookRepository(fakeDao, airportRepository, mockAchievementRepo)
+        val mockContext = mockk<Context>(relaxed = true)
+        repository = LogbookRepository(mockContext, fakeDao, airportRepository, mockAchievementRepo)
     }
 
     @After
@@ -710,5 +712,6 @@ private class FakeLogbookFlightDao : LogbookFlightDao {
     override fun getDistinctSeatClasses(): Flow<List<String>> = flowOf(emptyList())
     override suspend fun getAllOnce(): List<LogbookFlight> = emptyList()
     override fun getByIdFlow(id: Long): Flow<LogbookFlight?> = flowOf(null)
+    override suspend fun insertAll(flights: List<LogbookFlight>): List<Long> = flights.map { 1L }
     override suspend fun getMostRecentFlight(): LogbookFlight? = null
 }

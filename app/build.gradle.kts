@@ -63,6 +63,15 @@ android {
         compose = true
         buildConfig = true
     }
+
+    packaging {
+        resources {
+            excludes += setOf(
+                "META-INF/INDEX.LIST",
+                "META-INF/DEPENDENCIES"
+            )
+        }
+    }
 }
 
 ksp {
@@ -121,6 +130,11 @@ dependencies {
     implementation(libs.okhttp.logging)
     implementation(libs.moshi.core)
     ksp(libs.moshi.kotlin.codegen)
+
+    // Google Sign-In + Drive
+    implementation(libs.play.services.auth)
+    implementation(libs.google.api.client.android)
+    implementation(libs.google.api.services.drive)
 
     // Core library desugaring for java.time on older APIs
     coreLibraryDesugaring(libs.desugar.jdk.libs)

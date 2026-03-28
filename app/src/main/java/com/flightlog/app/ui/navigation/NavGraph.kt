@@ -35,6 +35,7 @@ import com.flightlog.app.ui.calendarflights.CalendarFlightsScreen
 import com.flightlog.app.ui.logbook.AddEditLogbookFlightScreen
 import com.flightlog.app.ui.logbook.FlightDetailScreen
 import com.flightlog.app.ui.logbook.LogbookScreen
+import com.flightlog.app.ui.settings.SettingsScreen
 import com.flightlog.app.ui.statistics.StatisticsScreen
 
 object Routes {
@@ -44,6 +45,7 @@ object Routes {
     const val LOGBOOK_ADD = "logbook/add"
     const val LOGBOOK_EDIT = "logbook/edit/{flightId}"
     const val LOGBOOK_DETAIL = "logbook/detail/{flightId}"
+    const val SETTINGS = "settings"
 
     fun logbookEdit(flightId: Long) = "logbook/edit/$flightId"
     fun logbookDetail(flightId: Long) = "logbook/detail/$flightId"
@@ -78,7 +80,7 @@ private val bottomNavItems = listOf(
 )
 
 /** Routes that should hide the bottom navigation bar. */
-private val hideBottomBarRoutes = setOf(Routes.LOGBOOK_ADD, Routes.LOGBOOK_EDIT, Routes.LOGBOOK_DETAIL)
+private val hideBottomBarRoutes = setOf(Routes.LOGBOOK_ADD, Routes.LOGBOOK_EDIT, Routes.LOGBOOK_DETAIL, Routes.SETTINGS)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -143,7 +145,8 @@ fun FlightNavGraph(
                 LogbookScreen(
                     onAddFlight = { navController.navigate(Routes.LOGBOOK_ADD) },
                     onEditFlight = { id -> navController.navigate(Routes.logbookEdit(id)) },
-                    onViewFlight = { id -> navController.navigate(Routes.logbookDetail(id)) }
+                    onViewFlight = { id -> navController.navigate(Routes.logbookDetail(id)) },
+                    onNavigateToSettings = { navController.navigate(Routes.SETTINGS) }
                 )
             }
             composable(Routes.STATISTICS) {
@@ -159,6 +162,11 @@ fun FlightNavGraph(
                 arguments = listOf(navArgument("flightId") { type = NavType.LongType })
             ) {
                 AddEditLogbookFlightScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+            composable(Routes.SETTINGS) {
+                SettingsScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
