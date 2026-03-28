@@ -9,6 +9,7 @@ import com.flightlog.app.data.local.model.LabelCount
 import com.flightlog.app.data.local.model.MonthlyCount
 import com.flightlog.app.data.local.model.RouteCount
 import com.flightlog.app.data.local.dao.AirportDao
+import com.flightlog.app.data.repository.AchievementRepository
 import com.flightlog.app.data.repository.AirportRepository
 import com.flightlog.app.data.repository.LogbookRepository
 import io.mockk.coEvery
@@ -73,7 +74,9 @@ class FlightDetailViewModelTest {
         val mockAirportDao = mockk<AirportDao>()
         coEvery { mockAirportDao.getByIata(any()) } returns null
         airportRepository = AirportRepository(mockAirportDao)
-        repository = LogbookRepository(fakeDao, airportRepository)
+        val mockAchievementRepo = mockk<AchievementRepository>(relaxUnitFun = true)
+        coEvery { mockAchievementRepo.checkAndUnlock() } returns Unit
+        repository = LogbookRepository(fakeDao, airportRepository, mockAchievementRepo)
     }
 
     @After

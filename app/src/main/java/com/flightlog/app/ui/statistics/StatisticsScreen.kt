@@ -30,11 +30,14 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -73,86 +76,104 @@ fun StatisticsScreen(
 ) {
     val stats by viewModel.stats.collectAsState()
 
+    var selectedTab by remember { mutableIntStateOf(0) }
+    val tabTitles = listOf("Stats", "Achievements")
+
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Statistics") })
         }
     ) { padding ->
-        if (stats.isEmpty) {
-            StatisticsEmptyState(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-            )
-        } else {
-            LazyColumn(
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                modifier = Modifier.padding(padding)
-            ) {
-                item(key = "hero") {
-                    HeroStatsRow(stats)
+        Column(modifier = Modifier.padding(padding)) {
+            TabRow(selectedTabIndex = selectedTab) {
+                tabTitles.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedTab == index,
+                        onClick = { selectedTab = index },
+                        text = { Text(title) }
+                    )
                 }
-                stats.firstFlight?.let { flight ->
-                    item(key = "firstFlight") {
-                        FirstFlightCard(flight)
-                    }
-                }
-                if (stats.monthlyFlightCounts.isNotEmpty()) {
-                    item(key = "chart") {
-                        MonthlyBarChart(stats.monthlyFlightCounts)
-                    }
-                }
-                if (stats.topRoutes.size >= 2) {
-                    item(key = "routes") {
-                        TopRoutesSection(stats.topRoutes)
-                    }
-                }
-                if (stats.topAirports.size >= 2) {
-                    item(key = "airports") {
-                        TopListSection(
-                            title = "Top Airports",
-                            icon = Icons.Default.LocationOn,
-                            items = stats.topAirports.take(5).map { it.code to it.count }
-                        )
-                    }
-                }
-                if (stats.topAirlines.size >= 2) {
-                    item(key = "airlines") {
-                        TopListSection(
-                            title = "Top Airlines",
-                            icon = Icons.Default.AirplanemodeActive,
-                            items = stats.topAirlines.take(5).map { it.airline to it.count },
-                            labelWidth = 160.dp
-                        )
-                    }
-                }
-                stats.longestFlight?.takeIf { it.distanceNm != null }?.let { flight ->
-                    item(key = "longest") {
-                        LongestFlightCard(flight)
-                    }
-                }
-                stats.longestFlightByDuration?.let { flight ->
-                    item(key = "longestDuration") {
-                        LongestFlightByDurationCard(flight)
-                    }
-                }
-                if (stats.seatClassBreakdown.isNotEmpty()) {
-                    item(key = "seats") {
-                        SeatClassBreakdown(stats.seatClassBreakdown)
-                    }
-                }
-                if (stats.aircraftTypeDistribution.size >= 2) {
-                    item(key = "aircraft") {
-                        TopListSection(
-                            title = "Aircraft Types",
-                            icon = Icons.Default.Flight,
-                            items = stats.aircraftTypeDistribution.take(5).map { it.label to it.count }
-                        )
-                    }
-                }
-                item { Spacer(modifier = Modifier.height(8.dp)) }
             }
+
+            when (selectedTab) {
+                0 -> StatsTabContent(stats)
+                1 -> AchievementsContent()
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsTabContent(stats: StatsData) {
+    if (stats.isEmpty) {
+        StatisticsEmptyState(modifier = Modifier.fillMaxSize())
+    } else {
+        LazyColumn(
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            item(key = "hero") {
+                HeroStatsRow(stats)
+            }
+            stats.firstFlight?.let { flight ->
+                item(key = "firstFlight") {
+                    FirstFlightCard(flight)
+                }
+            }
+            if (stats.monthlyFlightCounts.isNotEmpty()) {
+                item(key = "chart") {
+                    MonthlyBarChart(stats.monthlyFlightCounts)
+                }
+            }
+            if (stats.topRoutes.size >= 2) {
+                item(key = "routes") {
+                    TopRoutesSection(stats.topRoutes)
+                }
+            }
+            if (stats.topAirports.size >= 2) {
+                item(key = "airports") {
+                    TopListSection(
+                        title = "Top Airports",
+                        icon = Icons.Default.LocationOn,
+                        items = stats.topAirports.take(5).map { it.code to it.count }
+                    )
+                }
+            }
+            if (stats.topAirlines.size >= 2) {
+                item(key = "airlines") {
+                    TopListSection(
+                        title = "Top Airlines",
+                        icon = Icons.Default.AirplanemodeActive,
+                        items = stats.topAirlines.take(5).map { it.airline to it.count },
+                        labelWidth = 160.dp
+                    )
+                }
+            }
+            stats.longestFlight?.takeIf { it.distanceNm != null }?.let { flight ->
+                item(key = "longest") {
+                    LongestFlightCard(flight)
+                }
+            }
+            stats.longestFlightByDuration?.let { flight ->
+                item(key = "longestDuration") {
+                    LongestFlightByDurationCard(flight)
+                }
+            }
+            if (stats.seatClassBreakdown.isNotEmpty()) {
+                item(key = "seats") {
+                    SeatClassBreakdown(stats.seatClassBreakdown)
+                }
+            }
+            if (stats.aircraftTypeDistribution.size >= 2) {
+                item(key = "aircraft") {
+                    TopListSection(
+                        title = "Aircraft Types",
+                        icon = Icons.Default.Flight,
+                        items = stats.aircraftTypeDistribution.take(5).map { it.label to it.count }
+                    )
+                }
+            }
+            item { Spacer(modifier = Modifier.height(8.dp)) }
         }
     }
 }

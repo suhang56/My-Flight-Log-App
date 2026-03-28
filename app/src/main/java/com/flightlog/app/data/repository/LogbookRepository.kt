@@ -16,7 +16,8 @@ import javax.inject.Singleton
 @Singleton
 class LogbookRepository @Inject constructor(
     private val logbookFlightDao: LogbookFlightDao,
-    private val airportRepository: AirportRepository
+    private val airportRepository: AirportRepository,
+    private val achievementRepository: AchievementRepository
 ) {
 
     fun getAll(): Flow<List<LogbookFlight>> = logbookFlightDao.getAll()
@@ -72,7 +73,9 @@ class LogbookRepository @Inject constructor(
             distanceNm = distance
         )
 
-        return logbookFlightDao.insert(logbookFlight)
+        val rowId = logbookFlightDao.insert(logbookFlight)
+        if (rowId != -1L) achievementRepository.checkAndUnlock()
+        return rowId
     }
 
     /**
@@ -89,13 +92,23 @@ class LogbookRepository @Inject constructor(
         return logbookFlightDao.existsByRouteAndDate(depCode, arrCode, utcDay, excludeId)
     }
 
-    suspend fun insert(flight: LogbookFlight): Long = logbookFlightDao.insert(flight)
+    suspend fun insert(flight: LogbookFlight): Long {
+        val rowId = logbookFlightDao.insert(flight)
+        if (rowId != -1L) achievementRepository.checkAndUnlock()
+        return rowId
+    }
 
     /** Insert or replace — preserves the original ID on undo-delete. */
-    suspend fun upsert(flight: LogbookFlight): Long = logbookFlightDao.upsert(flight)
+    suspend fun upsert(flight: LogbookFlight): Long {
+        val rowId = logbookFlightDao.upsert(flight)
+        achievementRepository.checkAndUnlock()
+        return rowId
+    }
 
-    suspend fun update(flight: LogbookFlight) =
+    suspend fun update(flight: LogbookFlight) {
         logbookFlightDao.update(flight.copy(updatedAt = System.currentTimeMillis()))
+        achievementRepository.checkAndUnlock()
+    }
 
     suspend fun delete(id: Long) = logbookFlightDao.deleteById(id)
 
