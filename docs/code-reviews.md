@@ -918,3 +918,36 @@ None.
 - INSERT OR IGNORE eliminates startup race condition
 
 ### Verdict: APPROVED — All 3 fixes applied before merge.
+
+---
+
+## Review #23 — Feature 11: FlightAware Migration + Live Flight Tracking
+
+**Date:** 2026-03-28
+**Reviewer:** Code Reviewer
+**Verdict:** APPROVED (with 3 fixes applied before merge)
+
+### Files Reviewed
+- FlightAwareApi.kt (6 Moshi models, Retrofit interface)
+- NetworkModule.kt (HTTPS, x-apikey interceptor)
+- FlightRouteServiceImpl.kt (FlightAware endpoints)
+- FlightStatus entity, DAO, Repository, Migration 7→8
+- FlightTrackingWorker (15-min periodic, self-cancel)
+- NotificationHelper (2 channels, 5 notification types)
+- FlightTrackingViewModel, FlightDetailScreen, RouteMapCanvas
+- 29 tests
+
+### Critical Issues Found + Fixed
+1. CancellationException swallowed in worker + service → added re-throw
+2. DIVERTED not treated as terminal state → added to self-cancel set
+3. Stale AviationStack comment → updated to FlightAware
+
+### Strengths
+- Clean API migration: FlightRouteService interface unchanged, call sites insulated
+- x-apikey interceptor skips header when key blank (fail-safe)
+- Worker self-cancels on terminal states, handles 429 with retry
+- Notification channels with correct importance levels
+- Double Null Island guard (worker + UI)
+- pickBestMatch by origin + closest scheduled time
+
+### Verdict: APPROVED — All 3 fixes applied before merge.
