@@ -6,20 +6,23 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.flightlog.app.data.local.dao.AchievementDao
 import com.flightlog.app.data.local.dao.CalendarFlightDao
+import com.flightlog.app.data.local.dao.FlightStatusDao
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import com.flightlog.app.data.local.entity.Achievement
 import com.flightlog.app.data.local.entity.CalendarFlight
+import com.flightlog.app.data.local.entity.FlightStatus
 import com.flightlog.app.data.local.entity.LogbookFlight
 
 @Database(
-    entities = [CalendarFlight::class, LogbookFlight::class, Achievement::class],
-    version = 7,
+    entities = [CalendarFlight::class, LogbookFlight::class, Achievement::class, FlightStatus::class],
+    version = 8,
     exportSchema = true
 )
 abstract class FlightDatabase : RoomDatabase() {
     abstract fun calendarFlightDao(): CalendarFlightDao
     abstract fun logbookFlightDao(): LogbookFlightDao
     abstract fun achievementDao(): AchievementDao
+    abstract fun flightStatusDao(): FlightStatusDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -91,6 +94,39 @@ abstract class FlightDatabase : RoomDatabase() {
                         "id TEXT NOT NULL PRIMARY KEY, " +
                         "unlockedAt INTEGER, " +
                         "seenByUser INTEGER NOT NULL DEFAULT 0)"
+                )
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS flight_status (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        logbookFlightId INTEGER NOT NULL,
+                        flightNumber TEXT NOT NULL,
+                        statusEnum TEXT NOT NULL,
+                        departureDelayMin INTEGER,
+                        arrivalDelayMin INTEGER,
+                        departureGate TEXT,
+                        arrivalGate TEXT,
+                        estimatedDepartureUtc INTEGER,
+                        estimatedArrivalUtc INTEGER,
+                        actualDepartureUtc INTEGER,
+                        actualArrivalUtc INTEGER,
+                        liveLat REAL,
+                        liveLng REAL,
+                        liveAltitude INTEGER,
+                        liveSpeedKnots INTEGER,
+                        liveHeading INTEGER,
+                        lastPolledAt INTEGER NOT NULL,
+                        trackingEnabled INTEGER NOT NULL DEFAULT 1
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS index_flight_status_logbookFlightId ON flight_status (logbookFlightId)"
                 )
             }
         }

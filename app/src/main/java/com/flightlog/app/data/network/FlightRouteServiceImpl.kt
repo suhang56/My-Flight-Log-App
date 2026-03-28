@@ -1,23 +1,19 @@
 package com.flightlog.app.data.network
 
 import android.util.Log
-import com.flightlog.app.BuildConfig
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import javax.inject.Inject
 
 class FlightRouteServiceImpl @Inject constructor(
-    private val api: AviationStackApi
+    private val api: FlightAwareApi
 ) : FlightRouteService {
 
     override suspend fun lookupRoute(flightNumber: String, date: LocalDate): FlightRoute? {
         return try {
-            // Note: flight_date parameter requires a paid AviationStack plan.
-            // On the free tier, omit it to avoid "function_access_restricted" error.
-            val response = api.getFlightByNumber(
-                accessKey = BuildConfig.AVIATION_STACK_KEY,
-                flightIata = flightNumber,
-                flightDate = null
+            val response = api.getFlights(
+                ident = flightNumber,
+                start = date.toString()
             )
 
             if (!response.isSuccessful) {
@@ -25,44 +21,35 @@ class FlightRouteServiceImpl @Inject constructor(
                 return null
             }
 
-            val flight = response.body()?.data?.firstOrNull() ?: run {
-                Log.w(TAG, "No flight data returned for $flightNumber")
-                return null
-            }
+            val flight = response.body()?.flights
+                ?.firstOrNull { it.origin?.codeIata != null && it.destination?.codeIata != null }
+                ?: run {
+                    Log.w(TAG, "No flight data returned for $flightNumber")
+                    return null
+                }
 
-            val departureIata = flight.departure?.iata
-            val arrivalIata = flight.arrival?.iata
-
-            if (departureIata != null && arrivalIata != null) {
-                val depUtc = parseScheduledToUtc(flight.departure?.scheduled)
-                val arrUtc = parseScheduledToUtc(flight.arrival?.scheduled)
-                val aircraft = flight.aircraft?.iata?.takeIf { it.isNotBlank() }
-                    ?: flight.aircraft?.icao?.takeIf { it.isNotBlank() }
-
-                FlightRoute(
-                    flightNumber = flightNumber,
-                    departureIata = departureIata,
-                    arrivalIata = arrivalIata,
-                    departureTimezone = flight.departure?.timezone,
-                    arrivalTimezone = flight.arrival?.timezone,
-                    departureScheduledUtc = depUtc,
-                    arrivalScheduledUtc = arrUtc,
-                    aircraftType = aircraft
-                )
-            } else {
-                Log.w(TAG, "Missing IATA codes in response for $flightNumber")
-                null
-            }
+            FlightRoute(
+                flightNumber = flightNumber,
+                departureIata = flight.origin?.codeIata ?: return null,
+                arrivalIata = flight.destination?.codeIata ?: return null,
+                departureTimezone = flight.origin?.timezone,
+                arrivalTimezone = flight.destination?.timezone,
+                departureScheduledUtc = parseIsoToUtc(flight.scheduledOut),
+                arrivalScheduledUtc = parseIsoToUtc(flight.scheduledIn),
+                aircraftType = flight.aircraftType?.takeIf { it.isNotBlank() }
+            )
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Failed to look up route for $flightNumber", e)
             null
         }
     }
 
-    private fun parseScheduledToUtc(iso: String?): Long? =
-        iso?.let { runCatching { OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() }
-
     companion object {
         private const val TAG = "FlightRouteService"
+
+        fun parseIsoToUtc(iso: String?): Long? =
+            iso?.let { runCatching { OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() }
     }
 }

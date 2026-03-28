@@ -20,11 +20,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
@@ -33,6 +35,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.flightlog.app.data.AirportCoordinatesMap.LatLng
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.asin
 import kotlin.math.atan2
@@ -43,12 +46,15 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 
+data class LivePosition(val lat: Double, val lng: Double, val heading: Int?)
+
 @Composable
 fun RouteMapCanvas(
     departure: LatLng?,
     arrival: LatLng?,
     departureIata: String,
     arrivalIata: String,
+    livePosition: LivePosition? = null,
     modifier: Modifier = Modifier
 ) {
     if (departure == null || arrival == null) {
@@ -126,6 +132,31 @@ fun RouteMapCanvas(
 
             drawLabel(this, labelPaint, departureIata.uppercase(), depPoint, labelOffsetPx, size.height)
             drawLabel(this, labelPaint, arrivalIata.uppercase(), arrPoint, labelOffsetPx, size.height)
+        }
+
+        // Draw live position airplane icon
+        if (livePosition != null) {
+            val planeLatLng = LatLng(livePosition.lat, livePosition.lng)
+            val planePoint = project(planeLatLng, viewport, size.width, size.height)
+            val planeSize = with(density) { 12.dp.toPx() }
+            val borderSize = with(density) { 14.dp.toPx() }
+            val headingDeg = (livePosition.heading ?: 0).toFloat()
+
+            // White border circle
+            drawCircle(color = Color.White, radius = borderSize, center = planePoint)
+            // Primary fill circle
+            drawCircle(color = primaryColor, radius = planeSize, center = planePoint)
+
+            // Draw a small airplane triangle rotated to heading
+            rotate(degrees = headingDeg, pivot = planePoint) {
+                val trianglePath = Path().apply {
+                    moveTo(planePoint.x, planePoint.y - planeSize * 0.7f)
+                    lineTo(planePoint.x - planeSize * 0.4f, planePoint.y + planeSize * 0.4f)
+                    lineTo(planePoint.x + planeSize * 0.4f, planePoint.y + planeSize * 0.4f)
+                    close()
+                }
+                drawPath(trianglePath, color = Color.White)
+            }
         }
     }
 }

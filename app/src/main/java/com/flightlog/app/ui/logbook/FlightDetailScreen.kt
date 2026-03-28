@@ -1,6 +1,10 @@
 package com.flightlog.app.ui.logbook
 
+import android.Manifest
 import android.content.Intent
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -20,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.AlertDialog
@@ -45,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -53,7 +60,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.flightlog.app.data.AirportCoordinatesMap
+import com.flightlog.app.data.local.entity.FlightStatus
 import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.data.network.FlightStatusEnum
 import com.flightlog.app.util.DATE_FORMATTER
 import com.flightlog.app.util.DAY_DATE_FORMATTER
 import com.flightlog.app.util.TIME_TZ_FORMATTER
@@ -64,10 +73,12 @@ import com.flightlog.app.util.formatInZone
 fun FlightDetailScreen(
     onNavigateBack: () -> Unit,
     onNavigateToEdit: (Long) -> Unit,
-    viewModel: FlightDetailViewModel = hiltViewModel()
+    viewModel: FlightDetailViewModel = hiltViewModel(),
+    trackingViewModel: FlightTrackingViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val showDeleteConfirmation by viewModel.showDeleteConfirmation.collectAsState()
+    val flightStatus by trackingViewModel.flightStatus.collectAsState()
 
     LaunchedEffect(uiState) {
         viewModel.onUiStateChanged(uiState)
@@ -196,6 +207,15 @@ fun FlightDetailScreen(
                         arrivalCityName = arrivalCityName
                     )
 
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Live status card + track button
+                    TrackingSection(
+                        flight = flight,
+                        flightStatus = flightStatus,
+                        trackingViewModel = trackingViewModel
+                    )
+
                     Spacer(modifier = Modifier.height(24.dp))
 
                     TimelineSection(flight = flight)
@@ -231,11 +251,19 @@ fun FlightDetailScreen(
                     val arrivalCoords = remember(flight.arrivalCode) {
                         AirportCoordinatesMap.coordinatesFor(flight.arrivalCode)
                     }
+                    val livePosition = flightStatus?.let { status ->
+                        val lat = status.liveLat
+                        val lng = status.liveLng
+                        if (lat != null && lng != null && !(lat == 0.0 && lng == 0.0)) {
+                            LivePosition(lat = lat, lng = lng, heading = status.liveHeading)
+                        } else null
+                    }
                     RouteMapCanvas(
                         departure = departureCoords,
                         arrival = arrivalCoords,
                         departureIata = flight.departureCode,
                         arrivalIata = flight.arrivalCode,
+                        livePosition = livePosition,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(160.dp)
@@ -519,6 +547,119 @@ private fun ActionRow(onDelete: () -> Unit, onEdit: () -> Unit) {
             Spacer(modifier = Modifier.width(8.dp))
             Text("Edit")
         }
+    }
+}
+
+@Composable
+private fun TrackingSection(
+    flight: LogbookFlight,
+    flightStatus: FlightStatus?,
+    trackingViewModel: FlightTrackingViewModel
+) {
+    val context = LocalContext.current
+    val isTracking = flightStatus?.trackingEnabled == true
+    val canTrack = flight.flightNumber.isNotBlank()
+
+    // Permission launcher for Android 13+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { _ ->
+        // Start tracking regardless of permission result (notifications just won't show)
+        trackingViewModel.startTracking(context, flight.flightNumber)
+    }
+
+    // Show live status card if we have status data
+    if (flightStatus != null) {
+        LiveStatusCard(flightStatus)
+        Spacer(modifier = Modifier.height(12.dp))
+    }
+
+    if (canTrack) {
+        if (isTracking) {
+            OutlinedButton(
+                onClick = { trackingViewModel.stopTracking(context) },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.GpsFixed,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Tracking")
+            }
+        } else {
+            OutlinedButton(
+                onClick = {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        permissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        trackingViewModel.startTracking(context, flight.flightNumber)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(
+                    imageVector = Icons.Default.GpsFixed,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Track This Flight")
+            }
+        }
+    }
+}
+
+@Composable
+private fun LiveStatusCard(status: FlightStatus) {
+    val statusEnum = runCatching { FlightStatusEnum.valueOf(status.statusEnum) }
+        .getOrDefault(FlightStatusEnum.UNKNOWN)
+
+    Surface(
+        color = statusBadgeColor(statusEnum),
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = statusEnum.name.replace("_", " "),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            val parts = mutableListOf<String>()
+            status.departureGate?.let { parts.add("Gate: $it") }
+            status.departureDelayMin?.takeIf { it > 0 }?.let { parts.add("Delayed ${it}min") }
+            status.liveAltitude?.let { parts.add("Alt: %,d ft".format(it)) }
+            status.liveSpeedKnots?.let { parts.add("Speed: ${it} kts") }
+
+            if (parts.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = parts.joinToString("  |  "),
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun statusBadgeColor(status: FlightStatusEnum): Color {
+    return when (status) {
+        FlightStatusEnum.SCHEDULED -> MaterialTheme.colorScheme.outlineVariant
+        FlightStatusEnum.BOARDING -> MaterialTheme.colorScheme.secondaryContainer
+        FlightStatusEnum.EN_ROUTE, FlightStatusEnum.DEPARTED -> MaterialTheme.colorScheme.primaryContainer
+        FlightStatusEnum.LANDED -> MaterialTheme.colorScheme.tertiaryContainer
+        FlightStatusEnum.CANCELLED, FlightStatusEnum.DIVERTED -> MaterialTheme.colorScheme.errorContainer
+        FlightStatusEnum.UNKNOWN -> MaterialTheme.colorScheme.surfaceVariant
     }
 }
 
