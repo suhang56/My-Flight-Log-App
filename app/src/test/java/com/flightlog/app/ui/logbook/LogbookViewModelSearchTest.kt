@@ -7,7 +7,11 @@ import com.flightlog.app.data.local.model.AirportCount
 import com.flightlog.app.data.local.model.LabelCount
 import com.flightlog.app.data.local.model.MonthlyCount
 import com.flightlog.app.data.local.model.RouteCount
+import com.flightlog.app.data.local.dao.AirportDao
+import com.flightlog.app.data.repository.AirportRepository
 import com.flightlog.app.data.repository.LogbookRepository
+import io.mockk.coEvery
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -77,7 +81,10 @@ class LogbookViewModelSearchTest {
         fakeDao.allFlightsFlow.value = allFlights
         fakeDao.distinctYears = listOf("2025", "2024")
         fakeDao.distinctSeatClasses = listOf("Business", "Economy", "First")
-        repository = LogbookRepository(fakeDao)
+        val mockAirportDao = mockk<AirportDao>()
+        coEvery { mockAirportDao.getByIata(any()) } returns null
+        val airportRepository = AirportRepository(mockAirportDao)
+        repository = LogbookRepository(fakeDao, airportRepository)
         vm = LogbookViewModel(repository)
     }
 

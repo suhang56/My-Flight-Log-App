@@ -80,6 +80,8 @@ fun AddEditLogbookFlightScreen(
     viewModel: AddEditLogbookFlightViewModel = hiltViewModel()
 ) {
     val form by viewModel.form.collectAsState()
+    val departureSuggestions by viewModel.departureSuggestions.collectAsState()
+    val arrivalSuggestions by viewModel.arrivalSuggestions.collectAsState()
     var showDeleteConfirmation by remember { mutableStateOf(false) }
 
     LaunchedEffect(form.savedSuccessfully) {
@@ -255,34 +257,30 @@ fun AddEditLogbookFlightScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                OutlinedTextField(
+                AirportAutocompleteField(
                     value = form.departureCode,
                     onValueChange = { if (it.length <= 3) viewModel.updateDepartureCode(it) },
-                    label = { Text("From") },
-                    placeholder = { Text("ORD") },
+                    suggestions = departureSuggestions,
+                    onAirportSelected = { viewModel.selectDepartureAirport(it) },
+                    onDismissSuggestions = { viewModel.dismissDepartureSuggestions() },
+                    label = "From",
+                    placeholder = "ORD",
                     isError = form.departureCodeError != null,
-                    supportingText = form.departureCodeError?.let { err -> { Text(err) } },
-                    singleLine = true,
+                    errorText = form.departureCodeError,
                     enabled = !form.isSearching,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Characters,
-                        imeAction = ImeAction.Next
-                    ),
                     modifier = Modifier.weight(1f)
                 )
-                OutlinedTextField(
+                AirportAutocompleteField(
                     value = form.arrivalCode,
                     onValueChange = { if (it.length <= 3) viewModel.updateArrivalCode(it) },
-                    label = { Text("To") },
-                    placeholder = { Text("CMH") },
+                    suggestions = arrivalSuggestions,
+                    onAirportSelected = { viewModel.selectArrivalAirport(it) },
+                    onDismissSuggestions = { viewModel.dismissArrivalSuggestions() },
+                    label = "To",
+                    placeholder = "CMH",
                     isError = form.arrivalCodeError != null,
-                    supportingText = form.arrivalCodeError?.let { err -> { Text(err) } },
-                    singleLine = true,
+                    errorText = form.arrivalCodeError,
                     enabled = !form.isSearching,
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Characters,
-                        imeAction = ImeAction.Next
-                    ),
                     modifier = Modifier.weight(1f)
                 )
             }
@@ -524,6 +522,73 @@ private fun TimePickerDialog(
         },
         text = { content() }
     )
+}
+
+// ── Airport autocomplete field ──────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AirportAutocompleteField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    suggestions: List<com.flightlog.app.data.local.entity.Airport>,
+    onAirportSelected: (com.flightlog.app.data.local.entity.Airport) -> Unit,
+    onDismissSuggestions: () -> Unit,
+    label: String,
+    placeholder: String,
+    isError: Boolean,
+    errorText: String?,
+    enabled: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val expanded = suggestions.isNotEmpty()
+
+    ExposedDropdownMenuBox(
+        expanded = expanded,
+        onExpandedChange = { if (!it) onDismissSuggestions() },
+        modifier = modifier
+    ) {
+        OutlinedTextField(
+            value = value,
+            onValueChange = onValueChange,
+            label = { Text(label) },
+            placeholder = { Text(placeholder) },
+            isError = isError,
+            supportingText = errorText?.let { err -> { Text(err) } },
+            singleLine = true,
+            enabled = enabled,
+            keyboardOptions = KeyboardOptions(
+                capitalization = KeyboardCapitalization.Characters,
+                imeAction = ImeAction.Next
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .menuAnchor(MenuAnchorType.PrimaryEditable)
+        )
+        ExposedDropdownMenu(
+            expanded = expanded,
+            onDismissRequest = onDismissSuggestions
+        ) {
+            suggestions.forEach { airport ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(
+                                text = "${airport.iata} — ${airport.city}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text(
+                                text = airport.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    onClick = { onAirportSelected(airport) }
+                )
+            }
+        }
+    }
 }
 
 // ── Seat class dropdown ─────────────────────────────────────────────────────────

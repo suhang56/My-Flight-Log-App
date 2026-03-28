@@ -3,16 +3,20 @@ package com.flightlog.app.ui.logbook
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.flightlog.app.data.AirportCoordinatesMap
-import com.flightlog.app.data.AirportTimezoneMap
+import com.flightlog.app.data.local.entity.Airport
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.network.FlightRouteService
+import com.flightlog.app.data.repository.AirportRepository
 import com.flightlog.app.data.repository.LogbookRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -46,9 +50,11 @@ data class AddEditFormState(
     val autoFillApplied: Boolean = false
 )
 
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class AddEditLogbookFlightViewModel @Inject constructor(
     private val repository: LogbookRepository,
+    private val airportRepository: AirportRepository,
     private val flightRouteService: FlightRouteService,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
@@ -57,6 +63,15 @@ class AddEditLogbookFlightViewModel @Inject constructor(
 
     private val _form = MutableStateFlow(AddEditFormState(isEditMode = editId != null))
     val form: StateFlow<AddEditFormState> = _form.asStateFlow()
+
+    private val _departureQuery = MutableStateFlow("")
+    private val _arrivalQuery = MutableStateFlow("")
+
+    private val _departureSuggestions = MutableStateFlow<List<Airport>>(emptyList())
+    val departureSuggestions: StateFlow<List<Airport>> = _departureSuggestions.asStateFlow()
+
+    private val _arrivalSuggestions = MutableStateFlow<List<Airport>>(emptyList())
+    val arrivalSuggestions: StateFlow<List<Airport>> = _arrivalSuggestions.asStateFlow()
 
     private var existingFlight: LogbookFlight? = null
     private var searchJob: Job? = null
@@ -96,15 +111,61 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                 }
             }
         }
+
+        // Debounced departure autocomplete
+        viewModelScope.launch {
+            _departureQuery
+                .debounce(300)
+                .distinctUntilChanged()
+                .collectLatest { query ->
+                    _departureSuggestions.value = if (query.length >= 2) {
+                        airportRepository.search(query)
+                    } else {
+                        emptyList()
+                    }
+                }
+        }
+
+        // Debounced arrival autocomplete
+        viewModelScope.launch {
+            _arrivalQuery
+                .debounce(300)
+                .distinctUntilChanged()
+                .collectLatest { query ->
+                    _arrivalSuggestions.value = if (query.length >= 2) {
+                        airportRepository.search(query)
+                    } else {
+                        emptyList()
+                    }
+                }
+        }
     }
 
     fun updateFlightNumber(value: String) { _form.update { it.copy(flightNumber = value) } }
     fun updateDepartureCode(value: String) {
         _form.update { it.copy(departureCode = value.uppercase(), departureCodeError = null, duplicateCheckPassed = false, autoFillApplied = false) }
+        _departureQuery.value = value.uppercase()
     }
     fun updateArrivalCode(value: String) {
         _form.update { it.copy(arrivalCode = value.uppercase(), arrivalCodeError = null, duplicateCheckPassed = false, autoFillApplied = false) }
+        _arrivalQuery.value = value.uppercase()
     }
+
+    fun selectDepartureAirport(airport: Airport) {
+        _form.update { it.copy(departureCode = airport.iata, departureCodeError = null, duplicateCheckPassed = false, autoFillApplied = false) }
+        _departureSuggestions.value = emptyList()
+        _departureQuery.value = ""
+    }
+
+    fun selectArrivalAirport(airport: Airport) {
+        _form.update { it.copy(arrivalCode = airport.iata, arrivalCodeError = null, duplicateCheckPassed = false, autoFillApplied = false) }
+        _arrivalSuggestions.value = emptyList()
+        _arrivalQuery.value = ""
+    }
+
+    fun dismissDepartureSuggestions() { _departureSuggestions.value = emptyList() }
+    fun dismissArrivalSuggestions() { _arrivalSuggestions.value = emptyList() }
+
     fun updateDate(value: LocalDate) { _form.update { it.copy(date = value, duplicateCheckPassed = false) } }
     fun updateDepartureTime(value: LocalTime) { _form.update { it.copy(departureTime = value) } }
     fun updateArrivalTime(value: LocalTime?) { _form.update { it.copy(arrivalTime = value) } }
@@ -186,7 +247,6 @@ class AddEditLogbookFlightViewModel @Inject constructor(
     fun save() {
         val current = _form.value
 
-        // Validate
         var hasError = false
         if (current.departureCode.length != 3) {
             _form.update { it.copy(departureCodeError = "Enter 3-letter airport code") }
@@ -201,8 +261,10 @@ class AddEditLogbookFlightViewModel @Inject constructor(
         _form.update { it.copy(isSaving = true) }
 
         viewModelScope.launch {
-            val depTz = AirportTimezoneMap.timezoneFor(current.departureCode)
-            val arrTz = AirportTimezoneMap.timezoneFor(current.arrivalCode)
+            val depAirport = airportRepository.getByIata(current.departureCode)
+            val arrAirport = airportRepository.getByIata(current.arrivalCode)
+            val depTz = depAirport?.timezone
+            val arrTz = arrAirport?.timezone
             val depZone = depTz?.let { ZoneId.of(it) } ?: ZoneId.systemDefault()
             val arrZone = arrTz?.let { ZoneId.of(it) } ?: ZoneId.systemDefault()
 
@@ -211,14 +273,13 @@ class AddEditLogbookFlightViewModel @Inject constructor(
 
             val arrivalUtc = current.arrivalTime?.let { arrTime ->
                 var arrDate = current.date
-                // If arrival time is before departure time, assume next day
                 if (arrTime < current.departureTime) {
                     arrDate = arrDate.plusDays(1)
                 }
                 arrDate.atTime(arrTime).atZone(arrZone).toInstant().toEpochMilli()
             }
 
-            // Duplicate guard: warn if same route + same UTC day already exists
+            // Duplicate guard
             if (!current.duplicateCheckPassed) {
                 val isDuplicate = repository.existsByRouteAndDate(
                     depCode = current.departureCode.trim(),
@@ -237,12 +298,10 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                 }
             }
 
-            val distance = AirportCoordinatesMap.distanceNm(current.departureCode, current.arrivalCode)
+            val distance = airportRepository.distanceNm(current.departureCode, current.arrivalCode)
 
             val existing = existingFlight
             if (editId != null && existing != null) {
-                // copy() preserves id, sourceCalendarEventId, sourceLegIndex, and addedAt
-                // from the original flight — only user-editable fields are overwritten.
                 val updated = existing.copy(
                     flightNumber = current.flightNumber.trim(),
                     departureCode = current.departureCode.trim(),

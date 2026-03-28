@@ -10,7 +10,11 @@ import com.flightlog.app.data.local.model.MonthlyCount
 import com.flightlog.app.data.local.model.RouteCount
 import com.flightlog.app.data.network.FlightRoute
 import com.flightlog.app.data.network.FlightRouteService
+import com.flightlog.app.data.local.dao.AirportDao
+import com.flightlog.app.data.repository.AirportRepository
 import com.flightlog.app.data.repository.LogbookRepository
+import io.mockk.coEvery
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -41,13 +45,18 @@ class AddEditFlightViewModelTest {
     private lateinit var fakeFlightRouteService: FakeFlightRouteService
     private lateinit var fakeDao: FakeLogbookFlightDao
     private lateinit var repository: LogbookRepository
+    private lateinit var airportRepository: AirportRepository
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         fakeFlightRouteService = FakeFlightRouteService()
         fakeDao = FakeLogbookFlightDao()
-        repository = LogbookRepository(fakeDao)
+        val mockAirportDao = mockk<AirportDao>()
+        coEvery { mockAirportDao.getByIata(any()) } returns null
+        coEvery { mockAirportDao.search(any()) } returns emptyList()
+        airportRepository = AirportRepository(mockAirportDao)
+        repository = LogbookRepository(fakeDao, airportRepository)
     }
 
     @After
@@ -58,6 +67,7 @@ class AddEditFlightViewModelTest {
     private fun createViewModel(): AddEditLogbookFlightViewModel {
         return AddEditLogbookFlightViewModel(
             repository = repository,
+            airportRepository = airportRepository,
             flightRouteService = fakeFlightRouteService,
             savedStateHandle = SavedStateHandle()
         )

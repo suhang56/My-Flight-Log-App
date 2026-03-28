@@ -1,6 +1,5 @@
 package com.flightlog.app.data.repository
 
-import com.flightlog.app.data.AirportCoordinatesMap
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.local.entity.LogbookFlight
@@ -16,7 +15,8 @@ import javax.inject.Singleton
 
 @Singleton
 class LogbookRepository @Inject constructor(
-    private val logbookFlightDao: LogbookFlightDao
+    private val logbookFlightDao: LogbookFlightDao,
+    private val airportRepository: AirportRepository
 ) {
 
     fun getAll(): Flow<List<LogbookFlight>> = logbookFlightDao.getAll()
@@ -51,7 +51,7 @@ class LogbookRepository @Inject constructor(
      * Returns the new row ID, or -1 if the insert was ignored (duplicate source).
      */
     suspend fun addFromCalendarFlight(calendarFlight: CalendarFlight): Long {
-        val distance = AirportCoordinatesMap.distanceNm(
+        val distance = airportRepository.distanceNm(
             calendarFlight.departureCode,
             calendarFlight.arrivalCode
         )
