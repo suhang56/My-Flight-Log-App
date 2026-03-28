@@ -2,7 +2,7 @@ package com.flightlog.app.data
 
 /**
  * Static lookup of IATA airport codes to IANA timezone identifiers.
- * Used as an offline fallback when the AviationStack API does not return timezone info.
+ * Used as an offline fallback when the FlightAware API does not return timezone info.
  *
  * Covers ~200 of the world's busiest airports by passenger volume.
  */

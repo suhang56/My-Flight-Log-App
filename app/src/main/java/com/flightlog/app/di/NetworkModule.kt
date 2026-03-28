@@ -1,7 +1,7 @@
 package com.flightlog.app.di
 
 import com.flightlog.app.BuildConfig
-import com.flightlog.app.data.network.AviationStackApi
+import com.flightlog.app.data.network.FlightAwareApi
 import com.flightlog.app.data.network.FlightRouteService
 import com.flightlog.app.data.network.FlightRouteServiceImpl
 import com.squareup.moshi.Moshi
@@ -20,7 +20,7 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val BASE_URL = "http://api.aviationstack.com/"
+    private const val BASE_URL = "https://aeroapi.flightaware.com/aeroapi/"
 
     @Provides
     @Singleton
@@ -35,6 +35,17 @@ object NetworkModule {
 
         return OkHttpClient.Builder()
             .addInterceptor(loggingInterceptor)
+            .addInterceptor { chain ->
+                val apiKey = BuildConfig.FLIGHTAWARE_API_KEY
+                val request = if (apiKey.isNotBlank()) {
+                    chain.request().newBuilder()
+                        .addHeader("x-apikey", apiKey)
+                        .build()
+                } else {
+                    chain.request()
+                }
+                chain.proceed(request)
+            }
             .build()
     }
 
@@ -57,8 +68,8 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideAviationStackApi(retrofit: Retrofit): AviationStackApi {
-        return retrofit.create(AviationStackApi::class.java)
+    fun provideFlightAwareApi(retrofit: Retrofit): FlightAwareApi {
+        return retrofit.create(FlightAwareApi::class.java)
     }
 }
 

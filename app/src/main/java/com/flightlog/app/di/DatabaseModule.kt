@@ -7,6 +7,7 @@ import com.flightlog.app.data.local.FlightDatabase
 import com.flightlog.app.data.local.dao.AchievementDao
 import com.flightlog.app.data.local.dao.AirportDao
 import com.flightlog.app.data.local.dao.CalendarFlightDao
+import com.flightlog.app.data.local.dao.FlightStatusDao
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import dagger.Module
 import dagger.Provides
@@ -33,7 +34,8 @@ object DatabaseModule {
                 FlightDatabase.MIGRATION_3_4,
                 FlightDatabase.MIGRATION_4_5,
                 FlightDatabase.MIGRATION_5_6,
-                FlightDatabase.MIGRATION_6_7
+                FlightDatabase.MIGRATION_6_7,
+                FlightDatabase.MIGRATION_7_8
             )
             .build()
     }
@@ -51,6 +53,11 @@ object DatabaseModule {
     @Provides
     fun provideAchievementDao(database: FlightDatabase): AchievementDao {
         return database.achievementDao()
+    }
+
+    @Provides
+    fun provideFlightStatusDao(database: FlightDatabase): FlightStatusDao {
+        return database.flightStatusDao()
     }
 
     @Provides
