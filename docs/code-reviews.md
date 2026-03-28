@@ -861,3 +861,31 @@ None.
 - 8 edge case tests on preferences (idempotency, isolation, missing key)
 
 ### Verdict: APPROVED — All 3 critical fixes applied before merge.
+
+---
+
+## Review #21 — Feature 10: Offline Airport Database
+
+**Date:** 2026-03-28
+**Reviewer:** Code Reviewer
+**Verdict:** APPROVED (with 3 fixes applied before merge)
+
+### Files Reviewed
+- Airport.kt (entity), AirportDatabase.kt, AirportDao.kt, AirportRepository.kt
+- DatabaseModule.kt, AddEditLogbookFlightViewModel/Screen.kt
+- FlightDetailViewModel/Screen.kt, LogbookRepository.kt
+- AirportRepositoryTest.kt (18 tests)
+- airports.db asset (269 airports)
+
+### Critical Issues Found + Fixed
+1. Null Island bug: static fallback with timezone-only used lat=0/lng=0 → changed to NaN + guard in distanceNm()
+2. DB name collision: Room DB renamed from "airports.db" to "airport_lookup.db" (distinct from asset)
+3. SQL search: added COLLATE NOCASE for reliable case-insensitive matching
+
+### Strengths
+- DAO-first + static fallback = zero regression from pre-DB world
+- IATA uppercase normalization in repository layer
+- Autocomplete: debounce + distinctUntilChanged + collectLatest trio
+- 18 edge case tests covering normalization, fallback, haversine, null timezone
+
+### Verdict: APPROVED — All 3 fixes applied before merge.
