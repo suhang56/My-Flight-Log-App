@@ -951,3 +951,30 @@ None.
 - pickBestMatch by origin + closest scheduled time
 
 ### Verdict: APPROVED — All 3 fixes applied before merge.
+
+---
+
+## Review #24 — Feature 14: Trip Grouping / Timeline
+
+**Date:** 2026-03-28
+**Reviewer:** Code Reviewer
+**Verdict:** APPROVED (no critical issues)
+
+### Files Reviewed
+- TripGroup.kt, TripGrouper.kt (pure object, 48h gap detection)
+- TripHeader.kt (ElevatedCard, chevron animation)
+- LogbookViewModel.kt (tripGroups StateFlow, collapsed tracking)
+- LogbookScreen.kt (SegmentedButton toggle, indented flight cards)
+- TripGrouperTest.kt (24 tests)
+
+### Critical Issues
+None.
+
+### Strengths
+- Pure TripGrouper object — same pattern as AchievementEvaluator
+- Sorts internally regardless of input order (verified by tests)
+- 24 tests: boundary 48h, null arrival, unsorted input, round trip labels, date ranges
+- Collapsed state via combine(flights, _collapsedTrips) — reactive, survives changes
+- Route label handles consecutive dedup + non-consecutive preservation
+
+### Verdict: APPROVED — Ship it.
