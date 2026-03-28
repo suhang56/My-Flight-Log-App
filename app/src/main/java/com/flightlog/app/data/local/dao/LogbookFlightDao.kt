@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.local.model.AirlineCount
@@ -65,6 +66,11 @@ interface LogbookFlightDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(flight: LogbookFlight): Long
+
+    /** Batch insert for restore — transactional, bypasses per-flight triggers. */
+    @Transaction
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(flights: List<LogbookFlight>): List<Long>
 
     /** Insert or replace — used by undo-delete to restore a flight with its original ID. */
     @Insert(onConflict = OnConflictStrategy.REPLACE)

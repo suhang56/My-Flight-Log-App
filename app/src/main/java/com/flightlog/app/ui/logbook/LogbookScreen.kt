@@ -52,6 +52,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -100,6 +101,7 @@ fun LogbookScreen(
     onAddFlight: () -> Unit = {},
     onEditFlight: (Long) -> Unit = {},
     onViewFlight: (Long) -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     viewModel: LogbookViewModel = hiltViewModel(),
     exportViewModel: ExportViewModel = hiltViewModel()
 ) {
@@ -230,6 +232,14 @@ fun LogbookScreen(
                                     exportViewModel.exportJson()
                                 },
                                 enabled = totalFlightCount > 0
+                            )
+                            HorizontalDivider()
+                            DropdownMenuItem(
+                                text = { Text("Settings") },
+                                onClick = {
+                                    showExportMenu = false
+                                    onNavigateToSettings()
+                                }
                             )
                         }
                     }

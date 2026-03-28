@@ -1,5 +1,7 @@
 package com.flightlog.app.data.repository
 
+import android.content.Context
+import com.flightlog.app.data.backup.AutoBackupWorker
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.local.entity.LogbookFlight
@@ -8,6 +10,7 @@ import com.flightlog.app.data.local.model.AirportCount
 import com.flightlog.app.data.local.model.LabelCount
 import com.flightlog.app.data.local.model.MonthlyCount
 import com.flightlog.app.data.local.model.RouteCount
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
@@ -15,6 +18,7 @@ import javax.inject.Singleton
 
 @Singleton
 class LogbookRepository @Inject constructor(
+    @ApplicationContext private val context: Context,
     private val logbookFlightDao: LogbookFlightDao,
     private val airportRepository: AirportRepository,
     private val achievementRepository: AchievementRepository
@@ -75,6 +79,7 @@ class LogbookRepository @Inject constructor(
 
         val rowId = logbookFlightDao.insert(logbookFlight)
         if (rowId != -1L) try { achievementRepository.checkAndUnlock() } catch (_: Exception) { /* Achievement evaluation is a side effect — never block the primary operation */ }
+        if (rowId != -1L) AutoBackupWorker.enqueueIfSignedIn(context)
         return rowId
     }
 
@@ -95,22 +100,37 @@ class LogbookRepository @Inject constructor(
     suspend fun insert(flight: LogbookFlight): Long {
         val rowId = logbookFlightDao.insert(flight)
         if (rowId != -1L) try { achievementRepository.checkAndUnlock() } catch (_: Exception) { /* Achievement evaluation is a side effect — never block the primary operation */ }
+        if (rowId != -1L) AutoBackupWorker.enqueueIfSignedIn(context)
         return rowId
+    }
+
+    /** Batch insert for restore — bypasses per-flight achievement/backup triggers. */
+    suspend fun insertAllForRestore(flights: List<LogbookFlight>): List<Long> =
+        logbookFlightDao.insertAll(flights)
+
+    /** Trigger achievement evaluation (exposed for batch operations like restore). */
+    suspend fun checkAchievements() {
+        try { achievementRepository.checkAndUnlock() } catch (_: Exception) { }
     }
 
     /** Insert or replace — preserves the original ID on undo-delete. */
     suspend fun upsert(flight: LogbookFlight): Long {
         val rowId = logbookFlightDao.upsert(flight)
         try { achievementRepository.checkAndUnlock() } catch (_: Exception) { /* Achievement evaluation is a side effect — never block the primary operation */ }
+        AutoBackupWorker.enqueueIfSignedIn(context)
         return rowId
     }
 
     suspend fun update(flight: LogbookFlight) {
         logbookFlightDao.update(flight.copy(updatedAt = System.currentTimeMillis()))
         try { achievementRepository.checkAndUnlock() } catch (_: Exception) { /* Achievement evaluation is a side effect — never block the primary operation */ }
+        AutoBackupWorker.enqueueIfSignedIn(context)
     }
 
-    suspend fun delete(id: Long) = logbookFlightDao.deleteById(id)
+    suspend fun delete(id: Long) {
+        logbookFlightDao.deleteById(id)
+        AutoBackupWorker.enqueueIfSignedIn(context)
+    }
 
     // ── Statistics ────────────────────────────────────────────────────────────
 
