@@ -833,3 +833,31 @@ None.
 - updatePeriodMillis=0 avoids redundant AlarmManager wakeups
 
 ### Verdict: APPROVED — Ship it.
+
+---
+
+## Review #20 — Feature 13: Onboarding Polish
+
+**Date:** 2026-03-28
+**Reviewer:** Code Reviewer
+**Verdict:** APPROVED (with fixes applied before merge)
+
+### Files Reviewed
+- OnboardingPreferences.kt (SharedPreferences flag)
+- OnboardingActivity.kt (permission launcher, back-press guard)
+- OnboardingScreen.kt (HorizontalPager, 3 pages, dot indicator)
+- OnboardingPreferencesTest.kt (8 edge case tests)
+- MainActivity.kt, AndroidManifest.xml, CalendarFlightsScreen.kt, LogbookScreen.kt
+
+### Critical Issues Found + Fixed
+1. `apply()` → `commit()` for SharedPreferences write (prevents flag loss on immediate finish)
+2. Back-press guard added (user must tap "Get Started", can't escape onboarding)
+3. Double-tap guard on permission launcher (prevents IllegalStateException)
+
+### Strengths
+- Clean separation: OnboardingScreen is pure Compose, Activity handles side effects
+- Skip button jumps to page 3 (still shows CTA), not complete
+- markComplete regardless of permission result — correct education flow
+- 8 edge case tests on preferences (idempotency, isolation, missing key)
+
+### Verdict: APPROVED — All 3 critical fixes applied before merge.
