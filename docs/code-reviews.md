@@ -978,3 +978,30 @@ None.
 - Route label handles consecutive dedup + non-consecutive preservation
 
 ### Verdict: APPROVED — Ship it.
+
+---
+
+## Review #25 — Feature 15: Cloud Backup (Google Drive)
+
+**Date:** 2026-03-28
+**Reviewer:** Code Reviewer
+**Verdict:** APPROVED (with 3 fixes applied before merge)
+
+### Files Reviewed
+- DriveBackupService.kt, BackupMetadataStore.kt, AutoBackupWorker.kt
+- SettingsViewModel.kt, SettingsScreen.kt
+- LogbookFlightDao.kt (insertAll), LogbookRepository.kt (insertAllForRestore)
+- NavGraph.kt, LogbookScreen.kt, build.gradle.kts
+
+### Critical Issues Found + Fixed
+1. CancellationException swallowed in 3 DriveBackupService methods → added re-throw
+2. Restore not transactional → added batch insertAll with @Transaction in DAO
+3. Per-flight achievement/backup triggers during restore → bypassed via insertAllForRestore
+
+### Strengths
+- Reuses ExportService for serialization (zero duplication)
+- appDataFolder scope (minimal Drive permissions)
+- WorkManager KEEP policy prevents backup cancellation
+- Sealed result types for backup/restore
+
+### Verdict: APPROVED — All 3 fixes applied before merge.
