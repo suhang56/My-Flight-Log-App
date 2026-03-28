@@ -143,6 +143,8 @@ fun FlightDetailScreen(
 
         is FlightDetailUiState.Success -> {
             val flight = state.flight
+            val departureCityName = state.departureCityName
+            val arrivalCityName = state.arrivalCityName
             val context = LocalContext.current
 
             Scaffold(
@@ -189,7 +191,9 @@ fun FlightDetailScreen(
 
                     RouteHeader(
                         departureCode = flight.departureCode,
-                        arrivalCode = flight.arrivalCode
+                        arrivalCode = flight.arrivalCode,
+                        departureCityName = departureCityName,
+                        arrivalCityName = arrivalCityName
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -253,18 +257,32 @@ fun FlightDetailScreen(
 }
 
 @Composable
-private fun RouteHeader(departureCode: String, arrivalCode: String) {
+private fun RouteHeader(
+    departureCode: String,
+    arrivalCode: String,
+    departureCityName: String? = null,
+    arrivalCityName: String? = null
+) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = departureCode,
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = departureCode,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            if (departureCityName != null) {
+                Text(
+                    text = departureCityName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
         Spacer(modifier = Modifier.width(20.dp))
         Icon(
             imageVector = Icons.Default.Flight,
@@ -275,12 +293,21 @@ private fun RouteHeader(departureCode: String, arrivalCode: String) {
             tint = MaterialTheme.colorScheme.primary
         )
         Spacer(modifier = Modifier.width(20.dp))
-        Text(
-            text = arrivalCode,
-            style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
-            fontFamily = FontFamily.Monospace
-        )
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = arrivalCode,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            if (arrivalCityName != null) {
+                Text(
+                    text = arrivalCityName,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
     }
 }
 

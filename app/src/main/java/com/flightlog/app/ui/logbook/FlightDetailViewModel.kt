@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.data.repository.AirportRepository
 import com.flightlog.app.data.repository.LogbookRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,13 +18,18 @@ import javax.inject.Inject
 
 sealed class FlightDetailUiState {
     data object Loading : FlightDetailUiState()
-    data class Success(val flight: LogbookFlight) : FlightDetailUiState()
+    data class Success(
+        val flight: LogbookFlight,
+        val departureCityName: String? = null,
+        val arrivalCityName: String? = null
+    ) : FlightDetailUiState()
     data object NotFound : FlightDetailUiState()
 }
 
 @HiltViewModel
 class FlightDetailViewModel @Inject constructor(
     private val repository: LogbookRepository,
+    private val airportRepository: AirportRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -31,8 +37,13 @@ class FlightDetailViewModel @Inject constructor(
 
     val uiState: StateFlow<FlightDetailUiState> = repository.getByIdFlow(flightId)
         .map { flight ->
-            if (flight != null) FlightDetailUiState.Success(flight)
-            else FlightDetailUiState.NotFound
+            if (flight != null) {
+                val depCity = airportRepository.getByIata(flight.departureCode)?.city
+                val arrCity = airportRepository.getByIata(flight.arrivalCode)?.city
+                FlightDetailUiState.Success(flight, depCity, arrCity)
+            } else {
+                FlightDetailUiState.NotFound
+            }
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), FlightDetailUiState.Loading)
 

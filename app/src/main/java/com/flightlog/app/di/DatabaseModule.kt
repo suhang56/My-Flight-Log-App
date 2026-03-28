@@ -2,7 +2,9 @@ package com.flightlog.app.di
 
 import android.content.Context
 import androidx.room.Room
+import com.flightlog.app.data.local.AirportDatabase
 import com.flightlog.app.data.local.FlightDatabase
+import com.flightlog.app.data.local.dao.AirportDao
 import com.flightlog.app.data.local.dao.CalendarFlightDao
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import dagger.Module
@@ -42,5 +44,24 @@ object DatabaseModule {
     @Provides
     fun provideLogbookFlightDao(database: FlightDatabase): LogbookFlightDao {
         return database.logbookFlightDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAirportDatabase(@ApplicationContext context: Context): AirportDatabase {
+        return Room.databaseBuilder(
+            context,
+            AirportDatabase::class.java,
+            "airport_lookup.db"
+        )
+            .createFromAsset("airports.db")
+            .fallbackToDestructiveMigration()
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAirportDao(database: AirportDatabase): AirportDao {
+        return database.airportDao()
     }
 }

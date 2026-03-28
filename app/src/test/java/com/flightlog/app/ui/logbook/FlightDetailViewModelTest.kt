@@ -8,7 +8,11 @@ import com.flightlog.app.data.local.model.AirportCount
 import com.flightlog.app.data.local.model.LabelCount
 import com.flightlog.app.data.local.model.MonthlyCount
 import com.flightlog.app.data.local.model.RouteCount
+import com.flightlog.app.data.local.dao.AirportDao
+import com.flightlog.app.data.repository.AirportRepository
 import com.flightlog.app.data.repository.LogbookRepository
+import io.mockk.coEvery
+import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -34,6 +38,7 @@ class FlightDetailViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var fakeDao: FakeDetailLogbookFlightDao
     private lateinit var repository: LogbookRepository
+    private lateinit var airportRepository: AirportRepository
 
     private val fullFlight = LogbookFlight(
         id = 42,
@@ -65,7 +70,10 @@ class FlightDetailViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         fakeDao = FakeDetailLogbookFlightDao()
-        repository = LogbookRepository(fakeDao)
+        val mockAirportDao = mockk<AirportDao>()
+        coEvery { mockAirportDao.getByIata(any()) } returns null
+        airportRepository = AirportRepository(mockAirportDao)
+        repository = LogbookRepository(fakeDao, airportRepository)
     }
 
     @After
@@ -75,7 +83,7 @@ class FlightDetailViewModelTest {
 
     private fun createViewModel(flightId: Long = 42L): FlightDetailViewModel {
         val savedStateHandle = SavedStateHandle(mapOf("flightId" to flightId))
-        return FlightDetailViewModel(repository, savedStateHandle)
+        return FlightDetailViewModel(repository, airportRepository, savedStateHandle)
     }
 
     private fun TestScope.startCollecting(vm: FlightDetailViewModel) {
