@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.repository.LogbookRepository
+import com.flightlog.app.data.trips.TripGroup
+import com.flightlog.app.data.trips.TripGrouper
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,6 +93,33 @@ class LogbookViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(LogbookUiState())
     val uiState: StateFlow<LogbookUiState> = _uiState.asStateFlow()
+
+    // ── Trip grouping ──────────────────────────────────────────────────────────
+
+    private val _tripViewEnabled = MutableStateFlow(false)
+    val tripViewEnabled: StateFlow<Boolean> = _tripViewEnabled.asStateFlow()
+
+    /** Per-trip collapsed state (key = TripGroup.id). IDs in this set are collapsed. */
+    private val _collapsedTrips = MutableStateFlow<Set<String>>(emptySet())
+
+    val tripGroups: StateFlow<List<TripGroup>> =
+        combine(flights, _collapsedTrips) { f, collapsed ->
+            TripGrouper.group(f).map { trip ->
+                trip.copy(isExpanded = trip.id !in collapsed)
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun toggleTripView() {
+        _tripViewEnabled.update { !it }
+    }
+
+    fun toggleTripExpanded(tripId: String) {
+        _collapsedTrips.update { set ->
+            if (tripId in set) set - tripId else set + tripId
+        }
+    }
+
+    // ── Filter / search ────────────────────────────────────────────────────────
 
     fun updateSearchQuery(query: String) {
         _filterState.update { it.copy(searchQuery = query) }
