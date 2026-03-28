@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.flightlog.app.data.local.AirportDatabase
 import com.flightlog.app.data.local.FlightDatabase
+import com.flightlog.app.data.local.dao.AchievementDao
 import com.flightlog.app.data.local.dao.AirportDao
 import com.flightlog.app.data.local.dao.CalendarFlightDao
 import com.flightlog.app.data.local.dao.LogbookFlightDao
@@ -31,7 +32,8 @@ object DatabaseModule {
                 FlightDatabase.MIGRATION_2_3,
                 FlightDatabase.MIGRATION_3_4,
                 FlightDatabase.MIGRATION_4_5,
-                FlightDatabase.MIGRATION_5_6
+                FlightDatabase.MIGRATION_5_6,
+                FlightDatabase.MIGRATION_6_7
             )
             .build()
     }
@@ -44,6 +46,11 @@ object DatabaseModule {
     @Provides
     fun provideLogbookFlightDao(database: FlightDatabase): LogbookFlightDao {
         return database.logbookFlightDao()
+    }
+
+    @Provides
+    fun provideAchievementDao(database: FlightDatabase): AchievementDao {
+        return database.achievementDao()
     }
 
     @Provides

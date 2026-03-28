@@ -1,6 +1,7 @@
 package com.flightlog.app.ui.navigation
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
@@ -8,15 +9,21 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -73,11 +80,16 @@ private val bottomNavItems = listOf(
 /** Routes that should hide the bottom navigation bar. */
 private val hideBottomBarRoutes = setOf(Routes.LOGBOOK_ADD, Routes.LOGBOOK_EDIT, Routes.LOGBOOK_DETAIL)
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FlightNavGraph(navController: NavHostController) {
+fun FlightNavGraph(
+    navController: NavHostController,
+    navBadgeViewModel: NavBadgeViewModel = hiltViewModel()
+) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
     val showBottomBar = currentDestination?.route !in hideBottomBarRoutes
+    val hasUnseenAchievements by navBadgeViewModel.hasUnseenAchievements.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -85,6 +97,7 @@ fun FlightNavGraph(navController: NavHostController) {
                 NavigationBar {
                     bottomNavItems.forEach { item ->
                         val selected = currentDestination?.hierarchy?.any { it.route == item.route } == true
+                        val showBadge = item.route == Routes.STATISTICS && hasUnseenAchievements
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
@@ -97,10 +110,19 @@ fun FlightNavGraph(navController: NavHostController) {
                                 }
                             },
                             icon = {
-                                Icon(
-                                    imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
-                                    contentDescription = item.label
-                                )
+                                if (showBadge) {
+                                    BadgedBox(badge = { Badge(modifier = Modifier.size(8.dp)) }) {
+                                        Icon(
+                                            imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                            contentDescription = item.label
+                                        )
+                                    }
+                                } else {
+                                    Icon(
+                                        imageVector = if (selected) item.selectedIcon else item.unselectedIcon,
+                                        contentDescription = item.label
+                                    )
+                                }
                             },
                             label = { Text(item.label) }
                         )

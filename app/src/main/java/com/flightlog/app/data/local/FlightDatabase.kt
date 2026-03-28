@@ -4,19 +4,22 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.flightlog.app.data.local.dao.AchievementDao
 import com.flightlog.app.data.local.dao.CalendarFlightDao
 import com.flightlog.app.data.local.dao.LogbookFlightDao
+import com.flightlog.app.data.local.entity.Achievement
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.local.entity.LogbookFlight
 
 @Database(
-    entities = [CalendarFlight::class, LogbookFlight::class],
-    version = 6,
+    entities = [CalendarFlight::class, LogbookFlight::class, Achievement::class],
+    version = 7,
     exportSchema = true
 )
 abstract class FlightDatabase : RoomDatabase() {
     abstract fun calendarFlightDao(): CalendarFlightDao
     abstract fun logbookFlightDao(): LogbookFlightDao
+    abstract fun achievementDao(): AchievementDao
 
     companion object {
         val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -78,6 +81,17 @@ abstract class FlightDatabase : RoomDatabase() {
         val MIGRATION_5_6 = object : Migration(5, 6) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE logbook_flights ADD COLUMN updatedAt INTEGER DEFAULT NULL")
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS achievements (" +
+                        "id TEXT NOT NULL PRIMARY KEY, " +
+                        "unlockedAt INTEGER, " +
+                        "seenByUser INTEGER NOT NULL DEFAULT 0)"
+                )
             }
         }
     }
