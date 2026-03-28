@@ -889,3 +889,32 @@ None.
 - 18 edge case tests covering normalization, fallback, haversine, null timezone
 
 ### Verdict: APPROVED — All 3 fixes applied before merge.
+
+---
+
+## Review #22 — Feature 12: Achievements & Gamification
+
+**Date:** 2026-03-28
+**Reviewer:** Code Reviewer
+**Verdict:** APPROVED (with 3 fixes applied before merge)
+
+### Files Reviewed
+- Achievement entity, AchievementDao, AchievementDefinitions (18 defs)
+- AchievementEvaluator (pure object), AchievementRepository
+- AchievementsViewModel, AchievementsScreen, NavBadgeViewModel
+- FlightDatabase v7 + migration, DatabaseModule, LogbookRepository
+- StatisticsScreen (TabRow), NavGraph (badge dot)
+- AchievementEvaluatorTest (41 tests)
+
+### Critical Issues Found + Fixed
+1. Short-circuit bug: checked only Platinum, not all 18 → fixed to `alreadyUnlocked.size == ALL.size`
+2. Race condition: ensureAllExist used @Upsert → changed to INSERT OR IGNORE
+3. Missing markAllSeen: achievements screen didn't clear badge → added LaunchedEffect(Unit)
+
+### Strengths
+- Pure AchievementEvaluator — 41 tests, no Android deps, fast
+- Night owl timezone handling robust (null/invalid fallback, DST-aware)
+- Tier-colored cards with shimmer for unseen unlocks
+- INSERT OR IGNORE eliminates startup race condition
+
+### Verdict: APPROVED — All 3 fixes applied before merge.
