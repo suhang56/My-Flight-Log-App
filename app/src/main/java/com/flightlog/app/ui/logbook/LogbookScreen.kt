@@ -1,6 +1,11 @@
 package com.flightlog.app.ui.logbook
 
 import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AccountTree
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Check
@@ -33,9 +39,11 @@ import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SearchOff
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -50,6 +58,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -66,6 +77,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -78,6 +90,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.data.trips.TripGroup
 import com.flightlog.app.util.DATE_FORMATTER
 import com.flightlog.app.util.formatInZone
 
@@ -99,10 +112,13 @@ fun LogbookScreen(
     val availableSeatClasses by viewModel.availableSeatClasses.collectAsState()
     val uiState by viewModel.uiState.collectAsState()
     val exportState by exportViewModel.exportState.collectAsState()
+    val tripViewEnabled by viewModel.tripViewEnabled.collectAsState()
+    val tripGroups by viewModel.tripGroups.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showSortMenu by remember { mutableStateOf(false) }
     var showExportMenu by remember { mutableStateOf(false) }
     val activityContext = LocalContext.current
+    val showTripView = tripViewEnabled && !filterState.isActive
 
     // Undo-delete snackbar
     LaunchedEffect(uiState.snackbarMessage) {
@@ -287,6 +303,13 @@ fun LogbookScreen(
                 Spacer(modifier = Modifier.height(4.dp))
             }
 
+            // View toggle: List vs Trip
+            ViewToggleRow(
+                tripViewEnabled = tripViewEnabled,
+                filterActive = filterState.isActive,
+                onToggle = { viewModel.toggleTripView() }
+            )
+
             // Content area
             when {
                 flights.isEmpty() && !filterState.isActive -> {
@@ -313,14 +336,38 @@ fun LogbookScreen(
                                 isFiltered = filterState.isActive
                             )
                         }
-                        items(
-                            items = flights,
-                            key = { it.id }
-                        ) { flight ->
-                            LogbookCard(
-                                flight = flight,
-                                onClick = { onViewFlight(flight.id) }
-                            )
+
+                        if (showTripView) {
+                            tripGroups.forEach { trip ->
+                                item(key = "trip_${trip.id}") {
+                                    TripHeader(
+                                        trip = trip,
+                                        onToggle = { viewModel.toggleTripExpanded(trip.id) }
+                                    )
+                                }
+                                if (trip.isExpanded) {
+                                    items(
+                                        items = trip.legs,
+                                        key = { "leg_${it.id}" }
+                                    ) { flight ->
+                                        LogbookCard(
+                                            flight = flight,
+                                            onClick = { onViewFlight(flight.id) },
+                                            indented = true
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            items(
+                                items = flights,
+                                key = { it.id }
+                            ) { flight ->
+                                LogbookCard(
+                                    flight = flight,
+                                    onClick = { onViewFlight(flight.id) }
+                                )
+                            }
                         }
                     }
                 }
@@ -389,11 +436,16 @@ private fun StatItem(
 @Composable
 private fun LogbookCard(
     flight: LogbookFlight,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    indented: Boolean = false
 ) {
     ElevatedCard(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (indented) Modifier.padding(start = 16.dp) else Modifier),
+        elevation = if (indented) CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)
+                    else CardDefaults.elevatedCardElevation()
     ) {
         Row(
             modifier = Modifier
@@ -545,5 +597,56 @@ private fun LogbookEmptyState(
                 Text("Add your first flight")
             }
         }
+    }
+}
+
+// ── View toggle (List / Trip) ──────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ViewToggleRow(
+    tripViewEnabled: Boolean,
+    filterActive: Boolean,
+    onToggle: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .then(if (filterActive) Modifier.alpha(0.38f) else Modifier)
+    ) {
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            SegmentedButton(
+                selected = !tripViewEnabled,
+                onClick = { if (!filterActive && tripViewEnabled) onToggle() },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
+                enabled = !filterActive,
+                icon = { Icon(Icons.Default.ViewList, contentDescription = null, modifier = Modifier.size(18.dp)) }
+            ) {
+                Text("List")
+            }
+            SegmentedButton(
+                selected = tripViewEnabled,
+                onClick = { if (!filterActive && !tripViewEnabled) onToggle() },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
+                enabled = !filterActive,
+                icon = { Icon(Icons.Default.AccountTree, contentDescription = null, modifier = Modifier.size(18.dp)) }
+            ) {
+                Text("Trips")
+            }
+        }
+
+        if (filterActive && tripViewEnabled) {
+            Text(
+                text = "Clear filters to see trip view",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 4.dp, start = 4.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
     }
 }
