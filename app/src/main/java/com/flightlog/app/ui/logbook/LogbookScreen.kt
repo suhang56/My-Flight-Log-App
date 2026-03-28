@@ -542,7 +542,7 @@ private fun LogbookEmptyState(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Add Flight")
+                Text("Add your first flight")
             }
         }
     }
