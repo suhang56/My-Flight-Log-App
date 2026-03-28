@@ -115,24 +115,36 @@ class CalendarFlightsViewModel @Inject constructor(
 
     fun addToLogbook(flight: CalendarFlight) {
         viewModelScope.launch {
-            val alreadyLogged = logbookRepository.isAlreadyLogged(flight)
-            if (alreadyLogged) {
+            try {
+                val alreadyLogged = logbookRepository.isAlreadyLogged(flight)
+                if (alreadyLogged) {
+                    _uiState.update {
+                        it.copy(
+                            syncMessage = "This flight is already in your logbook",
+                            showDetailSheet = false,
+                            selectedFlight = null
+                        )
+                    }
+                    return@launch
+                }
+                logbookRepository.addFromCalendarFlight(flight)
                 _uiState.update {
                     it.copy(
-                        syncMessage = "This flight is already in your logbook",
+                        syncMessage = "Added to logbook",
                         showDetailSheet = false,
                         selectedFlight = null
                     )
                 }
-                return@launch
-            }
-            logbookRepository.addFromCalendarFlight(flight)
-            _uiState.update {
-                it.copy(
-                    syncMessage = "Added to logbook",
-                    showDetailSheet = false,
-                    selectedFlight = null
-                )
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        syncMessage = "Failed to add flight: ${e.message}",
+                        showDetailSheet = false,
+                        selectedFlight = null
+                    )
+                }
             }
         }
     }

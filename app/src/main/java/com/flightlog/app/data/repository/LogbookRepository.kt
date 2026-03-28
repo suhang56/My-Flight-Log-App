@@ -74,7 +74,7 @@ class LogbookRepository @Inject constructor(
         )
 
         val rowId = logbookFlightDao.insert(logbookFlight)
-        if (rowId != -1L) achievementRepository.checkAndUnlock()
+        if (rowId != -1L) try { achievementRepository.checkAndUnlock() } catch (_: Exception) { /* Achievement evaluation is a side effect — never block the primary operation */ }
         return rowId
     }
 
@@ -94,20 +94,20 @@ class LogbookRepository @Inject constructor(
 
     suspend fun insert(flight: LogbookFlight): Long {
         val rowId = logbookFlightDao.insert(flight)
-        if (rowId != -1L) achievementRepository.checkAndUnlock()
+        if (rowId != -1L) try { achievementRepository.checkAndUnlock() } catch (_: Exception) { /* Achievement evaluation is a side effect — never block the primary operation */ }
         return rowId
     }
 
     /** Insert or replace — preserves the original ID on undo-delete. */
     suspend fun upsert(flight: LogbookFlight): Long {
         val rowId = logbookFlightDao.upsert(flight)
-        achievementRepository.checkAndUnlock()
+        try { achievementRepository.checkAndUnlock() } catch (_: Exception) { /* Achievement evaluation is a side effect — never block the primary operation */ }
         return rowId
     }
 
     suspend fun update(flight: LogbookFlight) {
         logbookFlightDao.update(flight.copy(updatedAt = System.currentTimeMillis()))
-        achievementRepository.checkAndUnlock()
+        try { achievementRepository.checkAndUnlock() } catch (_: Exception) { /* Achievement evaluation is a side effect — never block the primary operation */ }
     }
 
     suspend fun delete(id: Long) = logbookFlightDao.deleteById(id)
