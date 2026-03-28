@@ -109,7 +109,7 @@ fun CalendarFlightsScreen(
             PermissionFullScreen(
                 icon = Icons.Default.CalendarMonth,
                 title = "Calendar Access",
-                message = "Flight Log reads your calendar to automatically detect and display your upcoming and past flights.",
+                message = "Flight Log reads event titles like 'NH847 HND-LHR' to automatically find your flights. Your calendar data never leaves your device.",
                 buttonText = "Grant Access",
                 onButtonClick = {
                     permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
@@ -299,14 +299,17 @@ private fun EmptyState(
             Text(
                 text = when (tab) {
                     FlightTab.UPCOMING -> "No upcoming flights"
-                    FlightTab.PAST -> "No past flights"
+                    FlightTab.PAST -> "No past flights logged"
                 },
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Add events like \"Flight AA0011 ORD-CMH\" to your calendar and sync to see them here.",
+                text = when (tab) {
+                    FlightTab.UPCOMING -> "Make sure your calendar events include flight numbers like NH847 or AA123."
+                    FlightTab.PAST -> "Flights from your calendar will appear here after they depart."
+                },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.outline,
                 textAlign = TextAlign.Center,
