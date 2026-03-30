@@ -85,18 +85,20 @@ fun CalendarFlightsScreen(
         viewModel.onPermissionResult(granted, shouldShowRationale)
     }
 
-    // Show sync messages via snackbar
+    // Show sync messages via snackbar — clear state first so the message
+    // is not re-displayed if the coroutine is cancelled while suspended.
     LaunchedEffect(uiState.syncMessage) {
         uiState.syncMessage?.let { msg ->
-            snackbarHostState.showSnackbar(msg)
             viewModel.clearSyncMessage()
+            snackbarHostState.showSnackbar(msg)
         }
     }
 
     // Detail bottom sheet
-    if (uiState.showDetailSheet && uiState.selectedFlight != null) {
+    val selectedFlight = uiState.selectedFlight
+    if (uiState.showDetailSheet && selectedFlight != null) {
         FlightDetailBottomSheet(
-            flight = uiState.selectedFlight!!,
+            flight = selectedFlight,
             onDismiss = viewModel::dismissDetailSheet,
             onDismissFlight = { viewModel.dismissFlight(it.id) },
             onAddToLogbook = { viewModel.addToLogbook(it) }

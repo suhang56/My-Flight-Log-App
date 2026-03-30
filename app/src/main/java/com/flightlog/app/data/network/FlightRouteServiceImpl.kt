@@ -1,6 +1,7 @@
 package com.flightlog.app.data.network
 
 import android.util.Log
+import com.flightlog.app.BuildConfig
 import com.flightlog.app.data.AirlineIcaoMap
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -28,7 +29,8 @@ class FlightRouteServiceImpl @Inject constructor(
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to look up route for $flightNumber", e)
+            if (BuildConfig.DEBUG) Log.e(TAG, "Failed to look up route for $flightNumber", e)
+            else Log.e(TAG, "Failed to look up route for $flightNumber")
             null
         }
     }

@@ -2,6 +2,7 @@ package com.flightlog.app.data.backup
 
 import android.content.Context
 import android.util.Log
+import com.flightlog.app.BuildConfig
 import com.flightlog.app.data.export.ExportService
 import com.flightlog.app.data.export.LogbookFlightExportWrapper
 import com.flightlog.app.data.local.entity.LogbookFlight
@@ -78,7 +79,8 @@ class DriveBackupService @Inject constructor(
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Backup failed", e)
+            if (BuildConfig.DEBUG) Log.e(TAG, "Backup failed", e)
+            else Log.e(TAG, "Backup failed")
             BackupResult.Failure(e.message ?: "Unknown error")
         }
     }
@@ -128,7 +130,8 @@ class DriveBackupService @Inject constructor(
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Restore failed", e)
+            if (BuildConfig.DEBUG) Log.e(TAG, "Restore failed", e)
+            else Log.e(TAG, "Restore failed")
             RestoreResult.Failure(e.message ?: "Unknown error")
         }
     }
@@ -157,7 +160,8 @@ class DriveBackupService @Inject constructor(
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to get remote metadata", e)
+            if (BuildConfig.DEBUG) Log.e(TAG, "Failed to get remote metadata", e)
+            else Log.e(TAG, "Failed to get remote metadata")
             null
         }
     }

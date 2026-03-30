@@ -418,8 +418,8 @@ private fun TimelineSection(flight: LogbookFlight) {
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (hasDuration) {
-                    val hours = durationMinutes!! / 60
+                if (durationMinutes != null) {
+                    val hours = durationMinutes / 60
                     val minutes = durationMinutes % 60
                     Text(
                         text = "${hours}h ${minutes}m",

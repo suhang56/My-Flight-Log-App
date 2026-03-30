@@ -46,5 +46,11 @@
 -keepattributes SourceFile,LineNumberTable
 -renamesourcefileattribute SourceFile
 
+# ── Google Drive API ──────────────────────────────────────────────────────
+-keep class com.google.api.** { *; }
+-keep class com.google.http.** { *; }
+-dontwarn com.google.api.**
+-dontwarn com.google.http.**
+
 # ── Glance (Home Screen Widget) ───────────────────────────────────────────
 -keep class androidx.glance.** { *; }

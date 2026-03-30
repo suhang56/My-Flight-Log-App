@@ -51,6 +51,8 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -398,9 +400,21 @@ private fun MonthlyBarChart(data: List<MonthlyCount>) {
                 Modifier
             }
 
+            val chartDescription = remember(filledData) {
+                val totalFlights = filledData.sumOf { it.count }
+                val nonZero = filledData.filter { it.count > 0 }
+                val peak = nonZero.maxByOrNull { it.count }
+                buildString {
+                    append("Flights per month chart. $totalFlights total flights across ${filledData.size} months.")
+                    if (peak != null) {
+                        append(" Peak: ${peak.count} flights in ${peak.yearMonth}.")
+                    }
+                }
+            }
+
             Box(modifier = scrollModifier) {
                 Canvas(
-                    modifier = if (needsScroll) {
+                    modifier = (if (needsScroll) {
                         Modifier
                             .width(with(density) { (filledData.size * 24).dp })
                             .height(140.dp)
@@ -408,7 +422,7 @@ private fun MonthlyBarChart(data: List<MonthlyCount>) {
                         Modifier
                             .fillMaxWidth()
                             .height(140.dp)
-                    }
+                    }).semantics { contentDescription = chartDescription }
                 ) {
                     val barCount = filledData.size
                     val barSpacing = 4.dp.toPx()

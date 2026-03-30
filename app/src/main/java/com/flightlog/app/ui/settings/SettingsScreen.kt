@@ -51,7 +51,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -285,13 +284,13 @@ private fun GoogleSignInButton(
         enabled = !isLoading,
         shape = RoundedCornerShape(4.dp),
         colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = Color.White,
-            contentColor = Color(0xFF1F1F1F)
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         ),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         modifier = Modifier.border(
             width = 1.dp,
-            color = Color(0xFF747775),
+            color = MaterialTheme.colorScheme.outline,
             shape = RoundedCornerShape(4.dp)
         )
     ) {

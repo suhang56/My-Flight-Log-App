@@ -3,6 +3,7 @@ package com.flightlog.app.worker
 import android.content.Context
 import android.util.Log
 import androidx.hilt.work.HiltWorker
+import com.flightlog.app.BuildConfig
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -95,32 +96,41 @@ class FlightTrackingWorker @AssistedInject constructor(
             }
 
             val now = System.currentTimeMillis()
-            val newStatus = FlightStatus(
-                id = existingStatus?.id ?: 0,
-                logbookFlightId = logbookFlightId,
-                flightNumber = flightNumber,
-                statusEnum = statusEnum.name,
-                departureDelayMin = bestMatch.departureDelay?.let { it / 60 },
-                arrivalDelayMin = bestMatch.arrivalDelay?.let { it / 60 },
-                departureGate = bestMatch.gateOrigin,
-                arrivalGate = bestMatch.gateDestination,
-                estimatedDepartureUtc = FlightRouteServiceImpl.parseIsoToUtc(bestMatch.estimatedOut),
-                estimatedArrivalUtc = FlightRouteServiceImpl.parseIsoToUtc(bestMatch.estimatedIn),
-                actualDepartureUtc = FlightRouteServiceImpl.parseIsoToUtc(bestMatch.actualOut),
-                actualArrivalUtc = FlightRouteServiceImpl.parseIsoToUtc(bestMatch.actualIn),
-                liveLat = liveLat,
-                liveLng = liveLng,
-                liveAltitude = liveAltitude,
-                liveSpeedKnots = liveSpeedKnots,
-                liveHeading = liveHeading,
-                lastPolledAt = now,
-                trackingEnabled = statusEnum !in setOf(FlightStatusEnum.LANDED, FlightStatusEnum.CANCELLED, FlightStatusEnum.DIVERTED)
-            )
 
-            flightStatusRepository.upsert(newStatus)
+            // Wrap read+upsert in a transaction to prevent race conditions
+            var previousStatus: FlightStatus? = null
+            var savedStatus: FlightStatus? = null
+            flightStatusRepository.readAndUpsert(logbookFlightId) { existing ->
+                previousStatus = existing
+                val status = FlightStatus(
+                    id = existing?.id ?: 0,
+                    logbookFlightId = logbookFlightId,
+                    flightNumber = flightNumber,
+                    statusEnum = statusEnum.name,
+                    departureDelayMin = bestMatch.departureDelay?.let { it / 60 },
+                    arrivalDelayMin = bestMatch.arrivalDelay?.let { it / 60 },
+                    departureGate = bestMatch.gateOrigin,
+                    arrivalGate = bestMatch.gateDestination,
+                    estimatedDepartureUtc = FlightRouteServiceImpl.parseIsoToUtc(bestMatch.estimatedOut),
+                    estimatedArrivalUtc = FlightRouteServiceImpl.parseIsoToUtc(bestMatch.estimatedIn),
+                    actualDepartureUtc = FlightRouteServiceImpl.parseIsoToUtc(bestMatch.actualOut),
+                    actualArrivalUtc = FlightRouteServiceImpl.parseIsoToUtc(bestMatch.actualIn),
+                    liveLat = liveLat,
+                    liveLng = liveLng,
+                    liveAltitude = liveAltitude,
+                    liveSpeedKnots = liveSpeedKnots,
+                    liveHeading = liveHeading,
+                    lastPolledAt = now,
+                    trackingEnabled = statusEnum !in setOf(FlightStatusEnum.LANDED, FlightStatusEnum.CANCELLED, FlightStatusEnum.DIVERTED)
+                )
+                savedStatus = status
+                status
+            }
 
             // Fire notifications on status changes
-            fireNotificationsIfNeeded(existingStatus, newStatus, logbookFlight.departureCode, logbookFlight.arrivalCode)
+            savedStatus?.let { newStatus ->
+                fireNotificationsIfNeeded(previousStatus, newStatus, logbookFlight.departureCode, logbookFlight.arrivalCode)
+            }
 
             // Self-cancel on terminal states
             if (statusEnum in setOf(FlightStatusEnum.LANDED, FlightStatusEnum.CANCELLED, FlightStatusEnum.DIVERTED)) {
@@ -131,7 +141,8 @@ class FlightTrackingWorker @AssistedInject constructor(
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Error tracking $flightNumber", e)
+            if (BuildConfig.DEBUG) Log.e(TAG, "Error tracking $flightNumber", e)
+            else Log.e(TAG, "Error tracking $flightNumber")
             Result.retry()
         }
     }
