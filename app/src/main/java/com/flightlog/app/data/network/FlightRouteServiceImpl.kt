@@ -2,7 +2,7 @@ package com.flightlog.app.data.network
 
 import android.util.Log
 import com.flightlog.app.BuildConfig
-import com.flightlog.app.data.AirlineIcaoMap
+import com.flightlog.app.data.calendar.AirlineIcaoMap
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import javax.inject.Inject

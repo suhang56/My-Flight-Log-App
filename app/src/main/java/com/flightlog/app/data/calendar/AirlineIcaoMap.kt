@@ -1,4 +1,4 @@
-package com.flightlog.app.data
+package com.flightlog.app.data.calendar
 
 /**
  * Static lookup of 2-letter IATA airline prefixes to 3-letter ICAO airline prefixes.

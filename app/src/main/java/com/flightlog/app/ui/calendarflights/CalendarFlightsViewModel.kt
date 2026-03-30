@@ -55,9 +55,6 @@ class CalendarFlightsViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(CalendarFlightsUiState())
     val uiState: StateFlow<CalendarFlightsUiState> = _uiState.asStateFlow()
 
-    val visibleCount: StateFlow<Int> = repository.getVisibleCount()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
-
     // -- Public API --
 
     fun setTab(tab: FlightTab) {

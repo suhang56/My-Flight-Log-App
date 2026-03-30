@@ -1005,3 +1005,103 @@ None.
 - Sealed result types for backup/restore
 
 ### Verdict: APPROVED — All 3 fixes applied before merge.
+
+---
+
+## Review #26 — Full 5-Agent Codebase Review (2026-03-27)
+
+**Date:** 2026-03-27
+**Reviewers:** Planner, Designer, Developer, Reviewer, Architect (all 5 agents)
+**Scope:** Full codebase quality audit -- architecture, security, correctness, UI/UX, code health
+
+---
+
+### Architecture Review (Architect Agent)
+
+**Overall: Good.** MVVM + Clean Architecture correctly implemented. Layer separation intact. Hilt DI properly wired. WorkManager workers use `@HiltWorker` / `AssistedInject` correctly.
+
+| # | Issue | Location | Severity |
+|---|-------|----------|----------|
+| 1 | Two separate databases increase migration complexity | DatabaseModule.kt | Medium |
+| 2 | `fallbackToDestructiveMigration()` silently wipes airport data | DatabaseModule.kt:72 | Medium |
+| 3 | DAO providers missing `@Singleton` scope | DatabaseModule.kt:44-61 | Low |
+| 4 | Static data maps (821 lines) not injectable or mockable | data/ package | Medium |
+| 5 | `AirlineIataMap` in data/calendar/ but `AirlineIcaoMap` in data/ root | data/ vs data/calendar/ | Low |
+| 6 | `DriveBackupService` uses GsonFactory alongside Moshi (dual JSON) | backup/DriveBackupService.kt | Low |
+| 7 | `CalendarRepository.syncFromCalendar` leaks ContentResolver into repo layer | CalendarRepository.kt:65 | Medium |
+| 8 | `AchievementRepository.checkAndUnlock()` hardcodes Dispatchers.IO | AchievementRepository.kt:39 | Low |
+
+**Dependency Health:** All current except `play-services-auth` (deprecated, migrate to Credential Manager) and Compose BOM (slightly behind).
+
+**Test Gaps:** No tests for DriveBackupService restore edge cases, FlightTrackingWorker, WidgetRefreshWorker, SettingsViewModel, static airport maps.
+
+---
+
+### Security and Correctness Review (Reviewer Agent)
+
+**Overall: Good security posture.** HTTPS-only, FileProvider scoped, API key from gradle.properties, CancellationException re-thrown in all workers.
+
+#### P1 -- Critical (FIXED)
+
+1. **ProGuard missing Google Drive API rules** -- Release builds would crash backup/restore. Added `-keep` and `-dontwarn` for `com.google.api.**` and `com.google.http.**`.
+
+2. **FlightStatusDao race condition** -- `@Upsert` with autoGenerate PK could violate unique index on concurrent worker runs. Wrapped read+upsert in `database.withTransaction{}` via new `FlightStatusRepository.readAndUpsert()`.
+
+#### P2 -- Important (FIXED)
+
+3. **Release log leakage** -- `Log.e(TAG, msg, exception)` printed full stack traces in release. Gated throwable with `BuildConfig.DEBUG` in FlightTrackingWorker, FlightRouteServiceImpl, DriveBackupService (5 call sites).
+
+4. **GoogleSignInButton dark theme** -- Hardcoded `Color.White` and `Color(0xFF1F1F1F)` replaced with `MaterialTheme.colorScheme.surface` / `.onSurface` / `.outline` in SettingsScreen.kt.
+
+5. **Bar chart accessibility** -- Added `semantics { contentDescription = "..." }` to MonthlyBarChart Canvas in StatisticsScreen.kt with data summary.
+
+6. **3 force unwraps (`!!`) removed:**
+   - CalendarFlightsScreen.kt:99 -- extracted local val for smart-cast
+   - AddEditLogbookFlightScreen.kt:221 -- replaced with `?.let`
+   - FlightDetailScreen.kt:422 -- replaced boolean guard with null check
+
+#### P2 -- Important (NOT FIXED -- deferred)
+
+- Notification ID hash collisions (NotificationHelper.kt)
+- `allowBackup="true"` in AndroidManifest
+
+#### P3 -- Suggestions (FIXED)
+
+7. **Dead code removed** -- `CalendarFlightsViewModel.visibleCount` StateFlow was declared but never observed by any screen. Removed.
+
+8. **AirlineIcaoMap.kt relocated** -- Moved from `data/` root to `data/calendar/` for consistency with `AirlineIataMap.kt`. Updated import in FlightRouteServiceImpl.
+
+9. **CalendarSyncWorker network constraint** -- Added `Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED)` to prevent waking device when offline (sync calls FlightAware API).
+
+#### P3 -- Suggestions (NOT FIXED -- deferred)
+
+- OnboardingPreferences uses synchronous `commit()` instead of `apply()`
+- `getRemoteMetadata` downloads entire backup to count flights
+- Deprecated `fallbackToDestructiveMigration()` no-arg overload
+
+---
+
+### Developer Agent Findings
+
+**Snackbar bug fixed:** "Synced X flights" popup would not disappear. Root cause: `clearSyncMessage()` was called after `showSnackbar()` (a suspend function). If the LaunchedEffect coroutine was cancelled while suspended, the message persisted in state and re-triggered on recomposition. Fix: moved `clearSyncMessage()` before `showSnackbar()`.
+
+**Additional code quality observations:**
+- FlightDetailSheet.kt duplicates endTime duration calculation in two `?.let` blocks
+- CalendarFlightsScreen.kt safe-cast `context as? Activity` silently defaults shouldShowRationale to false when null
+- LogbookViewModel sorts null-distance flights to bottom via `?: -1` without documentation
+- FlightDetailViewModel uses `checkNotNull` without a helpful error message
+- SettingsViewModel.signOut() ignores failure in `addOnCompleteListener`
+- FlightDetailScreen `LaunchedEffect(uiState)` fires on every state emission -- fragile auto-navigate pattern
+
+---
+
+### Summary
+
+| Priority | Found | Fixed | Deferred |
+|----------|-------|-------|----------|
+| P1 Critical | 2 | 2 | 0 |
+| P2 Important | 6 | 4 | 2 |
+| P3 Suggestions | 6 | 3 | 3 |
+| **Total** | **14** | **9** | **5** |
+
+Build: PASSED. Unit tests: PASSED. All P1 and P2 fixes verified.

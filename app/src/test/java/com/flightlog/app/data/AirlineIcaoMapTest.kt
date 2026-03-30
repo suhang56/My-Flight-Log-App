@@ -1,5 +1,6 @@
 package com.flightlog.app.data
 
+import com.flightlog.app.data.calendar.AirlineIcaoMap
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

@@ -2,8 +2,10 @@ package com.flightlog.app.worker
 
 import android.content.Context
 import androidx.hilt.work.HiltWorker
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -71,12 +73,17 @@ class CalendarSyncWorker @AssistedInject constructor(
          * [com.flightlog.app.ui.calendarflights.CalendarFlightsViewModel.onPermissionResult].
          */
         fun enqueuePeriodicSync(context: Context) {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .build()
+
             val request = PeriodicWorkRequestBuilder<CalendarSyncWorker>(
                 repeatInterval      = 6,
                 repeatIntervalTimeUnit = TimeUnit.HOURS,
                 flexTimeInterval    = 30,
                 flexTimeIntervalUnit = TimeUnit.MINUTES
             )
+                .setConstraints(constraints)
                 .addTag(TAG_CALENDAR_SYNC)
                 .build()
 
