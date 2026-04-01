@@ -93,6 +93,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.trips.TripGroup
 import com.flightlog.app.util.DATE_FORMATTER
+import com.flightlog.app.util.TIME_TZ_FORMATTER
 import com.flightlog.app.util.formatInZone
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -487,6 +488,17 @@ private fun LogbookCard(
                 Text(
                     text = formatInZone(flight.departureTimeUtc, flight.departureTimezone, DATE_FORMATTER),
                     style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Departure and arrival times with timezone abbreviations
+                val depTime = formatInZone(flight.departureTimeUtc, flight.departureTimezone, TIME_TZ_FORMATTER)
+                val arrTime = flight.arrivalTimeUtc?.let {
+                    formatInZone(it, flight.arrivalTimezone, TIME_TZ_FORMATTER)
+                }
+                Text(
+                    text = if (arrTime != null) "$depTime \u2192 $arrTime" else depTime,
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }

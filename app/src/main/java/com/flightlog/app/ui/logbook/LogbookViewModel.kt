@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.Instant
-import java.time.ZoneOffset
+import java.time.ZoneId
 import javax.inject.Inject
 
 enum class LogbookSortOrder(val displayName: String) {
@@ -53,7 +53,10 @@ class LogbookViewModel @Inject constructor(
     private val _filterState = MutableStateFlow(LogbookFilterState())
     val filterState: StateFlow<LogbookFilterState> = _filterState.asStateFlow()
 
-    val availableYears: StateFlow<List<String>> = repository.getDistinctYears()
+    val availableYears: StateFlow<List<String>> = repository.getAll()
+        .map { flights ->
+            flights.map { flightYear(it) }.distinct().sortedDescending()
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val availableSeatClasses: StateFlow<List<String>> = repository.getDistinctSeatClasses()
@@ -155,10 +158,14 @@ class LogbookViewModel @Inject constructor(
             || flight.aircraftType.uppercase().contains(q)
     }
 
-    private fun flightYear(flight: LogbookFlight): String =
-        Instant.ofEpochMilli(flight.departureTimeUtc)
-            .atZone(ZoneOffset.UTC)
+    private fun flightYear(flight: LogbookFlight): String {
+        val zone = flight.departureTimezone
+            ?.let { runCatching { ZoneId.of(it) }.getOrNull() }
+            ?: ZoneId.systemDefault()
+        return Instant.ofEpochMilli(flight.departureTimeUtc)
+            .atZone(zone)
             .year.toString()
+    }
 
     fun undoDelete() {
         val flight = _uiState.value.deletedFlight ?: return

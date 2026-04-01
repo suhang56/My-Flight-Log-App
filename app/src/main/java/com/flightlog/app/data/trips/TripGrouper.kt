@@ -2,7 +2,7 @@ package com.flightlog.app.data.trips
 
 import com.flightlog.app.data.local.entity.LogbookFlight
 import java.time.Instant
-import java.time.ZoneOffset
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -96,15 +96,20 @@ object TripGrouper {
      * Same year: "Mar 20 - Mar 27, 2026"
      * Different years: "Dec 30, 2025 - Jan 2, 2026"
      */
+    private fun zoneFor(iana: String?): ZoneId =
+        iana?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneId.systemDefault()
+
     internal fun buildDateRange(legs: List<LogbookFlight>): String {
         if (legs.isEmpty()) return ""
 
-        val firstDate = Instant.ofEpochMilli(legs.first().departureTimeUtc)
-            .atZone(ZoneOffset.UTC).toLocalDate()
+        val firstFlight = legs.first()
+        val firstDate = Instant.ofEpochMilli(firstFlight.departureTimeUtc)
+            .atZone(zoneFor(firstFlight.departureTimezone)).toLocalDate()
         val lastFlight = legs.last()
         val lastTime = lastFlight.arrivalTimeUtc ?: lastFlight.departureTimeUtc
+        val lastTz = if (lastFlight.arrivalTimeUtc != null) lastFlight.arrivalTimezone else lastFlight.departureTimezone
         val lastDate = Instant.ofEpochMilli(lastTime)
-            .atZone(ZoneOffset.UTC).toLocalDate()
+            .atZone(zoneFor(lastTz)).toLocalDate()
 
         return when {
             firstDate == lastDate -> firstDate.format(DATE_YEAR_FMT)
