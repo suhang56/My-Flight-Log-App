@@ -10,6 +10,7 @@ import androidx.navigation.navArgument
 import com.flightlog.app.ui.calendarflights.CalendarFlightsScreen
 import com.flightlog.app.ui.logbook.AddEditLogbookFlightScreen
 import com.flightlog.app.ui.logbook.LogbookScreen
+import com.flightlog.app.ui.profile.ProfileScreen
 import com.flightlog.app.ui.settings.SettingsScreen
 import com.flightlog.app.ui.statistics.StatisticsScreen
 
@@ -19,6 +20,7 @@ object Routes {
     const val LOGBOOK_ADD = "logbook/add"
     const val LOGBOOK_EDIT = "logbook/edit/{id}"
     const val STATISTICS = "statistics"
+    const val PROFILE = "profile"
     const val SETTINGS = "settings"
 
     fun logbookEdit(id: Long) = "logbook/edit/$id"
@@ -32,10 +34,7 @@ fun FlightNavGraph(navController: NavHostController, modifier: Modifier = Modifi
         modifier = modifier
     ) {
         composable(Routes.CALENDAR_FLIGHTS) {
-            CalendarFlightsScreen(
-                onNavigateToAddFlight = { navController.navigate(Routes.LOGBOOK_ADD) },
-                onNavigateToSettings = { navController.navigate(Routes.SETTINGS) }
-            )
+            CalendarFlightsScreen()
         }
         composable(Routes.LOGBOOK) {
             LogbookScreen(
@@ -58,6 +57,12 @@ fun FlightNavGraph(navController: NavHostController, modifier: Modifier = Modifi
         }
         composable(Routes.STATISTICS) {
             StatisticsScreen()
+        }
+        composable(Routes.PROFILE) {
+            ProfileScreen(
+                onNavigateToSettings = { navController.navigate(Routes.SETTINGS) },
+                onNavigateToAddFlight = { navController.navigate(Routes.LOGBOOK_ADD) }
+            )
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(

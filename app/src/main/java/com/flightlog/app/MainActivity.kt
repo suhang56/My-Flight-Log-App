@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -33,7 +34,8 @@ private data class BottomNavItem(
 
 private val bottomNavItems = listOf(
     BottomNavItem("Home", Icons.Default.Map, Routes.CALENDAR_FLIGHTS),
-    BottomNavItem("Stats", Icons.Default.BarChart, Routes.STATISTICS)
+    BottomNavItem("Stats", Icons.Default.BarChart, Routes.STATISTICS),
+    BottomNavItem("Profile", Icons.Default.Person, Routes.PROFILE)
 )
 
 @AndroidEntryPoint
@@ -57,7 +59,7 @@ private fun MainScreen(navController: NavHostController) {
     val currentRoute = navBackStackEntry?.destination?.route
 
     // Only show bottom nav on top-level destinations
-    val showBottomBar = currentRoute in listOf(Routes.CALENDAR_FLIGHTS, Routes.STATISTICS)
+    val showBottomBar = currentRoute in listOf(Routes.CALENDAR_FLIGHTS, Routes.STATISTICS, Routes.PROFILE)
 
     Scaffold(
         bottomBar = {

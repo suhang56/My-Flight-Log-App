@@ -5,6 +5,7 @@ import com.flightlog.app.data.network.FlightAwareApi
 import com.flightlog.app.data.network.FlightRouteService
 import com.flightlog.app.data.network.FlightRouteServiceImpl
 import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -53,6 +54,7 @@ object NetworkModule {
     @Singleton
     fun provideMoshi(): Moshi {
         return Moshi.Builder()
+            .addLast(KotlinJsonAdapterFactory())
             .build()
     }
 

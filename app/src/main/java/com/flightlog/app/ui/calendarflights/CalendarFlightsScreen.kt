@@ -23,8 +23,6 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun CalendarFlightsScreen(
-    onNavigateToAddFlight: () -> Unit = {},
-    onNavigateToSettings: () -> Unit = {},
     viewModel: CalendarFlightsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -127,8 +125,6 @@ fun CalendarFlightsScreen(
                 snackbarHostState.showSnackbar("Added to Logbook")
             }
         },
-        onSyncClick = { viewModel.onRefresh(context.contentResolver) },
-        onAddFlightClick = onNavigateToAddFlight,
-        onSettingsClick = onNavigateToSettings
+        onSyncClick = { viewModel.onRefresh(context.contentResolver) }
     )
 }
