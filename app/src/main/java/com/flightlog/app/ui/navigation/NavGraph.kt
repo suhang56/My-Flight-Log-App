@@ -4,13 +4,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Book
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.outlined.BarChart
-import androidx.compose.material.icons.outlined.Book
-import androidx.compose.material.icons.outlined.CalendarMonth
-import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,18 +29,14 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.navArgument
-import com.flightlog.app.ui.calendarflights.CalendarFlightsScreen
 import com.flightlog.app.ui.home.HomeScreen
 import com.flightlog.app.ui.logbook.AddEditLogbookFlightScreen
 import com.flightlog.app.ui.logbook.FlightDetailScreen
-import com.flightlog.app.ui.logbook.LogbookScreen
 import com.flightlog.app.ui.settings.SettingsScreen
 import com.flightlog.app.ui.statistics.StatisticsScreen
 
 object Routes {
     const val HOME = "home"
-    const val CALENDAR_FLIGHTS = "calendar_flights"
-    const val LOGBOOK = "logbook"
     const val STATISTICS = "stats"
     const val LOGBOOK_ADD = "logbook/add"
     const val LOGBOOK_EDIT = "logbook/edit/{flightId}"
@@ -66,8 +58,8 @@ private val bottomNavItems = listOf(
     BottomNavItem(
         route = Routes.HOME,
         label = "Home",
-        selectedIcon = Icons.Filled.Home,
-        unselectedIcon = Icons.Outlined.Home
+        selectedIcon = Icons.Filled.Map,
+        unselectedIcon = Icons.Outlined.Map
     ),
     BottomNavItem(
         route = Routes.STATISTICS,
@@ -139,17 +131,7 @@ fun FlightNavGraph(
             composable(Routes.HOME) {
                 HomeScreen(
                     onAddFlight = { navController.navigate(Routes.LOGBOOK_ADD) },
-                    onViewLogbookFlight = { id -> navController.navigate(Routes.logbookDetail(id)) }
-                )
-            }
-            composable(Routes.CALENDAR_FLIGHTS) {
-                CalendarFlightsScreen()
-            }
-            composable(Routes.LOGBOOK) {
-                LogbookScreen(
-                    onAddFlight = { navController.navigate(Routes.LOGBOOK_ADD) },
-                    onEditFlight = { id -> navController.navigate(Routes.logbookEdit(id)) },
-                    onViewFlight = { id -> navController.navigate(Routes.logbookDetail(id)) },
+                    onViewLogbookFlight = { id -> navController.navigate(Routes.logbookDetail(id)) },
                     onNavigateToSettings = { navController.navigate(Routes.SETTINGS) }
                 )
             }

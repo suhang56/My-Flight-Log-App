@@ -20,7 +20,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -36,17 +35,20 @@ class HomeViewModel @Inject constructor(
     val permissionState: StateFlow<PermissionState> = _permissionState.asStateFlow()
 
     private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
     private val _syncMessage = MutableStateFlow<String?>(null)
     val syncMessage: StateFlow<String?> = _syncMessage.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    // Stable Flow references: each DAO @Query returns a new Flow per call,
+    // but these are captured once at property init time.
+    private val calendarFlow = calendarRepository.getAllVisible()
+    private val logbookFlow = logbookRepository.getAll()
 
     val uiState: StateFlow<HomeUiState> = combine(
-        calendarRepository.getAllVisible(),
-        logbookRepository.getAll(),
+        calendarFlow,
+        logbookFlow,
         _permissionState,
         _isRefreshing,
         _searchQuery

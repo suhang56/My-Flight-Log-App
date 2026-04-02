@@ -7,17 +7,25 @@ data class HomeUiState(
     val pastItems: List<UnifiedFlightItem> = emptyList(),
     val isRefreshing: Boolean = false,
     val permissionState: PermissionState = PermissionState.NotRequested,
-    val syncMessage: String? = null,
     val searchQuery: String = ""
 ) {
-    val allRoutes: List<Pair<String, String>>
-        get() = (upcomingItems + pastItems)
-            .filter { it.departureCode.isNotBlank() && it.arrivalCode.isNotBlank() }
-            .map { it.departureCode to it.arrivalCode }
+    val routeSegments: List<RouteSegment>
+        get() {
+            val nextRoute = upcomingItems
+                .sortedBy { it.sortKey }
+                .firstOrNull { it.departureCode.isNotBlank() && it.arrivalCode.isNotBlank() }
 
-    val nextUpcomingRoute: Pair<String, String>?
-        get() = upcomingItems
-            .sortedBy { it.sortKey }
-            .firstOrNull { it.departureCode.isNotBlank() && it.arrivalCode.isNotBlank() }
-            ?.let { it.departureCode to it.arrivalCode }
+            return (upcomingItems + pastItems)
+                .filter { it.departureCode.isNotBlank() && it.arrivalCode.isNotBlank() }
+                .map { it.departureCode to it.arrivalCode }
+                .distinct()
+                .map { (dep, arr) ->
+                    RouteSegment(
+                        departureCode = dep,
+                        arrivalCode = arr,
+                        isHighlighted = nextRoute != null &&
+                            dep == nextRoute.departureCode && arr == nextRoute.arrivalCode
+                    )
+                }
+        }
 }

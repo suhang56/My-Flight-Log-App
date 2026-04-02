@@ -6,7 +6,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -24,17 +23,20 @@ import com.flightlog.app.data.AirportCoordinatesMap.LatLng
 import com.flightlog.app.ui.logbook.Viewport
 import com.flightlog.app.ui.logbook.greatCircleInterpolate
 import com.flightlog.app.ui.logbook.project
+import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-private val DARK_BG = Color(0xFF0D1B2A)
-private val DIM_ARC_COLOR = Color(0xFF2A4A6B)
-private val DIM_DOT_COLOR = Color(0xFF3A5A7B)
-private val HIGHLIGHT_ARC_COLOR = Color(0xFF42A5F5)
-private val HIGHLIGHT_DOT_COLOR = Color(0xFF90CAF9)
-private val LABEL_COLOR = Color(0xFF8EAFC0)
+// Forced dark background regardless of system theme
+private val DARK_BG = Color(0xFF1A1C1E)
+private val ARC_COLOR = Color(0xFF9ECAFF)
+private val LABEL_COLOR = Color(0xFFB0C4DE)
 
-data class RouteData(
+/**
+ * A single route segment to render on the map.
+ * All data is pre-collected -- no Flows are accessed inside this composable.
+ */
+data class RouteSegment(
     val departureCode: String,
     val arrivalCode: String,
     val isHighlighted: Boolean = false
@@ -42,7 +44,7 @@ data class RouteData(
 
 @Composable
 fun AllRoutesMapCanvas(
-    routes: List<RouteData>,
+    routes: List<RouteSegment>,
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -67,10 +69,8 @@ fun AllRoutesMapCanvas(
         }
     }
 
-    // Compute the world viewport encompassing all routes
     val viewport = remember(resolvedRoutes) {
         if (resolvedRoutes.isEmpty()) {
-            // Default world view
             Viewport(minLat = -60.0, maxLat = 70.0, minLon = -170.0, maxLon = 170.0)
         } else {
             val allPoints = resolvedRoutes.flatMap { (_, dep, arr) -> listOf(dep, arr) }
@@ -106,12 +106,14 @@ fun AllRoutesMapCanvas(
         }
     }
 
-    // Pre-compute arcs
+    // Pre-compute arcs with reduced segments for large route sets
     val arcs = remember(resolvedRoutes) {
+        val segments = if (resolvedRoutes.size > 50) 20 else 40
         resolvedRoutes.map { (route, dep, arr) ->
-            val arcPoints = (0..40).map { i ->
-                greatCircleInterpolate(dep, arr, i / 40f)
-            }
+            val sameAirport = route.departureCode.equals(route.arrivalCode, ignoreCase = true) ||
+                (abs(dep.lat - arr.lat) < 1e-10 && abs(dep.lng - arr.lng) < 1e-10)
+            val arcPoints = if (sameAirport) emptyList()
+            else (0..segments).map { i -> greatCircleInterpolate(dep, arr, i / segments.toFloat()) }
             Triple(route, arcPoints, listOf(dep, arr))
         }
     }
@@ -121,27 +123,22 @@ fun AllRoutesMapCanvas(
             contentDescription = "Flight routes map showing ${routes.size} routes"
         }
     ) {
-        // Dark background
         drawRect(color = DARK_BG)
 
         val thinStroke = with(density) { 1.2.dp.toPx() }
         val thickStroke = with(density) { 2.5.dp.toPx() }
-        val smallDot = with(density) { 3.dp.toPx() }
-        val largeDot = with(density) { 5.dp.toPx() }
+        val dotRadius = with(density) { 5.dp.toPx() }
+        val borderRadius = with(density) { 6.dp.toPx() }
 
-        val allAirportCodes = mutableSetOf<String>()
-
-        // Draw dimmed routes first, highlighted on top
+        // Draw dimmed (past) routes first, then highlighted on top
         val sortedArcs = arcs.sortedBy { it.first.isHighlighted }
 
         for ((route, arcPoints, endpoints) in sortedArcs) {
             val isHighlighted = route.isHighlighted
-            val arcColor = if (isHighlighted) HIGHLIGHT_ARC_COLOR else DIM_ARC_COLOR
-            val dotColor = if (isHighlighted) HIGHLIGHT_DOT_COLOR else DIM_DOT_COLOR
+            val arcColor = if (isHighlighted) ARC_COLOR else ARC_COLOR.copy(alpha = 0.6f)
             val strokeWidth = if (isHighlighted) thickStroke else thinStroke
-            val dotRadius = if (isHighlighted) largeDot else smallDot
 
-            // Draw arc
+            // Draw arc (skip for same-airport routes)
             if (arcPoints.size >= 2) {
                 val path = Path()
                 val first = project(arcPoints[0], viewport, size.width, size.height)
@@ -157,17 +154,15 @@ fun AllRoutesMapCanvas(
                 )
             }
 
-            // Draw airport dots
+            // Draw 5dp white-bordered airport dots
             for (ep in endpoints) {
                 val p = project(ep, viewport, size.width, size.height)
-                drawCircle(color = dotColor, radius = dotRadius, center = p)
+                drawCircle(color = Color.White, radius = borderRadius, center = p)
+                drawCircle(color = ARC_COLOR, radius = dotRadius, center = p)
             }
-
-            allAirportCodes.add(route.departureCode)
-            allAirportCodes.add(route.arrivalCode)
         }
 
-        // Draw labels for highlighted route airports
+        // Draw labels for highlighted route airports only
         val highlightedCodes = arcs
             .filter { it.first.isHighlighted }
             .flatMap { listOf(it.first.departureCode, it.first.arrivalCode) }
@@ -178,7 +173,7 @@ fun AllRoutesMapCanvas(
             val point = project(coord, viewport, size.width, size.height)
             val textWidth = labelPaint.measureText(code)
             val textX = point.x - textWidth / 2f
-            val textY = point.y - with(density) { 6.dp.toPx() }
+            val textY = point.y - with(density) { 8.dp.toPx() }
 
             drawIntoCanvas {
                 it.nativeCanvas.drawText(code, textX, textY, labelPaint)
