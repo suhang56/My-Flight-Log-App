@@ -97,24 +97,24 @@ fun AllRoutesMapCanvas(
         }
     }
 
-    // Pre-create marker bitmaps (~12dp diameter, 36px at ~3x density)
+    // Pre-create marker bitmaps: highlighted 20dp (~60px), dimmed 14dp (~42px)
     val markerBitmapHighlighted = remember {
         BitmapDescriptorFactory.fromBitmap(
             createCircleMarkerBitmap(
-                sizePx = 36,
-                fillColor = ARC_COLOR.toArgb(),
-                borderColor = android.graphics.Color.WHITE,
-                borderWidthPx = 4f
+                sizePx = 60,
+                fillColor = android.graphics.Color.WHITE,
+                borderColor = ARC_COLOR.toArgb(),
+                borderWidthPx = 6f
             )
         )
     }
     val markerBitmapDimmed = remember {
         BitmapDescriptorFactory.fromBitmap(
             createCircleMarkerBitmap(
-                sizePx = 36,
-                fillColor = ARC_COLOR.copy(alpha = 0.6f).toArgb(),
-                borderColor = android.graphics.Color.argb(153, 255, 255, 255),
-                borderWidthPx = 4f
+                sizePx = 42,
+                fillColor = android.graphics.Color.WHITE,
+                borderColor = ARC_COLOR.copy(alpha = 0.5f).toArgb(),
+                borderWidthPx = 5f
             )
         )
     }
@@ -177,7 +177,7 @@ fun AllRoutesMapCanvas(
                 Polyline(
                     points = arcPoints,
                     color = if (route.isHighlighted) BRIGHT_ARC_COLOR else Color.White.copy(alpha = 0.35f),
-                    width = if (route.isHighlighted) 8f else 3f,
+                    width = if (route.isHighlighted) 8f else 4f,
                     geodesic = true
                 )
             }

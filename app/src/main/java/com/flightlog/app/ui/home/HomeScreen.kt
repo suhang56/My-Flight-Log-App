@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -23,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,7 +37,8 @@ import androidx.compose.material.icons.filled.FlightTakeoff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +50,7 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetScaffoldState
@@ -73,6 +78,10 @@ import com.flightlog.app.ui.calendarflights.PermissionState
 import com.flightlog.app.util.DATE_FORMATTER
 import com.flightlog.app.util.TIME_TZ_FORMATTER
 import com.flightlog.app.util.formatInZone
+
+private val SheetBackground = Color(0xFF1C1F23)
+private val CardBackground = Color(0xFF272B30)
+private val AccentBlue = Color(0xFF9ECAFF)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,24 +127,27 @@ fun HomeScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Settings icon top-right
-        IconButton(
-            onClick = onNavigateToSettings,
+        // Settings icon top-right, wrapped in dark circle surface
+        Surface(
+            shape = CircleShape,
+            color = Color(0x99000000),
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 8.dp, end = 8.dp)
+                .padding(top = 12.dp, end = 12.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Settings",
-                tint = Color.White.copy(alpha = 0.8f)
-            )
+            IconButton(onClick = onNavigateToSettings) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    tint = Color.White.copy(alpha = 0.8f)
+                )
+            }
         }
 
         BottomSheetScaffold(
             scaffoldState = scaffoldState,
-            sheetPeekHeight = 140.dp,
-            sheetContainerColor = MaterialTheme.colorScheme.surface,
+            sheetPeekHeight = 160.dp,
+            sheetContainerColor = SheetBackground,
             sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             sheetDragHandle = { DragHandlePill() },
             containerColor = Color.Transparent,
@@ -179,7 +191,7 @@ private fun DragHandlePill() {
                 .width(32.dp)
                 .height(4.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f))
+                .background(Color.White.copy(alpha = 0.3f))
         )
     }
 }
@@ -234,20 +246,23 @@ private fun SheetContent(
         ) {
             Text(
                 text = "Flights",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                color = Color.White,
+                modifier = Modifier.weight(1f)
             )
-            Spacer(modifier = Modifier.weight(1f))
             IconButton(onClick = onToggleSearch) {
                 Icon(
                     imageVector = if (uiState.isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
-                    contentDescription = if (uiState.isSearchExpanded) "Close search" else "Search flights"
+                    contentDescription = if (uiState.isSearchExpanded) "Close search" else "Search flights",
+                    tint = Color.White.copy(alpha = 0.7f)
                 )
             }
             IconButton(onClick = onAddFlight) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = "Add flight"
+                    contentDescription = "Add flight",
+                    tint = Color.White.copy(alpha = 0.7f)
                 )
             }
         }
@@ -257,12 +272,12 @@ private fun SheetContent(
             OutlinedTextField(
                 value = uiState.searchQuery,
                 onValueChange = onSearchQueryChange,
-                placeholder = { Text("Search flights...") },
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                placeholder = { Text("Search flights...", color = Color.White.copy(alpha = 0.5f)) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = Color.White.copy(alpha = 0.5f)) },
                 trailingIcon = {
                     if (uiState.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            Icon(Icons.Default.Close, contentDescription = "Clear search", tint = Color.White.copy(alpha = 0.7f))
                         }
                     }
                 },
@@ -376,80 +391,92 @@ private fun UnifiedFlightCard(
     item: UnifiedFlightItem,
     onClick: (() -> Unit)?
 ) {
-    ElevatedCard(
+    Card(
         onClick = onClick ?: {},
         enabled = onClick != null,
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = CardBackground)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                if (item.flightNumber.isNotBlank()) {
-                    Text(
-                        text = item.flightNumber,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                }
-
-                val routeText = if (item.departureCode.isBlank() && item.arrivalCode.isBlank()) {
-                    "Route pending"
-                } else {
-                    "${item.departureCode}  \u2192  ${item.arrivalCode}"
-                }
-                Text(
-                    text = routeText,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (item.departureCode.isBlank() && item.arrivalCode.isBlank())
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    else
-                        Color.Unspecified
-                )
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = formatInZone(item.sortKey, item.departureTimezone, DATE_FORMATTER),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                val depTime = formatInZone(item.sortKey, item.departureTimezone, TIME_TZ_FORMATTER)
-                val arrTime = when (item) {
-                    is UnifiedFlightItem.FromLogbook -> item.flight.arrivalTimeUtc?.let {
-                        formatInZone(it, item.flight.arrivalTimezone, TIME_TZ_FORMATTER)
-                    }
-                    is UnifiedFlightItem.FromCalendar -> item.flight.endTime?.let {
-                        formatInZone(it, item.flight.arrivalTimezone, TIME_TZ_FORMATTER)
-                    }
-                }
-                Text(
-                    text = if (arrTime != null) "$depTime \u2192 $arrTime" else depTime,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            val sourceLabel = when (item) {
-                is UnifiedFlightItem.FromLogbook -> "Logbook"
-                is UnifiedFlightItem.FromCalendar -> "Calendar"
-            }
-            Text(
-                text = sourceLabel,
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        Row(modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min)) {
+            // Left accent bar
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .fillMaxHeight()
+                    .background(AccentBlue)
             )
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    if (item.flightNumber.isNotBlank()) {
+                        Text(
+                            text = item.flightNumber,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+
+                    val routeText = if (item.departureCode.isBlank() && item.arrivalCode.isBlank()) {
+                        "Route pending"
+                    } else {
+                        "${item.departureCode}  \u2192  ${item.arrivalCode}"
+                    }
+                    Text(
+                        text = routeText,
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (item.departureCode.isBlank() && item.arrivalCode.isBlank())
+                            Color.White.copy(alpha = 0.5f)
+                        else
+                            Color.White.copy(alpha = 0.9f)
+                    )
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    Text(
+                        text = formatInZone(item.sortKey, item.departureTimezone, DATE_FORMATTER),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.6f)
+                    )
+
+                    val depTime = formatInZone(item.sortKey, item.departureTimezone, TIME_TZ_FORMATTER)
+                    val arrTime = when (item) {
+                        is UnifiedFlightItem.FromLogbook -> item.flight.arrivalTimeUtc?.let {
+                            formatInZone(it, item.flight.arrivalTimezone, TIME_TZ_FORMATTER)
+                        }
+                        is UnifiedFlightItem.FromCalendar -> item.flight.endTime?.let {
+                            formatInZone(it, item.flight.arrivalTimezone, TIME_TZ_FORMATTER)
+                        }
+                    }
+                    Text(
+                        text = if (arrTime != null) "$depTime \u2192 $arrTime" else depTime,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.White.copy(alpha = 0.5f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                val sourceLabel = when (item) {
+                    is UnifiedFlightItem.FromLogbook -> "Logbook"
+                    is UnifiedFlightItem.FromCalendar -> "Calendar"
+                }
+                Text(
+                    text = sourceLabel,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.4f)
+                )
+            }
         }
     }
 }
@@ -465,19 +492,19 @@ private fun EmptyTabState(message: String, modifier: Modifier = Modifier) {
             imageVector = Icons.Default.FlightTakeoff,
             contentDescription = null,
             modifier = Modifier.size(64.dp),
-            tint = MaterialTheme.colorScheme.outlineVariant
+            tint = Color.White.copy(alpha = 0.2f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = message,
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = Color.White.copy(alpha = 0.6f)
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "Your calendar and logbook flights will appear here.",
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.outline,
+            color = Color.White.copy(alpha = 0.4f),
             textAlign = TextAlign.Center
         )
     }
