@@ -37,6 +37,19 @@ class AirlineIataMap @Inject constructor() {
         add("HA", "Hawaiian Airlines", "Hawaiian")
         add("SY", "Sun Country Airlines", "Sun Country")
         add("G4", "Allegiant Air", "Allegiant")
+        add("NH", "All Nippon Airways")
+        add("JL", "Japan Airlines")
+        add("CX", "Cathay Pacific")
+        add("SQ", "Singapore Airlines")
+        add("QF", "Qantas")
+        add("EK", "Emirates")
+        add("LH", "Lufthansa")
+        add("BA", "British Airways")
+        add("AF", "Air France")
+        add("KL", "KLM Royal Dutch Airlines")
+        add("QR", "Qatar Airways")
+        add("TK", "Turkish Airlines")
+        add("AC", "Air Canada")
     }
 
     /**

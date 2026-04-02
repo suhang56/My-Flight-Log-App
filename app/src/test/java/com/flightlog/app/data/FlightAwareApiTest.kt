@@ -17,7 +17,9 @@ import org.junit.Test
 
 class FlightAwareApiTest {
 
-    private val moshi = Moshi.Builder().build()
+    private val moshi = Moshi.Builder()
+        .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+        .build()
 
     // =========================================================================
     // toFlightStatusEnum mapping tests

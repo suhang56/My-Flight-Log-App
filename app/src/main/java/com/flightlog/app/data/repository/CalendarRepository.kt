@@ -1,6 +1,7 @@
 package com.flightlog.app.data.repository
 
 import android.content.ContentResolver
+import com.flightlog.app.data.airport.AirportTimezoneMap
 import com.flightlog.app.data.calendar.CalendarDataSource
 import com.flightlog.app.data.calendar.FlightEventParser
 import com.flightlog.app.data.local.dao.CalendarFlightDao
@@ -99,19 +100,27 @@ class CalendarRepository @Inject constructor(
                 calendarFlightDao.upsertAll(flightsWithDismissState)
             }
 
-            // 4. Remove stale rows — only safe with a non-empty valid-ID set.
-            val removedCount = if (rawEvents.isNotEmpty()) {
-                val validIds  = rawEvents.map { it.eventId }
+            // 4. Remove stale and orphaned rows.
+            var removedCount = 0
+            if (rawEvents.isNotEmpty()) {
+                val parsedEventIds = flights.map { it.calendarEventId }.toSet()
+                val allRawEventIds = rawEvents.map { it.eventId }.toSet()
                 val storedIds = calendarFlightDao.getAllCalendarEventIds().toSet()
-                val stale     = (storedIds - validIds.toSet()).size
-                if (validIds.isNotEmpty()) {
-                    calendarFlightDao.removeStaleIds(validIds)
+
+                // Stale: stored IDs that are no longer in the calendar at all
+                val staleCount = (storedIds - allRawEventIds).size
+                if (allRawEventIds.isNotEmpty()) {
+                    calendarFlightDao.removeStaleIds(allRawEventIds.toList())
                 }
-                stale
-            } else {
-                // Empty result could mean no calendar events or a silent permission problem.
-                // Skip removal to avoid wiping existing data.
-                0
+                removedCount += staleCount
+
+                // Orphaned: events still in calendar but no longer parse as flights,
+                // yet have stored rows from a previous sync
+                val orphanedEventIds = (allRawEventIds - parsedEventIds).filter { it in storedIds }
+                if (orphanedEventIds.isNotEmpty()) {
+                    calendarFlightDao.removeByEventIds(orphanedEventIds)
+                    removedCount += orphanedEventIds.size
+                }
             }
 
             SyncResult.Success(syncedCount = flights.size, removedCount = removedCount)
@@ -145,16 +154,21 @@ class CalendarRepository @Inject constructor(
             }
         }
 
+        val depTz = if (depCode.isNotEmpty()) AirportTimezoneMap.getTimezone(depCode) else null
+        val arrTz = if (arrCode.isNotEmpty()) AirportTimezoneMap.getTimezone(arrCode) else null
+
         return CalendarFlight(
-            calendarEventId = event.eventId,
-            legIndex        = legIndex,
-            flightNumber    = parsed.flightNumber,
-            departureCode   = depCode,
-            arrivalCode     = arrCode,
-            rawTitle        = event.title,
-            scheduledTime   = event.dtStart,
-            endTime         = event.dtEnd,
-            syncedAt        = now
+            calendarEventId  = event.eventId,
+            legIndex         = legIndex,
+            flightNumber     = parsed.flightNumber,
+            departureCode    = depCode,
+            arrivalCode      = arrCode,
+            rawTitle         = event.title,
+            scheduledTime    = event.dtStart,
+            endTime          = event.dtEnd,
+            syncedAt         = now,
+            departureTimezone = depTz,
+            arrivalTimezone   = arrTz
         )
     }
 }

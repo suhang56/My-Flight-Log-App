@@ -33,7 +33,9 @@ class DriveBackupServiceTest {
         context = ApplicationProvider.getApplicationContext()
         exportService = mockk()
         repository = mockk()
-        moshi = Moshi.Builder().build()
+        moshi = Moshi.Builder()
+            .add(com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory())
+            .build()
         metadataStore = BackupMetadataStore(context)
         metadataStore.clear()
     }

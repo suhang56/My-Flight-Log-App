@@ -1,5 +1,7 @@
 package com.flightlog.app.data.calendar
 
+import com.flightlog.app.data.airport.AirportCoordinatesMap
+import com.flightlog.app.data.airport.AirportTimezoneMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -228,21 +230,42 @@ class FlightEventParser @Inject constructor(
         return null
     }
 
+    /** Returns true if at least one of the codes is a known airport. */
+    private fun hasKnownAirport(dep: String, arr: String): Boolean {
+        return isKnownAirport(dep) || isKnownAirport(arr)
+    }
+
+    /** Returns true if BOTH codes are known airports. Used for route-only patterns to reduce false positives. */
+    private fun bothKnownAirports(dep: String, arr: String): Boolean {
+        return isKnownAirport(dep) && isKnownAirport(arr)
+    }
+
+    private fun isKnownAirport(code: String): Boolean {
+        return AirportCoordinatesMap.getCoords(code) != null ||
+            AirportTimezoneMap.getTimezone(code) != null
+    }
+
     private fun parseWithFlightKeyword(text: String): ParsedFlight? {
         val m = PATTERN_FLIGHT_KEYWORD.find(text) ?: return null
+        val dep = m.groupValues[2].uppercase()
+        val arr = m.groupValues[3].uppercase()
+        if (!hasKnownAirport(dep, arr)) return null
         return ParsedFlight(
             flightNumber  = m.groupValues[1].uppercase(),
-            departureCode = m.groupValues[2].uppercase(),
-            arrivalCode   = m.groupValues[3].uppercase()
+            departureCode = dep,
+            arrivalCode   = arr
         )
     }
 
     private fun parseCodeRoute(text: String): ParsedFlight? {
         val m = PATTERN_CODE_ROUTE.find(text) ?: return null
+        val dep = m.groupValues[2].uppercase()
+        val arr = m.groupValues[3].uppercase()
+        if (!hasKnownAirport(dep, arr)) return null
         return ParsedFlight(
             flightNumber  = m.groupValues[1].uppercase(),
-            departureCode = m.groupValues[2].uppercase(),
-            arrivalCode   = m.groupValues[3].uppercase()
+            departureCode = dep,
+            arrivalCode   = arr
         )
     }
 
@@ -250,6 +273,7 @@ class FlightEventParser @Inject constructor(
         val routeMatch = PATTERN_ROUTE_TO.find(text) ?: return null
         val dep = routeMatch.groupValues[1].uppercase()
         val arr = routeMatch.groupValues[2].uppercase()
+        if (!bothKnownAirports(dep, arr)) return null
         val flightNumber = PATTERN_FLIGHT_NUMBER.find(text)
             ?.groupValues?.get(1)?.uppercase()
             .orEmpty()
@@ -260,6 +284,7 @@ class FlightEventParser @Inject constructor(
         val routeMatch = PATTERN_ROUTE_ARROW.find(text) ?: return null
         val dep = routeMatch.groupValues[1].uppercase()
         val arr = routeMatch.groupValues[2].uppercase()
+        if (!bothKnownAirports(dep, arr)) return null
         val flightNumber = PATTERN_FLIGHT_NUMBER.find(text)
             ?.groupValues?.get(1)?.uppercase()
             .orEmpty()
