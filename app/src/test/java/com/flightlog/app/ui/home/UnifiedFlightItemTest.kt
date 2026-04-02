@@ -34,7 +34,6 @@ class UnifiedFlightItemTest {
     private fun logbookFlight(
         id: Long = 1,
         sourceCalendarEventId: Long? = null,
-        sourceLegIndex: Int? = null,
         flightNumber: String = "NH847",
         depCode: String = "HND",
         arrCode: String = "LHR",
@@ -42,11 +41,11 @@ class UnifiedFlightItemTest {
     ) = LogbookFlight(
         id = id,
         sourceCalendarEventId = sourceCalendarEventId,
-        sourceLegIndex = sourceLegIndex,
         flightNumber = flightNumber,
         departureCode = depCode,
         arrivalCode = arrCode,
-        departureTimeUtc = departureTimeUtc
+        departureDateEpochDay = departureTimeUtc / 86_400_000,
+        departureTimeMillis = departureTimeUtc
     )
 
     // ── merge: empty inputs (SOUL RULE: zero flights in both sources) ────────
@@ -99,7 +98,7 @@ class UnifiedFlightItemTest {
     fun `merge de-duplicates calendar flight when logbook has matching source`() {
         val cal = listOf(calendarFlight(id = 1, calendarEventId = 100, legIndex = 0))
         val log = listOf(
-            logbookFlight(id = 10, sourceCalendarEventId = 100, sourceLegIndex = 0)
+            logbookFlight(id = 10, sourceCalendarEventId = 100)
         )
         val result = UnifiedFlightItem.merge(cal, log)
         assertEquals(1, result.size)
@@ -110,46 +109,47 @@ class UnifiedFlightItemTest {
     fun `merge keeps calendar flight when logbook source doesn't match`() {
         val cal = listOf(calendarFlight(id = 1, calendarEventId = 100, legIndex = 0))
         val log = listOf(
-            logbookFlight(id = 10, sourceCalendarEventId = 999, sourceLegIndex = 0)
+            logbookFlight(id = 10, sourceCalendarEventId = 999)
         )
         val result = UnifiedFlightItem.merge(cal, log)
         assertEquals(2, result.size)
     }
 
     @Test
-    fun `merge handles multi-leg de-duplication correctly`() {
+    fun `merge deduplicates all calendar flights with same calendarEventId`() {
         val cal = listOf(
             calendarFlight(id = 1, calendarEventId = 100, legIndex = 0),
             calendarFlight(id = 2, calendarEventId = 100, legIndex = 1)
         )
         val log = listOf(
-            logbookFlight(id = 10, sourceCalendarEventId = 100, sourceLegIndex = 0)
+            logbookFlight(id = 10, sourceCalendarEventId = 100)
         )
         val result = UnifiedFlightItem.merge(cal, log)
-        assertEquals(2, result.size)
-        val types = result.map { it::class }
-        assertTrue(types.contains(UnifiedFlightItem.FromLogbook::class))
-        assertTrue(types.contains(UnifiedFlightItem.FromCalendar::class))
+        // Both calendar flights deduped by matching sourceCalendarEventId
+        assertEquals(1, result.size)
+        assertTrue(result[0] is UnifiedFlightItem.FromLogbook)
     }
 
     @Test
     fun `merge with manual logbook flights (null source) keeps all calendar flights`() {
         val cal = listOf(calendarFlight(id = 1, calendarEventId = 100))
         val log = listOf(
-            logbookFlight(id = 10, sourceCalendarEventId = null, sourceLegIndex = null)
+            logbookFlight(id = 10, sourceCalendarEventId = null)
         )
         val result = UnifiedFlightItem.merge(cal, log)
         assertEquals(2, result.size)
     }
 
     @Test
-    fun `merge de-duplication with legIndex mismatch keeps both`() {
+    fun `merge deduplicates by sourceCalendarEventId only`() {
         val cal = listOf(calendarFlight(id = 1, calendarEventId = 100, legIndex = 1))
         val log = listOf(
-            logbookFlight(id = 10, sourceCalendarEventId = 100, sourceLegIndex = 0)
+            logbookFlight(id = 10, sourceCalendarEventId = 100)
         )
         val result = UnifiedFlightItem.merge(cal, log)
-        assertEquals(2, result.size)
+        // Calendar flight is deduped because logbook has matching sourceCalendarEventId
+        assertEquals(1, result.size)
+        assertTrue(result[0] is UnifiedFlightItem.FromLogbook)
     }
 
     // ── merge: sorting ────────────────────────────────────────────────────────

@@ -19,17 +19,19 @@ class AchievementEvaluatorTest {
         departureCode: String = "NRT",
         arrivalCode: String = "LAX",
         flightNumber: String = "NH105",
-        distanceNm: Int? = 4730,
-        departureTimeUtc: Long = 1700000000000L,
+        distanceKm: Int? = 8763,
+        departureTimeMillis: Long = 1700000000000L,
         departureTimezone: String? = "Asia/Tokyo",
-        seatClass: String = "",
+        seatClass: String? = "",
         sourceCalendarEventId: Long? = 1L
     ) = LogbookFlight(
         departureCode = departureCode,
         arrivalCode = arrivalCode,
         flightNumber = flightNumber,
-        distanceNm = distanceNm,
-        departureTimeUtc = departureTimeUtc,
+        distanceKm = distanceKm,
+        departureDateEpochDay = java.time.Instant.ofEpochMilli(departureTimeMillis)
+            .atZone(runCatching { java.time.ZoneId.of(departureTimezone ?: "UTC") }.getOrDefault(java.time.ZoneId.of("UTC"))).toLocalDate().toEpochDay(),
+        departureTimeMillis = departureTimeMillis,
         departureTimezone = departureTimezone,
         seatClass = seatClass,
         sourceCalendarEventId = sourceCalendarEventId
@@ -228,19 +230,19 @@ class AchievementEvaluatorTest {
     // ==========================================================================
 
     @Test
-    fun `distance_10k at exactly 10000 nm`() {
+    fun `distance_10k at threshold`() {
         val list = listOf(
-            flight(distanceNm = 5000),
-            flight(distanceNm = 5000)
+            flight(distanceKm = 9260),
+            flight(distanceKm = 9260)
         )
         assertTrue("distance_10k" in evaluate(list))
     }
 
     @Test
-    fun `distance_10k does NOT unlock at 9999`() {
+    fun `distance_10k does NOT unlock below threshold`() {
         val list = listOf(
-            flight(distanceNm = 5000),
-            flight(distanceNm = 4999)
+            flight(distanceKm = 9260),
+            flight(distanceKm = 9259)
         )
         assertFalse("distance_10k" in evaluate(list))
     }
@@ -248,9 +250,9 @@ class AchievementEvaluatorTest {
     @Test
     fun `distance_10k excludes null distance flights`() {
         val list = listOf(
-            flight(distanceNm = 5000),
-            flight(distanceNm = null),
-            flight(distanceNm = 4999)
+            flight(distanceKm = 9260),
+            flight(distanceKm = null),
+            flight(distanceKm = 9259)
         )
         assertFalse("distance_10k" in evaluate(list))
     }
@@ -260,26 +262,26 @@ class AchievementEvaluatorTest {
     // ==========================================================================
 
     @Test
-    fun `short_hop needs 5 flights each strictly under 300 nm`() {
-        val list = (1..5).map { flight(distanceNm = 299) }
+    fun `short_hop needs 5 flights each strictly under 556 km`() {
+        val list = (1..5).map { flight(distanceKm = 555) }
         assertTrue("short_hop" in evaluate(list))
     }
 
     @Test
-    fun `short_hop does NOT count flight at exactly 300 nm`() {
-        val list = (1..4).map { flight(distanceNm = 100) } + flight(distanceNm = 300)
+    fun `short_hop does NOT count flight at exactly 556 km`() {
+        val list = (1..4).map { flight(distanceKm = 100) } + flight(distanceKm = 556)
         assertFalse("short_hop" in evaluate(list))
     }
 
     @Test
     fun `short_hop does NOT count null distance`() {
-        val list = (1..4).map { flight(distanceNm = 100) } + flight(distanceNm = null)
+        val list = (1..4).map { flight(distanceKm = 100) } + flight(distanceKm = null)
         assertFalse("short_hop" in evaluate(list))
     }
 
     @Test
     fun `short_hop at boundary with 4 qualifying flights`() {
-        val list = (1..4).map { flight(distanceNm = 50) }
+        val list = (1..4).map { flight(distanceKm = 50) }
         assertFalse("short_hop" in evaluate(list))
     }
 
@@ -318,18 +320,18 @@ class AchievementEvaluatorTest {
     // ==========================================================================
 
     @Test
-    fun `long_hauler at exactly 5000 nm`() {
-        assertTrue("long_hauler" in evaluate(listOf(flight(distanceNm = 5000))))
+    fun `long_hauler at threshold`() {
+        assertTrue("long_hauler" in evaluate(listOf(flight(distanceKm = 9260))))
     }
 
     @Test
-    fun `long_hauler does NOT unlock at 4999 nm`() {
-        assertFalse("long_hauler" in evaluate(listOf(flight(distanceNm = 4999))))
+    fun `long_hauler does NOT unlock below threshold`() {
+        assertFalse("long_hauler" in evaluate(listOf(flight(distanceKm = 9259))))
     }
 
     @Test
     fun `long_hauler ignores null distance`() {
-        assertFalse("long_hauler" in evaluate(listOf(flight(distanceNm = null))))
+        assertFalse("long_hauler" in evaluate(listOf(flight(distanceKm = null))))
     }
 
     // ==========================================================================
@@ -337,8 +339,8 @@ class AchievementEvaluatorTest {
     // ==========================================================================
 
     @Test
-    fun `distance_100k at exactly 100000 nm`() {
-        val list = (1..20).map { flight(distanceNm = 5000) }
+    fun `distance_100k at threshold`() {
+        val list = (1..20).map { flight(distanceKm = 9260) }
         assertTrue("distance_100k" in evaluate(list))
     }
 
@@ -352,7 +354,7 @@ class AchievementEvaluatorTest {
         val midnight = LocalDateTime.of(2024, 6, 15, 0, 0)
             .toInstant(ZoneOffset.UTC).toEpochMilli()
         val list = (1..3).map {
-            flight(departureTimeUtc = midnight, departureTimezone = "UTC")
+            flight(departureTimeMillis = midnight, departureTimezone = "UTC")
         }
         assertTrue("night_owl" in evaluate(list))
     }
@@ -362,7 +364,7 @@ class AchievementEvaluatorTest {
         val fiveAm = LocalDateTime.of(2024, 6, 15, 5, 0)
             .toInstant(ZoneOffset.UTC).toEpochMilli()
         val list = (1..3).map {
-            flight(departureTimeUtc = fiveAm, departureTimezone = "UTC")
+            flight(departureTimeMillis = fiveAm, departureTimezone = "UTC")
         }
         assertFalse("night_owl" in evaluate(list))
     }
@@ -372,7 +374,7 @@ class AchievementEvaluatorTest {
         val fourFiftyNine = LocalDateTime.of(2024, 6, 15, 4, 59)
             .toInstant(ZoneOffset.UTC).toEpochMilli()
         val list = (1..3).map {
-            flight(departureTimeUtc = fourFiftyNine, departureTimezone = "UTC")
+            flight(departureTimeMillis = fourFiftyNine, departureTimezone = "UTC")
         }
         assertTrue("night_owl" in evaluate(list))
     }
@@ -383,7 +385,7 @@ class AchievementEvaluatorTest {
         val twoAmUtc = LocalDateTime.of(2024, 6, 15, 2, 0)
             .toInstant(ZoneOffset.UTC).toEpochMilli()
         val list = (1..3).map {
-            flight(departureTimeUtc = twoAmUtc, departureTimezone = null)
+            flight(departureTimeMillis = twoAmUtc, departureTimezone = null)
         }
         assertTrue("night_owl" in evaluate(list))
     }
@@ -393,7 +395,7 @@ class AchievementEvaluatorTest {
         val twoAmUtc = LocalDateTime.of(2024, 6, 15, 2, 0)
             .toInstant(ZoneOffset.UTC).toEpochMilli()
         val list = (1..3).map {
-            flight(departureTimeUtc = twoAmUtc, departureTimezone = "Invalid/Zone")
+            flight(departureTimeMillis = twoAmUtc, departureTimezone = "Invalid/Zone")
         }
         assertTrue("night_owl" in evaluate(list))
     }
@@ -405,7 +407,7 @@ class AchievementEvaluatorTest {
         val utcTime = LocalDateTime.of(2024, 6, 14, 18, 0)
             .toInstant(ZoneOffset.UTC).toEpochMilli()
         val list = (1..3).map {
-            flight(departureTimeUtc = utcTime, departureTimezone = "Asia/Tokyo")
+            flight(departureTimeMillis = utcTime, departureTimezone = "Asia/Tokyo")
         }
         assertTrue("night_owl" in evaluate(list))
     }
@@ -415,7 +417,7 @@ class AchievementEvaluatorTest {
         val midnight = LocalDateTime.of(2024, 6, 15, 0, 0)
             .toInstant(ZoneOffset.UTC).toEpochMilli()
         val list = (1..2).map {
-            flight(departureTimeUtc = midnight, departureTimezone = "UTC")
+            flight(departureTimeMillis = midnight, departureTimezone = "UTC")
         }
         assertFalse("night_owl" in evaluate(list))
     }
@@ -439,13 +441,13 @@ class AchievementEvaluatorTest {
     // ==========================================================================
 
     @Test
-    fun `ultra_long_haul at exactly 8000 nm`() {
-        assertTrue("ultra_long_haul" in evaluate(listOf(flight(distanceNm = 8000))))
+    fun `ultra_long_haul at threshold`() {
+        assertTrue("ultra_long_haul" in evaluate(listOf(flight(distanceKm = 14816))))
     }
 
     @Test
-    fun `ultra_long_haul does NOT unlock at 7999 nm`() {
-        assertFalse("ultra_long_haul" in evaluate(listOf(flight(distanceNm = 7999))))
+    fun `ultra_long_haul does NOT unlock below threshold`() {
+        assertFalse("ultra_long_haul" in evaluate(listOf(flight(distanceKm = 14815))))
     }
 
     // ==========================================================================
@@ -453,8 +455,8 @@ class AchievementEvaluatorTest {
     // ==========================================================================
 
     @Test
-    fun `distance_500k at exactly 500000 nm`() {
-        val list = (1..100).map { flight(distanceNm = 5000) }
+    fun `distance_500k at threshold`() {
+        val list = (1..100).map { flight(distanceKm = 9260) }
         assertTrue("distance_500k" in evaluate(list))
     }
 
@@ -517,8 +519,8 @@ class AchievementEvaluatorTest {
     @Test
     fun `null distance flights excluded from total distance`() {
         val list = listOf(
-            flight(distanceNm = null),
-            flight(distanceNm = null)
+            flight(distanceKm = null),
+            flight(distanceKm = null)
         )
         assertFalse("distance_10k" in evaluate(list))
     }
@@ -564,7 +566,7 @@ class AchievementEvaluatorTest {
         // At 02:30 UTC on March 10, 2024, New York is in EST (UTC-5) -> 21:30 March 9
         val utcTime = LocalDateTime.of(2024, 3, 10, 2, 30)
             .toInstant(ZoneOffset.UTC).toEpochMilli()
-        val f = flight(departureTimeUtc = utcTime, departureTimezone = "America/New_York")
+        val f = flight(departureTimeMillis = utcTime, departureTimezone = "America/New_York")
         val hour = AchievementEvaluator.departureLocalHour(f)
         // 02:30 UTC - 5h = 21:30 local (EST still active at that instant)
         assertEquals(21, hour)
@@ -574,7 +576,7 @@ class AchievementEvaluatorTest {
     fun `departureLocalHour at midnight boundary`() {
         val midnight = LocalDateTime.of(2024, 6, 15, 0, 0)
             .toInstant(ZoneOffset.UTC).toEpochMilli()
-        val f = flight(departureTimeUtc = midnight, departureTimezone = "UTC")
+        val f = flight(departureTimeMillis = midnight, departureTimezone = "UTC")
         assertEquals(0, AchievementEvaluator.departureLocalHour(f))
     }
 }

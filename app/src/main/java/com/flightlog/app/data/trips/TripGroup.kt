@@ -15,8 +15,8 @@ data class TripGroup(
     val label: String,
     /** Human-readable date range, e.g. "Mar 20 - Mar 27, 2026". */
     val dateRange: String,
-    /** Sum of non-null distanceNm across all legs. */
-    val totalDistanceNm: Int,
+    /** Sum of non-null distanceKm across all legs. */
+    val totalDistanceKm: Int,
     /** Sum of per-leg durations in minutes; null if any leg is missing arrivalTimeUtc. */
     val totalDurationMin: Long?,
     /** Whether the trip's legs are visible in the UI. */

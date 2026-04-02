@@ -3,8 +3,8 @@ package com.flightlog.app.ui.logbook
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.flightlog.app.data.AirportCoordinatesMap
-import com.flightlog.app.data.AirportTimezoneMap
+import com.flightlog.app.data.airport.AirportCoordinatesMap
+import com.flightlog.app.data.airport.AirportTimezoneMap
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.repository.LogbookRepository
 import dagger.hilt.android.lifecycle.HiltViewModel

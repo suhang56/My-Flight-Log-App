@@ -53,7 +53,7 @@ class FlightTrackingWorker @AssistedInject constructor(
 
         return try {
             // Derive start date from departure time in departure timezone
-            val depDate = deriveDepartureDate(logbookFlight.departureTimeUtc, logbookFlight.departureTimezone)
+            val depDate = deriveDepartureDate(logbookFlight.departureTimeMillis, logbookFlight.departureTimezone)
 
             val response = api.getFlights(ident = flightNumber, start = depDate)
             if (!response.isSuccessful) {
@@ -69,7 +69,7 @@ class FlightTrackingWorker @AssistedInject constructor(
             if (flights.isNullOrEmpty()) return Result.success()
 
             // Pick best match: origin matches departure code + closest scheduled time
-            val bestMatch = pickBestMatch(flights, logbookFlight.departureCode, logbookFlight.departureTimeUtc)
+            val bestMatch = pickBestMatch(flights, logbookFlight.departureCode, logbookFlight.departureTimeMillis)
                 ?: return Result.success()
 
             val statusEnum = bestMatch.status.toFlightStatusEnum()

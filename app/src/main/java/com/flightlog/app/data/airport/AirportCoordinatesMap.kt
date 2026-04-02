@@ -1,4 +1,4 @@
-package com.flightlog.app.data
+package com.flightlog.app.data.airport
 
 import kotlin.math.PI
 import kotlin.math.asin
@@ -15,6 +15,8 @@ import kotlin.math.sqrt
  * Covers the same airports referenced in AirportNameMap and major international hubs.
  */
 object AirportCoordinatesMap {
+
+    data class LatLng(val lat: Double, val lng: Double)
 
     /** Pair of (latitude, longitude) in degrees. */
     private val coords: Map<String, Pair<Double, Double>> = mapOf(

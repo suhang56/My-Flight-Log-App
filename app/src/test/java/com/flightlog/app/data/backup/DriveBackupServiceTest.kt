@@ -66,26 +66,27 @@ class DriveBackupServiceTest {
             flightNumber = export.flightNumber ?: "",
             departureCode = export.departure,
             arrivalCode = export.arrival,
-            departureTimeUtc = export.departureTimeUtc,
-            arrivalTimeUtc = export.arrivalTimeUtc,
+            departureDateEpochDay = export.departureTimeUtc / 86_400_000,
+            departureTimeMillis = export.departureTimeUtc,
+            arrivalTimeMillis = export.arrivalTimeUtc,
             departureTimezone = export.departureTimezone,
             arrivalTimezone = export.arrivalTimezone,
-            distanceNm = export.distanceNm,
-            aircraftType = export.aircraftType ?: "",
-            seatClass = export.seatClass ?: "",
-            seatNumber = export.seatNumber ?: "",
-            notes = export.notes ?: ""
+            distanceKm = export.distanceNm,
+            aircraftType = export.aircraftType,
+            seatClass = export.seatClass,
+            seatNumber = export.seatNumber,
+            notes = export.notes
         )
 
         assertEquals(0L, logbookFlight.id) // Room auto-assigns
         assertEquals("NH123", logbookFlight.flightNumber)
         assertEquals("NRT", logbookFlight.departureCode)
         assertEquals("LAX", logbookFlight.arrivalCode)
-        assertEquals(1711555200000L, logbookFlight.departureTimeUtc)
-        assertEquals(1711591200000L, logbookFlight.arrivalTimeUtc)
+        assertEquals(1711555200000L, logbookFlight.departureTimeMillis)
+        assertEquals(1711591200000L, logbookFlight.arrivalTimeMillis)
         assertEquals("Asia/Tokyo", logbookFlight.departureTimezone)
         assertEquals("America/Los_Angeles", logbookFlight.arrivalTimezone)
-        assertEquals(4723, logbookFlight.distanceNm)
+        assertEquals(4723, logbookFlight.distanceKm)
         assertEquals("Boeing 777-300ER", logbookFlight.aircraftType)
         assertEquals("Business", logbookFlight.seatClass)
         assertEquals("2K", logbookFlight.seatNumber)
@@ -119,26 +120,27 @@ class DriveBackupServiceTest {
             flightNumber = export.flightNumber ?: "",
             departureCode = export.departure,
             arrivalCode = export.arrival,
-            departureTimeUtc = export.departureTimeUtc,
-            arrivalTimeUtc = export.arrivalTimeUtc,
+            departureDateEpochDay = export.departureTimeUtc / 86_400_000,
+            departureTimeMillis = export.departureTimeUtc,
+            arrivalTimeMillis = export.arrivalTimeUtc,
             departureTimezone = export.departureTimezone,
             arrivalTimezone = export.arrivalTimezone,
-            distanceNm = export.distanceNm,
-            aircraftType = export.aircraftType ?: "",
-            seatClass = export.seatClass ?: "",
-            seatNumber = export.seatNumber ?: "",
-            notes = export.notes ?: ""
+            distanceKm = export.distanceNm,
+            aircraftType = export.aircraftType,
+            seatClass = export.seatClass,
+            seatNumber = export.seatNumber,
+            notes = export.notes
         )
 
         assertEquals("", logbookFlight.flightNumber)
-        assertEquals("", logbookFlight.aircraftType)
-        assertEquals("", logbookFlight.seatClass)
-        assertEquals("", logbookFlight.seatNumber)
-        assertEquals("", logbookFlight.notes)
-        assertEquals(null, logbookFlight.arrivalTimeUtc)
+        assertEquals(null, logbookFlight.aircraftType)
+        assertEquals(null, logbookFlight.seatClass)
+        assertEquals(null, logbookFlight.seatNumber)
+        assertEquals(null, logbookFlight.notes)
+        assertEquals(null, logbookFlight.arrivalTimeMillis)
         assertEquals(null, logbookFlight.departureTimezone)
         assertEquals(null, logbookFlight.arrivalTimezone)
-        assertEquals(null, logbookFlight.distanceNm)
+        assertEquals(null, logbookFlight.distanceKm)
     }
 
     @Test

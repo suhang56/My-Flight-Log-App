@@ -1,5 +1,6 @@
 package com.flightlog.app.data
 
+import com.flightlog.app.data.airport.AirportTimezoneMap
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -12,101 +13,101 @@ class AirportTimezoneMapTest {
 
     @Test
     fun `NRT returns Asia Tokyo`() {
-        assertEquals("Asia/Tokyo", AirportTimezoneMap.timezoneFor("NRT"))
+        assertEquals("Asia/Tokyo", AirportTimezoneMap.getTimezone("NRT"))
     }
 
     @Test
     fun `HND returns Asia Tokyo`() {
-        assertEquals("Asia/Tokyo", AirportTimezoneMap.timezoneFor("HND"))
+        assertEquals("Asia/Tokyo", AirportTimezoneMap.getTimezone("HND"))
     }
 
     @Test
     fun `LAX returns America Los Angeles`() {
-        assertEquals("America/Los_Angeles", AirportTimezoneMap.timezoneFor("LAX"))
+        assertEquals("America/Los_Angeles", AirportTimezoneMap.getTimezone("LAX"))
     }
 
     @Test
     fun `LAS returns America Los Angeles`() {
-        assertEquals("America/Los_Angeles", AirportTimezoneMap.timezoneFor("LAS"))
+        assertEquals("America/Los_Angeles", AirportTimezoneMap.getTimezone("LAS"))
     }
 
     @Test
     fun `ORD returns America Chicago`() {
-        assertEquals("America/Chicago", AirportTimezoneMap.timezoneFor("ORD"))
+        assertEquals("America/Chicago", AirportTimezoneMap.getTimezone("ORD"))
     }
 
     @Test
     fun `JFK returns America New York`() {
-        assertEquals("America/New_York", AirportTimezoneMap.timezoneFor("JFK"))
+        assertEquals("America/New_York", AirportTimezoneMap.getTimezone("JFK"))
     }
 
     @Test
     fun `LHR returns Europe London`() {
-        assertEquals("Europe/London", AirportTimezoneMap.timezoneFor("LHR"))
+        assertEquals("Europe/London", AirportTimezoneMap.getTimezone("LHR"))
     }
 
     @Test
     fun `DXB returns Asia Dubai`() {
-        assertEquals("Asia/Dubai", AirportTimezoneMap.timezoneFor("DXB"))
+        assertEquals("Asia/Dubai", AirportTimezoneMap.getTimezone("DXB"))
     }
 
     @Test
     fun `SYD returns Australia Sydney`() {
-        assertEquals("Australia/Sydney", AirportTimezoneMap.timezoneFor("SYD"))
+        assertEquals("Australia/Sydney", AirportTimezoneMap.getTimezone("SYD"))
     }
 
     @Test
     fun `ICN returns Asia Seoul`() {
-        assertEquals("Asia/Seoul", AirportTimezoneMap.timezoneFor("ICN"))
+        assertEquals("Asia/Seoul", AirportTimezoneMap.getTimezone("ICN"))
     }
 
     @Test
     fun `SIN returns Asia Singapore`() {
-        assertEquals("Asia/Singapore", AirportTimezoneMap.timezoneFor("SIN"))
+        assertEquals("Asia/Singapore", AirportTimezoneMap.getTimezone("SIN"))
     }
 
     @Test
     fun `GRU returns America Sao Paulo`() {
-        assertEquals("America/Sao_Paulo", AirportTimezoneMap.timezoneFor("GRU"))
+        assertEquals("America/Sao_Paulo", AirportTimezoneMap.getTimezone("GRU"))
     }
 
     @Test
     fun `BER returns Europe Berlin`() {
-        assertEquals("Europe/Berlin", AirportTimezoneMap.timezoneFor("BER"))
+        assertEquals("Europe/Berlin", AirportTimezoneMap.getTimezone("BER"))
     }
 
     @Test
     fun `AEP returns America Argentina Buenos Aires`() {
-        assertEquals("America/Argentina/Buenos_Aires", AirportTimezoneMap.timezoneFor("AEP"))
+        assertEquals("America/Argentina/Buenos_Aires", AirportTimezoneMap.getTimezone("AEP"))
     }
 
     // ── Unknown codes ────────────────────────────────────────────────────────
 
     @Test
     fun `unknown airport code returns null`() {
-        assertNull(AirportTimezoneMap.timezoneFor("XYZ"))
+        assertNull(AirportTimezoneMap.getTimezone("XYZ"))
     }
 
     @Test
     fun `empty string returns null`() {
-        assertNull(AirportTimezoneMap.timezoneFor(""))
+        assertNull(AirportTimezoneMap.getTimezone(""))
     }
 
     @Test
     fun `two letter code returns null`() {
-        assertNull(AirportTimezoneMap.timezoneFor("AB"))
+        assertNull(AirportTimezoneMap.getTimezone("AB"))
     }
 
     // ── Case handling ────────────────────────────────────────────────────────
 
     @Test
     fun `lowercase input is resolved`() {
-        assertEquals("Asia/Tokyo", AirportTimezoneMap.timezoneFor("nrt"))
+        assertEquals("Asia/Tokyo", AirportTimezoneMap.getTimezone("nrt"))
     }
 
     @Test
     fun `mixed case input is resolved`() {
-        assertEquals("America/Los_Angeles", AirportTimezoneMap.timezoneFor("Lax"))
+        assertEquals("America/Los_Angeles", AirportTimezoneMap.getTimezone("Lax"))
     }
 
     // ── All IANA IDs are valid ZoneIds ────────────────────────────────────────
@@ -146,7 +147,7 @@ class AirportTimezoneMapTest {
 
         val failures = mutableListOf<String>()
         for (code in knownCodes) {
-            val tz = AirportTimezoneMap.timezoneFor(code)
+            val tz = AirportTimezoneMap.getTimezone(code)
             assertNotNull("Missing mapping for $code", tz)
             try {
                 ZoneId.of(tz!!)

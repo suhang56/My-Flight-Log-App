@@ -14,7 +14,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.flightlog.app.R
-import com.flightlog.app.data.AirportCoordinatesMap
+import com.flightlog.app.data.airport.AirportCoordinatesMap
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.model.BitmapDescriptor

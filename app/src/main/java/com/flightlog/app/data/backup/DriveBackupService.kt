@@ -104,28 +104,34 @@ class DriveBackupService @Inject constructor(
                 ?: return@withContext RestoreResult.Failure("Failed to parse backup file")
 
             val flights = wrapper.flights.map { exportFlight ->
+                val depTimeMillis = exportFlight.departureTimeUtc
+                val depZone = exportFlight.departureTimezone?.let {
+                    runCatching { java.time.ZoneId.of(it) }.getOrNull()
+                } ?: java.time.ZoneId.systemDefault()
+                val depEpochDay = java.time.Instant.ofEpochMilli(depTimeMillis)
+                    .atZone(depZone).toLocalDate().toEpochDay()
+
                 LogbookFlight(
                     id = 0,
                     flightNumber = exportFlight.flightNumber ?: "",
                     departureCode = exportFlight.departure,
                     arrivalCode = exportFlight.arrival,
-                    departureTimeUtc = exportFlight.departureTimeUtc,
-                    arrivalTimeUtc = exportFlight.arrivalTimeUtc,
+                    departureDateEpochDay = depEpochDay,
+                    departureTimeMillis = depTimeMillis,
+                    arrivalTimeMillis = exportFlight.arrivalTimeUtc,
                     departureTimezone = exportFlight.departureTimezone,
                     arrivalTimezone = exportFlight.arrivalTimezone,
-                    distanceNm = exportFlight.distanceNm,
-                    aircraftType = exportFlight.aircraftType ?: "",
-                    seatClass = exportFlight.seatClass ?: "",
-                    seatNumber = exportFlight.seatNumber ?: "",
-                    notes = exportFlight.notes ?: ""
+                    distanceKm = exportFlight.distanceNm, // legacy field name in export format
+                    aircraftType = exportFlight.aircraftType,
+                    seatClass = exportFlight.seatClass,
+                    seatNumber = exportFlight.seatNumber,
+                    notes = exportFlight.notes
                 )
             }
 
             val results = repository.insertAllForRestore(flights)
             val imported = results.count { it != -1L }
             val skipped = results.size - imported
-
-            try { repository.checkAchievements() } catch (_: Exception) { }
 
             RestoreResult.Success(imported = imported, skipped = skipped)
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {

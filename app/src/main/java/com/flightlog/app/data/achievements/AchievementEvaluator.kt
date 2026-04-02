@@ -46,18 +46,18 @@ object AchievementEvaluator {
             "twenty_airports" -> countUniqueAirports(flights) >= 20
 
             "three_seat_classes" -> {
-                flights.map { it.seatClass }
+                flights.mapNotNull { it.seatClass }
                     .filter { it.isNotBlank() }
                     .toSet()
                     .size >= 3
             }
 
-            "distance_10k" -> totalDistanceNm(flights) >= 10_000
+            "distance_10k" -> totalDistanceKm(flights) >= 18_520  // ~10k NM in km
 
             "short_hop" -> {
                 flights.count { flight ->
-                    val d = flight.distanceNm
-                    d != null && d < 300
+                    val d = flight.distanceKm
+                    d != null && d < 556  // ~300 NM in km
                 } >= 5
             }
 
@@ -65,17 +65,17 @@ object AchievementEvaluator {
 
             "fifty_airports" -> countUniqueAirports(flights) >= 50
 
-            "long_hauler" -> flights.any { (it.distanceNm ?: 0) >= 5_000 }
+            "long_hauler" -> flights.any { (it.distanceKm ?: 0) >= 9_260 }  // ~5k NM
 
-            "distance_100k" -> totalDistanceNm(flights) >= 100_000
+            "distance_100k" -> totalDistanceKm(flights) >= 185_200  // ~100k NM
 
             "night_owl" -> countNightFlights(flights) >= 3
 
             "five_hundred_flights" -> flights.size >= 500
 
-            "ultra_long_haul" -> flights.any { (it.distanceNm ?: 0) >= 8_000 }
+            "ultra_long_haul" -> flights.any { (it.distanceKm ?: 0) >= 14_816 }  // ~8k NM
 
-            "distance_500k" -> totalDistanceNm(flights) >= 500_000
+            "distance_500k" -> totalDistanceKm(flights) >= 926_000  // ~500k NM
 
             else -> false
         }
@@ -104,8 +104,8 @@ object AchievementEvaluator {
         return prefix.ifBlank { null }
     }
 
-    private fun totalDistanceNm(flights: List<LogbookFlight>): Long {
-        return flights.sumOf { (it.distanceNm ?: 0).toLong() }
+    private fun totalDistanceKm(flights: List<LogbookFlight>): Long {
+        return flights.sumOf { (it.distanceKm ?: 0).toLong() }
     }
 
     /** Counts flights departing between 00:00 and 04:59 in local departure time. */
@@ -123,7 +123,7 @@ object AchievementEvaluator {
         } catch (_: Exception) {
             ZoneId.of("UTC")
         }
-        return Instant.ofEpochMilli(flight.departureTimeUtc)
+        return Instant.ofEpochMilli(flight.departureTimeMillis)
             .atZone(zoneId)
             .hour
     }

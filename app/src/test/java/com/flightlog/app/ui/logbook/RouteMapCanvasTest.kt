@@ -1,6 +1,6 @@
 package com.flightlog.app.ui.logbook
 
-import com.flightlog.app.data.AirportCoordinatesMap.LatLng
+import com.flightlog.app.data.airport.AirportCoordinatesMap.LatLng
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

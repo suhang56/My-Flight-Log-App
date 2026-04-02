@@ -1,7 +1,7 @@
 package com.flightlog.app.data.repository
 
-import com.flightlog.app.data.AirportCoordinatesMap
-import com.flightlog.app.data.AirportTimezoneMap
+import com.flightlog.app.data.airport.AirportCoordinatesMap
+import com.flightlog.app.data.airport.AirportTimezoneMap
 import com.flightlog.app.data.local.dao.AirlineCount
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import com.flightlog.app.data.local.dao.MonthlyCount
@@ -79,11 +79,15 @@ class LogbookRepository @Inject constructor(
 
     suspend fun getById(id: Long): LogbookFlight? = logbookFlightDao.getById(id)
 
+    fun getByIdFlow(id: Long): Flow<LogbookFlight?> = logbookFlightDao.getByIdFlow(id)
+
     suspend fun insert(flight: LogbookFlight): Long = logbookFlightDao.insert(flight)
 
     suspend fun update(flight: LogbookFlight) = logbookFlightDao.update(flight)
 
     suspend fun delete(flight: LogbookFlight) = logbookFlightDao.delete(flight)
+
+    suspend fun delete(id: Long) = logbookFlightDao.deleteById(id)
 
     // --- Stats flows ---
 
@@ -108,4 +112,9 @@ class LogbookRepository @Inject constructor(
     fun getFirstFlight(): Flow<LogbookFlight?> = logbookFlightDao.getFirstFlight()
 
     fun getMonthlyFlightCounts(): Flow<List<MonthlyCount>> = logbookFlightDao.getMonthlyFlightCounts()
+
+    suspend fun getAllOnce(): List<LogbookFlight> = logbookFlightDao.getAllOnce()
+
+    suspend fun insertAllForRestore(flights: List<LogbookFlight>): List<Long> =
+        flights.map { logbookFlightDao.insert(it) }
 }

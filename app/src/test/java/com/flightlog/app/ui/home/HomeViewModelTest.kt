@@ -62,7 +62,7 @@ class HomeViewModelTest {
         logbookRepository = mockk(relaxed = true)
 
         every { calendarRepository.getAllVisible() } returns calendarFlow
-        every { logbookRepository.getAll() } returns logbookFlow
+        every { logbookRepository.allFlights } returns logbookFlow
 
         // Default: permission NOT granted (no sync on init)
         mockkStatic(ContextCompat::class)
@@ -114,7 +114,6 @@ class HomeViewModelTest {
     private fun logbookFlight(
         id: Long = 1,
         sourceCalendarEventId: Long? = null,
-        sourceLegIndex: Int? = null,
         flightNumber: String = "NH847",
         depCode: String = "HND",
         arrCode: String = "LHR",
@@ -122,11 +121,11 @@ class HomeViewModelTest {
     ) = LogbookFlight(
         id = id,
         sourceCalendarEventId = sourceCalendarEventId,
-        sourceLegIndex = sourceLegIndex,
         flightNumber = flightNumber,
         departureCode = depCode,
         arrivalCode = arrCode,
-        departureTimeUtc = departureTimeUtc
+        departureDateEpochDay = departureTimeUtc / 86_400_000,
+        departureTimeMillis = departureTimeUtc
     )
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -184,7 +183,7 @@ class HomeViewModelTest {
             calendarFlight(id = 1, calendarEventId = 100, legIndex = 0, scheduledTime = currentTime + 1000)
         )
         logbookFlow.value = listOf(
-            logbookFlight(id = 10, sourceCalendarEventId = 100, sourceLegIndex = 0, departureTimeUtc = currentTime + 1000)
+            logbookFlight(id = 10, sourceCalendarEventId = 100, departureTimeUtc = currentTime + 1000)
         )
         advanceUntilIdle()
 

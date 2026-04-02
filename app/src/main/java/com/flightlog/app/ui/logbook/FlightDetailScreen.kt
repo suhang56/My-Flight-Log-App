@@ -59,7 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.flightlog.app.data.AirportCoordinatesMap
+import com.flightlog.app.data.airport.AirportCoordinatesMap
 import com.flightlog.app.data.local.entity.FlightStatus
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.network.FlightStatusEnum
@@ -226,7 +226,7 @@ fun FlightDetailScreen(
 
                     FlightInfoSection(flight = flight)
 
-                    val hasSeatInfo = flight.seatClass.isNotBlank() || flight.seatNumber.isNotBlank()
+                    val hasSeatInfo = !flight.seatClass.isNullOrBlank() || !flight.seatNumber.isNullOrBlank()
                     if (hasSeatInfo) {
                         Spacer(modifier = Modifier.height(16.dp))
                         HorizontalDivider()
@@ -234,11 +234,11 @@ fun FlightDetailScreen(
                         SeatInfoSection(flight = flight)
                     }
 
-                    if (flight.notes.isNotBlank()) {
+                    if (!flight.notes.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(16.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(16.dp))
-                        NotesSection(notes = flight.notes)
+                        NotesSection(notes = flight.notes!!)
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -246,10 +246,14 @@ fun FlightDetailScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     val departureCoords = remember(flight.departureCode) {
-                        AirportCoordinatesMap.coordinatesFor(flight.departureCode)
+                        AirportCoordinatesMap.getCoords(flight.departureCode)?.let {
+                            AirportCoordinatesMap.LatLng(it.first, it.second)
+                        }
                     }
                     val arrivalCoords = remember(flight.arrivalCode) {
-                        AirportCoordinatesMap.coordinatesFor(flight.arrivalCode)
+                        AirportCoordinatesMap.getCoords(flight.arrivalCode)?.let {
+                            AirportCoordinatesMap.LatLng(it.first, it.second)
+                        }
                     }
                     val livePosition = flightStatus?.let { status ->
                         val lat = status.liveLat
@@ -354,11 +358,11 @@ private fun TimelineSection(flight: LogbookFlight) {
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = formatInZone(flight.departureTimeUtc, flight.departureTimezone, DAY_DATE_FORMATTER),
+                text = formatInZone(flight.departureTimeMillis, flight.departureTimezone, DAY_DATE_FORMATTER),
                 style = MaterialTheme.typography.bodyMedium
             )
             Text(
-                text = formatInZone(flight.departureTimeUtc, flight.departureTimezone, TIME_TZ_FORMATTER),
+                text = formatInZone(flight.departureTimeMillis, flight.departureTimezone, TIME_TZ_FORMATTER),
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold
             )
@@ -372,13 +376,13 @@ private fun TimelineSection(flight: LogbookFlight) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(4.dp))
-            if (flight.arrivalTimeUtc != null) {
+            if (flight.arrivalTimeMillis != null) {
                 Text(
-                    text = formatInZone(flight.arrivalTimeUtc, flight.arrivalTimezone, DAY_DATE_FORMATTER),
+                    text = formatInZone(flight.arrivalTimeMillis, flight.arrivalTimezone, DAY_DATE_FORMATTER),
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    text = formatInZone(flight.arrivalTimeUtc, flight.arrivalTimezone, TIME_TZ_FORMATTER),
+                    text = formatInZone(flight.arrivalTimeMillis, flight.arrivalTimezone, TIME_TZ_FORMATTER),
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -397,11 +401,11 @@ private fun TimelineSection(flight: LogbookFlight) {
         }
     }
 
-    val durationMinutes = flight.arrivalTimeUtc?.let { arr ->
-        val diff = (arr - flight.departureTimeUtc) / 60000
+    val durationMinutes = flight.arrivalTimeMillis?.let { arr ->
+        val diff = (arr - flight.departureTimeMillis) / 60000
         if (diff > 0) diff else null
     }
-    val hasDistance = flight.distanceNm != null
+    val hasDistance = flight.distanceKm != null
     val hasDuration = durationMinutes != null
 
     if (hasDuration || hasDistance) {
@@ -436,7 +440,7 @@ private fun TimelineSection(flight: LogbookFlight) {
                 }
                 if (hasDistance) {
                     Text(
-                        text = "%,d NM".format(flight.distanceNm),
+                        text = "%,d NM".format(flight.distanceKm),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -452,15 +456,15 @@ private fun FlightInfoSection(flight: LogbookFlight) {
     if (flight.flightNumber.isNotBlank()) {
         InfoRow(label = "Flight", value = flight.flightNumber)
     }
-    if (flight.aircraftType.isNotBlank()) {
-        InfoRow(label = "Aircraft", value = flight.aircraftType)
+    if (!flight.aircraftType.isNullOrBlank()) {
+        InfoRow(label = "Aircraft", value = flight.aircraftType!!)
     }
-    flight.distanceNm?.let { nm ->
-        InfoRow(label = "Distance", value = "%,d NM".format(nm))
+    flight.distanceKm?.let { km ->
+        InfoRow(label = "Distance", value = "%,d km".format(km))
     }
     InfoRow(
         label = "Added",
-        value = formatInZone(flight.addedAt, null, DATE_FORMATTER)
+        value = formatInZone(flight.createdAt, null, DATE_FORMATTER)
     )
     InfoRow(
         label = "Source",
@@ -491,11 +495,11 @@ private fun InfoRow(label: String, value: String) {
 
 @Composable
 private fun SeatInfoSection(flight: LogbookFlight) {
-    if (flight.seatClass.isNotBlank()) {
-        InfoRow(label = "Seat Class", value = flight.seatClass)
+    if (!flight.seatClass.isNullOrBlank()) {
+        InfoRow(label = "Seat Class", value = flight.seatClass!!)
     }
-    if (flight.seatNumber.isNotBlank()) {
-        InfoRow(label = "Seat Number", value = flight.seatNumber)
+    if (!flight.seatNumber.isNullOrBlank()) {
+        InfoRow(label = "Seat Number", value = flight.seatNumber!!)
     }
 }
 
@@ -673,20 +677,20 @@ fun buildShareText(flight: LogbookFlight): String {
     }
     lines += "${routePrefix}${flight.departureCode} \u2192 ${flight.arrivalCode}"
 
-    val depTime = formatInZone(flight.departureTimeUtc, flight.departureTimezone)
-    val arrTime = flight.arrivalTimeUtc?.let {
+    val depTime = formatInZone(flight.departureTimeMillis, flight.departureTimezone)
+    val arrTime = flight.arrivalTimeMillis?.let {
         formatInZone(it, flight.arrivalTimezone, TIME_TZ_FORMATTER)
     }
     lines += if (arrTime != null) "$depTime \u2192 $arrTime" else depTime
 
     val parts3 = mutableListOf<String>()
-    flight.arrivalTimeUtc?.let { arr ->
-        val diffMin = (arr - flight.departureTimeUtc) / 60000
+    flight.arrivalTimeMillis?.let { arr ->
+        val diffMin = (arr - flight.departureTimeMillis) / 60000
         if (diffMin > 0) {
             parts3 += "Duration: ${diffMin / 60}h ${diffMin % 60}m"
         }
     }
-    flight.distanceNm?.let { nm ->
+    flight.distanceKm?.let { nm ->
         parts3 += "Distance: %,d NM".format(nm)
     }
     if (parts3.isNotEmpty()) {
@@ -694,12 +698,12 @@ fun buildShareText(flight: LogbookFlight): String {
     }
 
     val parts4 = mutableListOf<String>()
-    if (flight.aircraftType.isNotBlank()) {
+    if (!flight.aircraftType.isNullOrBlank()) {
         parts4 += "Aircraft: ${flight.aircraftType}"
     }
     val seatParts = listOfNotNull(
-        flight.seatClass.takeIf { it.isNotBlank() },
-        flight.seatNumber.takeIf { it.isNotBlank() }?.let { "Seat $it" }
+        flight.seatClass?.takeIf { it.isNotBlank() },
+        flight.seatNumber?.takeIf { it.isNotBlank() }?.let { "Seat $it" }
     ).joinToString(", ")
     if (seatParts.isNotBlank()) {
         parts4 += seatParts

@@ -11,8 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import com.flightlog.app.data.AirportCoordinatesMap
-import com.flightlog.app.ui.logbook.greatCircleInterpolate
+import com.flightlog.app.data.airport.AirportCoordinatesMap
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -73,25 +72,24 @@ fun AllRoutesMapCanvas(
     // Resolve routes to LatLng pairs
     val resolvedRoutes = remember(routes) {
         routes.mapNotNull { route ->
-            val dep = AirportCoordinatesMap.coordinatesFor(route.departureCode)
-            val arr = AirportCoordinatesMap.coordinatesFor(route.arrivalCode)
+            val dep = AirportCoordinatesMap.getCoords(route.departureCode)
+            val arr = AirportCoordinatesMap.getCoords(route.arrivalCode)
             if (dep != null && arr != null) {
-                Triple(route, LatLng(dep.lat, dep.lng), LatLng(arr.lat, arr.lng))
+                Triple(route, LatLng(dep.first, dep.second), LatLng(arr.first, arr.second))
             } else null
         }
     }
 
     // Compute great-circle arc points for polylines
     val arcData = remember(resolvedRoutes) {
-        val segments = if (resolvedRoutes.size > 50) 20 else 40
+        val numPoints = if (resolvedRoutes.size > 50) 20 else 40
         resolvedRoutes.map { (route, dep, arr) ->
-            val depCoord = AirportCoordinatesMap.LatLng(dep.latitude, dep.longitude)
-            val arrCoord = AirportCoordinatesMap.LatLng(arr.latitude, arr.longitude)
+            val depCoord = dep.latitude to dep.longitude
+            val arrCoord = arr.latitude to arr.longitude
             val sameAirport = route.departureCode.equals(route.arrivalCode, ignoreCase = true)
             val arcPoints = if (sameAirport) listOf(dep)
-            else (0..segments).map { i ->
-                val p = greatCircleInterpolate(depCoord, arrCoord, i / segments.toFloat())
-                LatLng(p.lat, p.lng)
+            else AirportCoordinatesMap.interpolateArc(depCoord, arrCoord, numPoints).map { (lat, lng) ->
+                LatLng(lat, lng)
             }
             Triple(route, arcPoints, listOf(dep, arr))
         }

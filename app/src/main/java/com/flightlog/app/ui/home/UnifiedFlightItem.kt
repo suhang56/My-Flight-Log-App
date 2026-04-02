@@ -27,7 +27,7 @@ sealed class UnifiedFlightItem {
     }
 
     data class FromLogbook(val flight: LogbookFlight) : UnifiedFlightItem() {
-        override val sortKey: Long get() = flight.departureTimeUtc
+        override val sortKey: Long get() = flight.departureTimeMillis
         override val flightNumber: String get() = flight.flightNumber
         override val departureCode: String get() = flight.departureCode
         override val arrivalCode: String get() = flight.arrivalCode
@@ -44,16 +44,13 @@ sealed class UnifiedFlightItem {
             calendarFlights: List<CalendarFlight>,
             logbookFlights: List<LogbookFlight>
         ): List<UnifiedFlightItem> {
-            val loggedCalendarKeys = logbookFlights
-                .filter { it.sourceCalendarEventId != null }
-                .map { it.sourceCalendarEventId!! to (it.sourceLegIndex ?: 0) }
+            val loggedCalendarIds = logbookFlights
+                .mapNotNull { it.sourceCalendarEventId }
                 .toSet()
 
             val fromLogbook = logbookFlights.map { FromLogbook(it) }
             val fromCalendar = calendarFlights
-                .filter { cal ->
-                    (cal.calendarEventId to cal.legIndex) !in loggedCalendarKeys
-                }
+                .filter { cal -> cal.calendarEventId !in loggedCalendarIds }
                 .map { FromCalendar(it) }
 
             return (fromLogbook + fromCalendar).sortedByDescending { it.sortKey }

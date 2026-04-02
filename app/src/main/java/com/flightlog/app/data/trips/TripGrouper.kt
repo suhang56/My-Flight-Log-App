@@ -19,25 +19,25 @@ object TripGrouper {
     private val DATE_YEAR_FMT = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
 
     /**
-     * Groups [flights] into trips. Always sorts by departureTimeUtc ascending internally
+     * Groups [flights] into trips. Always sorts by departureTimeMillis ascending internally
      * before grouping, regardless of the caller's display sort order.
      *
      * A new group starts when the gap between the current flight's departure and the
-     * previous flight's end time (arrivalTimeUtc if available, else departureTimeUtc)
+     * previous flight's end time (arrivalTimeMillis if available, else departureTimeMillis)
      * exceeds [GAP_MS] (strictly greater than, not >=).
      */
     fun group(flights: List<LogbookFlight>): List<TripGroup> {
         if (flights.isEmpty()) return emptyList()
 
-        val sorted = flights.sortedBy { it.departureTimeUtc }
+        val sorted = flights.sortedBy { it.departureTimeMillis }
         val groups = mutableListOf<MutableList<LogbookFlight>>()
         var currentGroup = mutableListOf(sorted.first())
 
         for (i in 1 until sorted.size) {
             val prev = sorted[i - 1]
             val curr = sorted[i]
-            val prevEndTime = prev.arrivalTimeUtc ?: prev.departureTimeUtc
-            val gap = curr.departureTimeUtc - prevEndTime
+            val prevEndTime = prev.arrivalTimeMillis ?: prev.departureTimeMillis
+            val gap = curr.departureTimeMillis - prevEndTime
 
             if (gap > GAP_MS) {
                 groups.add(currentGroup)
@@ -54,7 +54,7 @@ object TripGrouper {
     private fun buildTripGroup(legs: List<LogbookFlight>): TripGroup {
         val label = buildRouteLabel(legs)
         val dateRange = buildDateRange(legs)
-        val totalDistance = legs.sumOf { it.distanceNm ?: 0 }
+        val totalDistance = legs.sumOf { it.distanceKm ?: 0 }
         val totalDuration = computeTotalDuration(legs)
 
         return TripGroup(
@@ -62,7 +62,7 @@ object TripGrouper {
             legs = legs,
             label = label,
             dateRange = dateRange,
-            totalDistanceNm = totalDistance,
+            totalDistanceKm = totalDistance,
             totalDurationMin = totalDuration
         )
     }
@@ -103,11 +103,11 @@ object TripGrouper {
         if (legs.isEmpty()) return ""
 
         val firstFlight = legs.first()
-        val firstDate = Instant.ofEpochMilli(firstFlight.departureTimeUtc)
+        val firstDate = Instant.ofEpochMilli(firstFlight.departureTimeMillis)
             .atZone(zoneFor(firstFlight.departureTimezone)).toLocalDate()
         val lastFlight = legs.last()
-        val lastTime = lastFlight.arrivalTimeUtc ?: lastFlight.departureTimeUtc
-        val lastTz = if (lastFlight.arrivalTimeUtc != null) lastFlight.arrivalTimezone else lastFlight.departureTimezone
+        val lastTime = lastFlight.arrivalTimeMillis ?: lastFlight.departureTimeMillis
+        val lastTz = if (lastFlight.arrivalTimeMillis != null) lastFlight.arrivalTimezone else lastFlight.departureTimezone
         val lastDate = Instant.ofEpochMilli(lastTime)
             .atZone(zoneFor(lastTz)).toLocalDate()
 
@@ -121,13 +121,13 @@ object TripGrouper {
     }
 
     /**
-     * Sums per-leg durations. Returns null if any leg is missing arrivalTimeUtc.
+     * Sums per-leg durations. Returns null if any leg is missing arrivalTimeMillis.
      */
     private fun computeTotalDuration(legs: List<LogbookFlight>): Long? {
         var total = 0L
         for (leg in legs) {
-            val arr = leg.arrivalTimeUtc ?: return null
-            val duration = arr - leg.departureTimeUtc
+            val arr = leg.arrivalTimeMillis ?: return null
+            val duration = arr - leg.departureTimeMillis
             if (duration > 0) total += duration
         }
         return total / 60_000 // convert millis to minutes

@@ -16,14 +16,16 @@ class TripGrouperTest {
         arr: String,
         departureUtc: Long,
         arrivalUtc: Long? = null,
-        distanceNm: Int? = null
+        distanceKm: Int? = null
     ) = LogbookFlight(
         id = id,
+        flightNumber = "XX$id",
         departureCode = dep,
         arrivalCode = arr,
-        departureTimeUtc = departureUtc,
-        arrivalTimeUtc = arrivalUtc,
-        distanceNm = distanceNm
+        departureDateEpochDay = departureUtc / 86_400_000,
+        departureTimeMillis = departureUtc,
+        arrivalTimeMillis = arrivalUtc,
+        distanceKm = distanceKm
     )
 
     private val H = 60L * 60 * 1000 // 1 hour in millis
@@ -52,7 +54,7 @@ class TripGrouperTest {
         assertEquals("1", trips[0].id)
         assertEquals(1, trips[0].legs.size)
         assertEquals("NRT \u2192 ORD", trips[0].label)
-        assertEquals(5500, trips[0].totalDistanceNm)
+        assertEquals(5500, trips[0].totalDistanceKm)
     }
 
     // =========================================================================
@@ -240,13 +242,13 @@ class TripGrouperTest {
     fun `total duration null when one leg has null arrival`() {
         val flights = listOf(
             flight(1, "NRT", "ORD", 1000 * H, 1012 * H, 5500),
-            flight(2, "ORD", "LAX", 1036 * H, arrivalUtc = null, distanceNm = 1500)
+            flight(2, "ORD", "LAX", 1036 * H, arrivalUtc = null, distanceKm = 1500)
         )
         val trips = TripGrouper.group(flights)
         assertEquals(1, trips.size)
         assertNull(trips[0].totalDurationMin)
         // Distance should still be summed
-        assertEquals(7000, trips[0].totalDistanceNm)
+        assertEquals(7000, trips[0].totalDistanceKm)
     }
 
     @Test
@@ -320,11 +322,11 @@ class TripGrouperTest {
     fun `total distance sums non-null distances only`() {
         val flights = listOf(
             flight(1, "NRT", "ORD", 1000 * H, 1012 * H, 5500),
-            flight(2, "ORD", "LAX", 1036 * H, 1040 * H, distanceNm = null),
+            flight(2, "ORD", "LAX", 1036 * H, 1040 * H, distanceKm = null),
             flight(3, "LAX", "SFO", 1060 * H, 1062 * H, 300)
         )
         val trips = TripGrouper.group(flights)
-        assertEquals(5800, trips[0].totalDistanceNm)
+        assertEquals(5800, trips[0].totalDistanceKm)
     }
 
     @Test
@@ -333,7 +335,7 @@ class TripGrouperTest {
             flight(1, "NRT", "ORD", 1000 * H, 1012 * H, 0)
         )
         val trips = TripGrouper.group(flights)
-        assertEquals(0, trips[0].totalDistanceNm)
+        assertEquals(0, trips[0].totalDistanceKm)
     }
 
     // =========================================================================

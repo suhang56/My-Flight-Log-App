@@ -48,7 +48,7 @@ class HomeViewModel @Inject constructor(
     // Stable Flow references: each DAO @Query returns a new Flow per call,
     // but these are captured once at property init time.
     private val calendarFlow = calendarRepository.getAllVisible()
-    private val logbookFlow = logbookRepository.getAll()
+    private val logbookFlow = logbookRepository.allFlights
 
     val uiState: StateFlow<HomeUiState> = combine(
         calendarFlow,

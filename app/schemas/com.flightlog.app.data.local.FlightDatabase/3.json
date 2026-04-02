@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "d193fa3834090e170bb01c5d96f3af5c",
+    "identityHash": "a0816cca5e35c0f72ea93a2775ea27e1",
     "entities": [
       {
         "tableName": "calendar_flights",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `calendarEventId` INTEGER NOT NULL, `legIndex` INTEGER NOT NULL, `flightNumber` TEXT NOT NULL, `departureCode` TEXT NOT NULL, `arrivalCode` TEXT NOT NULL, `rawTitle` TEXT NOT NULL, `scheduledTime` INTEGER NOT NULL, `endTime` INTEGER, `syncedAt` INTEGER NOT NULL, `isManuallyDismissed` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `calendarEventId` INTEGER NOT NULL, `legIndex` INTEGER NOT NULL, `flightNumber` TEXT NOT NULL, `departureCode` TEXT NOT NULL, `arrivalCode` TEXT NOT NULL, `rawTitle` TEXT NOT NULL, `scheduledTime` INTEGER NOT NULL, `endTime` INTEGER, `syncedAt` INTEGER NOT NULL, `departureTimezone` TEXT, `arrivalTimezone` TEXT, `isManuallyDismissed` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -67,6 +67,18 @@
             "columnName": "syncedAt",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "departureTimezone",
+            "columnName": "departureTimezone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "arrivalTimezone",
+            "columnName": "arrivalTimezone",
+            "affinity": "TEXT",
+            "notNull": false
           },
           {
             "fieldPath": "isManuallyDismissed",
@@ -240,7 +252,7 @@
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd193fa3834090e170bb01c5d96f3af5c')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a0816cca5e35c0f72ea93a2775ea27e1')"
     ]
   }
 }

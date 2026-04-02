@@ -3,7 +3,10 @@ package com.flightlog.app.di
 import android.content.Context
 import androidx.room.Room
 import com.flightlog.app.data.local.FlightDatabase
+import com.flightlog.app.data.local.dao.AchievementDao
+import com.flightlog.app.data.local.dao.AirportDao
 import com.flightlog.app.data.local.dao.CalendarFlightDao
+import com.flightlog.app.data.local.dao.FlightStatusDao
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import dagger.Module
 import dagger.Provides
@@ -26,7 +29,8 @@ object DatabaseModule {
         )
             .addMigrations(
                 FlightDatabase.MIGRATION_1_2,
-                FlightDatabase.MIGRATION_2_3
+                FlightDatabase.MIGRATION_2_3,
+                FlightDatabase.MIGRATION_3_4
             )
             .build()
     }
@@ -39,5 +43,20 @@ object DatabaseModule {
     @Provides
     fun provideLogbookFlightDao(database: FlightDatabase): LogbookFlightDao {
         return database.logbookFlightDao()
+    }
+
+    @Provides
+    fun provideAchievementDao(database: FlightDatabase): AchievementDao {
+        return database.achievementDao()
+    }
+
+    @Provides
+    fun provideAirportDao(database: FlightDatabase): AirportDao {
+        return database.airportDao()
+    }
+
+    @Provides
+    fun provideFlightStatusDao(database: FlightDatabase): FlightStatusDao {
+        return database.flightStatusDao()
     }
 }

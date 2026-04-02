@@ -26,18 +26,19 @@ class WidgetRefreshWorker @AssistedInject constructor(
 
     override suspend fun doWork(): Result {
         return try {
-            val count = repository.getCount().first()
-            val distanceNm = repository.getTotalDistanceNm().first()
-            val lastFlight = repository.getMostRecentFlight()
+            val count = repository.getFlightCount().first()
+            val distanceKm = repository.getTotalDistanceKm().first() ?: 0L
+            val allFlights = repository.getAllOnce()
+            val lastFlight = allFlights.maxByOrNull { it.departureTimeMillis }
 
             applicationContext.widgetDataStore.edit { prefs ->
                 prefs[WidgetDataKeys.FLIGHT_COUNT] = count
-                prefs[WidgetDataKeys.TOTAL_DISTANCE_NM] = distanceNm
+                prefs[WidgetDataKeys.TOTAL_DISTANCE_NM] = distanceKm.toInt()
                 prefs[WidgetDataKeys.LAST_UPDATED_MS] = System.currentTimeMillis()
                 if (lastFlight != null) {
                     prefs[WidgetDataKeys.LAST_FLIGHT_DEP] = lastFlight.departureCode
                     prefs[WidgetDataKeys.LAST_FLIGHT_ARR] = lastFlight.arrivalCode
-                    prefs[WidgetDataKeys.LAST_FLIGHT_DATE] = lastFlight.departureTimeUtc
+                    prefs[WidgetDataKeys.LAST_FLIGHT_DATE] = lastFlight.departureTimeMillis
                 } else {
                     prefs.remove(WidgetDataKeys.LAST_FLIGHT_DEP)
                     prefs.remove(WidgetDataKeys.LAST_FLIGHT_ARR)

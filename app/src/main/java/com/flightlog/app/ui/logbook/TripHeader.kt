@@ -95,10 +95,10 @@ internal fun TripHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
-                if (trip.totalDistanceNm > 0) {
+                if (trip.totalDistanceKm > 0) {
                     BulletSeparator()
                     Text(
-                        text = "%,d NM".format(trip.totalDistanceNm),
+                        text = "%,d NM".format(trip.totalDistanceKm),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )

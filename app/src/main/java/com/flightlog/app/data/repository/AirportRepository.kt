@@ -1,8 +1,8 @@
 package com.flightlog.app.data.repository
 
-import com.flightlog.app.data.AirportCoordinatesMap
-import com.flightlog.app.data.AirportNameMap
-import com.flightlog.app.data.AirportTimezoneMap
+import com.flightlog.app.data.airport.AirportCoordinatesMap
+import com.flightlog.app.data.airport.AirportNameMap
+import com.flightlog.app.data.airport.AirportTimezoneMap
 import com.flightlog.app.data.local.dao.AirportDao
 import com.flightlog.app.data.local.entity.Airport
 import javax.inject.Inject
@@ -73,8 +73,8 @@ class AirportRepository @Inject constructor(
      * Ensures zero regression if a code is missing from the database.
      */
     private fun staticFallback(iata: String): Airport? {
-        val coords = AirportCoordinatesMap.coordinatesFor(iata)
-        val tz = AirportTimezoneMap.timezoneFor(iata)
+        val coords = AirportCoordinatesMap.getCoords(iata)
+        val tz = AirportTimezoneMap.getTimezone(iata)
         if (coords == null && tz == null) return null
         return Airport(
             iata = iata,
@@ -82,8 +82,8 @@ class AirportRepository @Inject constructor(
             name = iata,
             city = iata,
             country = "",
-            lat = coords?.lat ?: Double.NaN,
-            lng = coords?.lng ?: Double.NaN,
+            lat = coords?.first ?: Double.NaN,
+            lng = coords?.second ?: Double.NaN,
             timezone = tz
         )
     }

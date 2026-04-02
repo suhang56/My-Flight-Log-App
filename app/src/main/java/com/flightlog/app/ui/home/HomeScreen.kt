@@ -451,7 +451,7 @@ private fun UnifiedFlightCard(
 
                     val depTime = formatInZone(item.sortKey, item.departureTimezone, TIME_TZ_FORMATTER)
                     val arrTime = when (item) {
-                        is UnifiedFlightItem.FromLogbook -> item.flight.arrivalTimeUtc?.let {
+                        is UnifiedFlightItem.FromLogbook -> item.flight.arrivalTimeMillis?.let {
                             formatInZone(it, item.flight.arrivalTimezone, TIME_TZ_FORMATTER)
                         }
                         is UnifiedFlightItem.FromCalendar -> item.flight.endTime?.let {

@@ -1,4 +1,4 @@
-package com.flightlog.app.data
+package com.flightlog.app.data.airport
 
 /**
  * Maps common airport/city names to their 3-letter IATA codes.

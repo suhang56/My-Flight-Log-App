@@ -34,7 +34,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.flightlog.app.data.AirportCoordinatesMap.LatLng
+import com.flightlog.app.data.airport.AirportCoordinatesMap.LatLng
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.asin

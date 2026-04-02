@@ -59,6 +59,7 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 
+@Suppress("DEPRECATION")
 @Composable
 fun LoginScreen(
     onNavigateBack: () -> Unit,

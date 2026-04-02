@@ -14,8 +14,17 @@ interface LogbookFlightDao {
     @Query("SELECT * FROM logbook_flights ORDER BY departureDateEpochDay DESC")
     fun getAll(): Flow<List<LogbookFlight>>
 
+    @Query("SELECT * FROM logbook_flights ORDER BY departureDateEpochDay DESC")
+    suspend fun getAllOnce(): List<LogbookFlight>
+
     @Query("SELECT * FROM logbook_flights WHERE id = :id")
     suspend fun getById(id: Long): LogbookFlight?
+
+    @Query("SELECT * FROM logbook_flights WHERE id = :id")
+    fun getByIdFlow(id: Long): Flow<LogbookFlight?>
+
+    @Query("DELETE FROM logbook_flights WHERE id = :id")
+    suspend fun deleteById(id: Long)
 
     @Query("SELECT * FROM logbook_flights WHERE sourceCalendarEventId = :calendarEventId LIMIT 1")
     suspend fun findByCalendarEventId(calendarEventId: Long): LogbookFlight?

@@ -1,4 +1,4 @@
-package com.flightlog.app.data
+package com.flightlog.app.data.airport
 
 /**
  * Maps IATA airport codes to their IANA timezone IDs.
