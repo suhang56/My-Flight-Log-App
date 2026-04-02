@@ -97,25 +97,22 @@ fun AllRoutesMapCanvas(
         }
     }
 
-    // Pre-create marker bitmaps: highlighted 20dp (~60px), dimmed 14dp (~42px)
-    val markerBitmapHighlighted = remember {
-        BitmapDescriptorFactory.fromBitmap(
-            createCircleMarkerBitmap(
-                sizePx = 60,
-                fillColor = android.graphics.Color.WHITE,
-                borderColor = ARC_COLOR.toArgb(),
-                borderWidthPx = 6f
-            )
+    // Pre-create raw bitmaps outside GoogleMap; wrap with BitmapDescriptorFactory
+    // inside the map content where the Maps SDK is guaranteed to be initialized.
+    val highlightedBitmap = remember {
+        createCircleMarkerBitmap(
+            sizePx = 60,
+            fillColor = android.graphics.Color.WHITE,
+            borderColor = ARC_COLOR.toArgb(),
+            borderWidthPx = 6f
         )
     }
-    val markerBitmapDimmed = remember {
-        BitmapDescriptorFactory.fromBitmap(
-            createCircleMarkerBitmap(
-                sizePx = 42,
-                fillColor = android.graphics.Color.WHITE,
-                borderColor = ARC_COLOR.copy(alpha = 0.5f).toArgb(),
-                borderWidthPx = 5f
-            )
+    val dimmedBitmap = remember {
+        createCircleMarkerBitmap(
+            sizePx = 42,
+            fillColor = android.graphics.Color.WHITE,
+            borderColor = ARC_COLOR.copy(alpha = 0.5f).toArgb(),
+            borderWidthPx = 5f
         )
     }
 
@@ -169,6 +166,14 @@ fun AllRoutesMapCanvas(
             }
         }
     ) {
+        // BitmapDescriptorFactory is only safe inside GoogleMap content
+        val markerBitmapHighlighted = remember(highlightedBitmap) {
+            BitmapDescriptorFactory.fromBitmap(highlightedBitmap)
+        }
+        val markerBitmapDimmed = remember(dimmedBitmap) {
+            BitmapDescriptorFactory.fromBitmap(dimmedBitmap)
+        }
+
         // Draw arcs — dimmed first, then highlighted on top
         val sortedArcs = arcData.sortedBy { it.first.isHighlighted }
 
