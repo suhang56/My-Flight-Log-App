@@ -57,9 +57,10 @@ class CalendarFlightsViewModelTest {
         calendarRepository = mockk(relaxed = true)
         logbookRepository = mockk(relaxed = true)
 
-        every { calendarRepository.upcomingFlights() } returns upcomingFlow
-        every { calendarRepository.pastFlights() } returns pastFlow
+        every { calendarRepository.upcomingFlights(any()) } returns upcomingFlow
+        every { calendarRepository.pastFlights(any()) } returns pastFlow
         every { calendarRepository.getVisibleCount() } returns visibleCountFlow
+        coEvery { calendarRepository.syncFromCalendar(any()) } returns SyncResult.Success(0, 0)
 
         mockkStatic(ContextCompat::class)
         every {

@@ -86,11 +86,13 @@ class ExportService @Inject constructor(
             departureTimezone = flight.departureTimezone,
             arrivalTimezone = flight.arrivalTimezone,
             durationMinutes = duration,
-            distanceNm = flight.distanceKm,
+            distanceKm = flight.distanceKm,
             aircraftType = flight.aircraftType?.ifBlank { null },
             seatClass = flight.seatClass?.ifBlank { null },
             seatNumber = flight.seatNumber?.ifBlank { null },
-            notes = flight.notes?.ifBlank { null }
+            notes = flight.notes?.ifBlank { null },
+            createdAt = flight.createdAt,
+            updatedAt = flight.updatedAt
         )
     }
 

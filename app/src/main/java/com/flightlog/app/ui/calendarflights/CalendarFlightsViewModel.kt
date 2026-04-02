@@ -204,9 +204,8 @@ class CalendarFlightsViewModel @Inject constructor(
             when (val result = withContext(Dispatchers.IO) { repository.syncFromCalendar(contentResolver) }) {
                 is SyncResult.Success -> {
                     // Auto-log new synced flights to logbook
-                    val autoLoggedCount = withContext(Dispatchers.IO) {
+                    val autoLoggedCount = run {
                         var count = 0
-                        // Query repository directly for fresh data (not stale UI StateFlows)
                         val upcoming = repository.upcomingFlights().first()
                         val past = repository.pastFlights().first()
                         val allFlights = (upcoming + past).distinctBy { it.id }

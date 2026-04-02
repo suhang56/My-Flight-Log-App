@@ -116,5 +116,11 @@ class LogbookRepository @Inject constructor(
     suspend fun getAllOnce(): List<LogbookFlight> = logbookFlightDao.getAllOnce()
 
     suspend fun insertAllForRestore(flights: List<LogbookFlight>): List<Long> =
-        flights.map { logbookFlightDao.insert(it) }
+        flights.map { flight ->
+            val exists = logbookFlightDao.countByFlightAndTime(
+                flight.flightNumber,
+                flight.departureTimeMillis
+            ) > 0
+            if (exists) -1L else logbookFlightDao.insert(flight)
+        }
 }

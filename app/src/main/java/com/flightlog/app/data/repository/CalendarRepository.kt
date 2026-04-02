@@ -8,6 +8,8 @@ import com.flightlog.app.data.local.dao.CalendarFlightDao
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.network.FlightRouteService
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import com.flightlog.app.data.calendar.ParsedFlight
 import com.flightlog.app.data.calendar.RawCalendarEvent
 import java.time.Instant
@@ -29,6 +31,8 @@ class CalendarRepository @Inject constructor(
     private val calendarFlightDao: CalendarFlightDao,
     private val flightRouteService: FlightRouteService
 ) {
+
+    private val syncMutex = Mutex()
 
     fun getAllVisible(): Flow<List<CalendarFlight>> = calendarFlightDao.getAllVisible()
 
@@ -63,8 +67,8 @@ class CalendarRepository @Inject constructor(
      * Guards the empty-list edge case in [CalendarFlightDao.removeStaleIds] — stale
      * removal is skipped when no events came back to prevent accidental data loss.
      */
-    suspend fun syncFromCalendar(contentResolver: ContentResolver): SyncResult {
-        return try {
+    suspend fun syncFromCalendar(contentResolver: ContentResolver): SyncResult = syncMutex.withLock {
+        return@withLock try {
             val now = System.currentTimeMillis()
 
             // 1. Read raw calendar events.

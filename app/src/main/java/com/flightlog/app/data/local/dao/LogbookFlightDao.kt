@@ -29,6 +29,9 @@ interface LogbookFlightDao {
     @Query("SELECT * FROM logbook_flights WHERE sourceCalendarEventId = :calendarEventId LIMIT 1")
     suspend fun findByCalendarEventId(calendarEventId: Long): LogbookFlight?
 
+    @Query("SELECT COUNT(*) FROM logbook_flights WHERE flightNumber = :flightNumber AND departureTimeMillis = :departureTimeMillis")
+    suspend fun countByFlightAndTime(flightNumber: String, departureTimeMillis: Long): Int
+
     @Insert
     suspend fun insert(flight: LogbookFlight): Long
 
@@ -75,7 +78,11 @@ interface LogbookFlightDao {
 
     @Query(
         """
-        SELECT substr(flightNumber, 1, 2) AS airlineCode, COUNT(*) AS count
+        SELECT CASE
+            WHEN length(flightNumber) >= 3 AND unicode(substr(flightNumber, 3, 1)) BETWEEN 65 AND 90
+                THEN upper(substr(flightNumber, 1, 3))
+            ELSE upper(substr(flightNumber, 1, 2))
+        END AS airlineCode, COUNT(*) AS count
         FROM logbook_flights
         WHERE flightNumber != ''
         GROUP BY airlineCode

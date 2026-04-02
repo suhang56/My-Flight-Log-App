@@ -103,6 +103,7 @@ class DriveBackupService @Inject constructor(
             val wrapper = adapter.fromJson(jsonString)
                 ?: return@withContext RestoreResult.Failure("Failed to parse backup file")
 
+            val now = System.currentTimeMillis()
             val flights = wrapper.flights.map { exportFlight ->
                 val depTimeMillis = exportFlight.departureTimeUtc
                 val depZone = exportFlight.departureTimezone?.let {
@@ -110,6 +111,9 @@ class DriveBackupService @Inject constructor(
                 } ?: java.time.ZoneId.systemDefault()
                 val depEpochDay = java.time.Instant.ofEpochMilli(depTimeMillis)
                     .atZone(depZone).toLocalDate().toEpochDay()
+
+                // Prefer new distance_km field; fall back to legacy distance_nm for old backups
+                val distance = exportFlight.distanceKm ?: exportFlight.distanceNmLegacy
 
                 LogbookFlight(
                     id = 0,
@@ -121,11 +125,13 @@ class DriveBackupService @Inject constructor(
                     arrivalTimeMillis = exportFlight.arrivalTimeUtc,
                     departureTimezone = exportFlight.departureTimezone,
                     arrivalTimezone = exportFlight.arrivalTimezone,
-                    distanceKm = exportFlight.distanceNm, // legacy field name in export format
+                    distanceKm = distance,
                     aircraftType = exportFlight.aircraftType,
                     seatClass = exportFlight.seatClass,
                     seatNumber = exportFlight.seatNumber,
-                    notes = exportFlight.notes
+                    notes = exportFlight.notes,
+                    createdAt = exportFlight.createdAt ?: now,
+                    updatedAt = exportFlight.updatedAt ?: now
                 )
             }
 
