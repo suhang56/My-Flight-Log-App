@@ -11,7 +11,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import com.flightlog.app.MainActivity
 import com.flightlog.app.data.preferences.OnboardingPreferences
 import com.flightlog.app.ui.theme.FlightLogTheme
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class OnboardingActivity : ComponentActivity() {
 
     private var launched = false
