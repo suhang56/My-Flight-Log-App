@@ -134,7 +134,7 @@ fun AllRoutesMapCanvas(
         // Draw arcs — dimmed first, then highlighted on top
         val sortedArcs = arcData.sortedBy { it.first.isHighlighted }
 
-        for ((route, arcPoints, endpoints) in sortedArcs) {
+        for ((route, arcPoints, _) in sortedArcs) {
             if (arcPoints.size >= 2) {
                 Polyline(
                     points = arcPoints,
@@ -143,20 +143,31 @@ fun AllRoutesMapCanvas(
                     geodesic = true
                 )
             }
+        }
 
-            // Airport markers
+        // Deduplicated airport markers — highlighted routes take priority
+        val markerMap = mutableMapOf<String, Pair<LatLng, Boolean>>()
+        for ((route, _, endpoints) in sortedArcs) {
+            val codes = listOf(route.departureCode, route.arrivalCode)
             for ((i, ep) in endpoints.withIndex()) {
-                val code = if (i == 0) route.departureCode else route.arrivalCode
-                Marker(
-                    state = MarkerState(position = ep),
-                    title = code,
-                    icon = BitmapDescriptorFactory.defaultMarker(
-                        if (route.isHighlighted) BitmapDescriptorFactory.HUE_AZURE
-                        else BitmapDescriptorFactory.HUE_BLUE
-                    ),
-                    alpha = if (route.isHighlighted) 1f else 0.6f
-                )
+                val code = codes[i]
+                val existing = markerMap[code]
+                if (existing == null || route.isHighlighted) {
+                    markerMap[code] = ep to route.isHighlighted
+                }
             }
+        }
+        for ((code, pair) in markerMap) {
+            val (position, highlighted) = pair
+            Marker(
+                state = MarkerState(position = position),
+                title = code,
+                icon = BitmapDescriptorFactory.defaultMarker(
+                    if (highlighted) BitmapDescriptorFactory.HUE_AZURE
+                    else BitmapDescriptorFactory.HUE_BLUE
+                ),
+                alpha = if (highlighted) 1f else 0.6f
+            )
         }
     }
 }

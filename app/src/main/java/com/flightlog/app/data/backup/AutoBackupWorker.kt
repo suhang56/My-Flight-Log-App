@@ -54,6 +54,8 @@ class AutoBackupWorker @AssistedInject constructor(
 
                 WorkManager.getInstance(context)
                     .enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.KEEP, request)
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (_: Exception) {
                 // Side-effect -- never block the caller
             }

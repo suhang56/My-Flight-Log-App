@@ -54,3 +54,11 @@
 
 # ── Glance (Home Screen Widget) ───────────────────────────────────────────
 -keep class androidx.glance.** { *; }
+
+# ── Firebase Auth ─────────────────────────────────────────────────────────
+-keep class com.google.firebase.auth.** { *; }
+-dontwarn com.google.firebase.auth.**
+
+# ── Google Maps ───────────────────────────────────────────────────────────
+-keep class com.google.android.gms.maps.** { *; }
+-dontwarn com.google.android.gms.maps.**

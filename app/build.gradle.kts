@@ -140,7 +140,7 @@ dependencies {
     implementation(libs.google.api.services.drive)
 
     // Firebase Auth
-    implementation("com.google.firebase:firebase-auth-ktx:23.2.0")
+    implementation(libs.firebase.auth.ktx)
 
     // Google Maps
     implementation(libs.maps.compose)
