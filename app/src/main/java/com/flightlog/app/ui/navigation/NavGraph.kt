@@ -32,6 +32,7 @@ import androidx.navigation.navArgument
 import com.flightlog.app.ui.home.HomeScreen
 import com.flightlog.app.ui.logbook.AddEditLogbookFlightScreen
 import com.flightlog.app.ui.logbook.FlightDetailScreen
+import com.flightlog.app.ui.auth.LoginScreen
 import com.flightlog.app.ui.settings.SettingsScreen
 import com.flightlog.app.ui.statistics.StatisticsScreen
 
@@ -42,6 +43,7 @@ object Routes {
     const val LOGBOOK_EDIT = "logbook/edit/{flightId}"
     const val LOGBOOK_DETAIL = "logbook/detail/{flightId}"
     const val SETTINGS = "settings"
+    const val LOGIN = "login"
 
     fun logbookEdit(flightId: Long) = "logbook/edit/$flightId"
     fun logbookDetail(flightId: Long) = "logbook/detail/$flightId"
@@ -70,7 +72,7 @@ private val bottomNavItems = listOf(
 )
 
 /** Routes that should hide the bottom navigation bar. */
-private val hideBottomBarRoutes = setOf(Routes.LOGBOOK_ADD, Routes.LOGBOOK_EDIT, Routes.LOGBOOK_DETAIL, Routes.SETTINGS)
+private val hideBottomBarRoutes = setOf(Routes.LOGBOOK_ADD, Routes.LOGBOOK_EDIT, Routes.LOGBOOK_DETAIL, Routes.SETTINGS, Routes.LOGIN)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -153,7 +155,14 @@ fun FlightNavGraph(
             }
             composable(Routes.SETTINGS) {
                 SettingsScreen(
-                    onNavigateBack = { navController.popBackStack() }
+                    onNavigateBack = { navController.popBackStack() },
+                    onNavigateToLogin = { navController.navigate(Routes.LOGIN) }
+                )
+            }
+            composable(Routes.LOGIN) {
+                LoginScreen(
+                    onNavigateBack = { navController.popBackStack() },
+                    onLoginSuccess = { navController.popBackStack() }
                 )
             }
             composable(

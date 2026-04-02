@@ -3,11 +3,11 @@ package com.flightlog.app.data.backup
 import android.content.Context
 import android.util.Log
 import com.flightlog.app.BuildConfig
+import com.flightlog.app.data.auth.AuthUser
 import com.flightlog.app.data.export.ExportService
 import com.flightlog.app.data.export.LogbookFlightExportWrapper
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.repository.LogbookRepository
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.http.FileContent
 import com.google.api.client.http.javanet.NetHttpTransport
@@ -42,9 +42,10 @@ class DriveBackupService @Inject constructor(
     private val metadataStore: BackupMetadataStore
 ) {
 
-    suspend fun backup(account: GoogleSignInAccount): BackupResult = withContext(Dispatchers.IO) {
+    suspend fun backup(user: AuthUser): BackupResult = withContext(Dispatchers.IO) {
         try {
-            val driveService = buildDriveService(account)
+            val driveService = buildDriveService(user)
+                ?: return@withContext BackupResult.Failure("Drive backup requires Google sign-in")
 
             val flights = repository.getAllOnce()
             val jsonFile = exportService.exportToJson(flights)
@@ -85,9 +86,10 @@ class DriveBackupService @Inject constructor(
         }
     }
 
-    suspend fun restore(account: GoogleSignInAccount): RestoreResult = withContext(Dispatchers.IO) {
+    suspend fun restore(user: AuthUser): RestoreResult = withContext(Dispatchers.IO) {
         try {
-            val driveService = buildDriveService(account)
+            val driveService = buildDriveService(user)
+                ?: return@withContext RestoreResult.Failure("Drive backup requires Google sign-in")
 
             val fileId = findBackupFileId(driveService)
                 ?: return@withContext RestoreResult.Failure("No backup found on Drive")
@@ -118,12 +120,10 @@ class DriveBackupService @Inject constructor(
                 )
             }
 
-            // Batch insert via DAO — bypasses per-flight achievement/backup triggers
             val results = repository.insertAllForRestore(flights)
             val imported = results.count { it != -1L }
             val skipped = results.size - imported
 
-            // Single achievement evaluation after batch import
             try { repository.checkAchievements() } catch (_: Exception) { }
 
             RestoreResult.Success(imported = imported, skipped = skipped)
@@ -136,9 +136,9 @@ class DriveBackupService @Inject constructor(
         }
     }
 
-    suspend fun getRemoteMetadata(account: GoogleSignInAccount): BackupMetadata? = withContext(Dispatchers.IO) {
+    suspend fun getRemoteMetadata(user: AuthUser): BackupMetadata? = withContext(Dispatchers.IO) {
         try {
-            val driveService = buildDriveService(account)
+            val driveService = buildDriveService(user) ?: return@withContext null
             val fileId = findBackupFileId(driveService) ?: return@withContext null
 
             val file = driveService.files().get(fileId)
@@ -166,12 +166,15 @@ class DriveBackupService @Inject constructor(
         }
     }
 
-    private fun buildDriveService(account: GoogleSignInAccount): Drive {
+    private fun buildDriveService(user: AuthUser): Drive? {
+        if (!user.isGoogleProvider) return null
+        val email = user.email ?: return null
+
         val credential = GoogleAccountCredential.usingOAuth2(
             context,
             listOf(DriveScopes.DRIVE_APPDATA)
         )
-        credential.selectedAccount = account.account
+        credential.selectedAccountName = email
 
         return Drive.Builder(
             NetHttpTransport(),

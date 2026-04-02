@@ -1,21 +1,15 @@
 package com.flightlog.app.ui.settings
 
-import android.content.Context
-import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.flightlog.app.data.backup.AutoBackupWorker
+import com.flightlog.app.data.auth.AuthRepository
+import com.flightlog.app.data.auth.AuthUser
 import com.flightlog.app.data.backup.BackupMetadata
 import com.flightlog.app.data.backup.BackupMetadataStore
 import com.flightlog.app.data.backup.BackupResult
 import com.flightlog.app.data.backup.DriveBackupService
 import com.flightlog.app.data.backup.RestoreResult
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInAccount
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.api.services.drive.DriveScopes
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,17 +18,16 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val account: GoogleSignInAccount? = null,
+    val authUser: AuthUser? = null,
     val backupMetadata: BackupMetadata? = null,
     val isBackingUp: Boolean = false,
     val isRestoring: Boolean = false,
-    val isSigningIn: Boolean = false,
     val snackbarMessage: String? = null
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
+    private val authRepository: AuthRepository,
     private val driveBackupService: DriveBackupService,
     private val metadataStore: BackupMetadataStore
 ) : ViewModel() {
@@ -43,51 +36,33 @@ class SettingsViewModel @Inject constructor(
     val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
     init {
-        val account = GoogleSignIn.getLastSignedInAccount(context)
-        _uiState.update {
-            it.copy(
-                account = account,
-                backupMetadata = metadataStore.get()
-            )
-        }
-    }
-
-    fun getSignInIntent(): Intent {
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-            .requestScopes(com.google.android.gms.common.api.Scope(DriveScopes.DRIVE_APPDATA))
-            .build()
-        return GoogleSignIn.getClient(context, gso).signInIntent
-    }
-
-    fun onSignInResult(account: GoogleSignInAccount?) {
-        _uiState.update {
-            it.copy(
-                account = account,
-                isSigningIn = false
-            )
+        viewModelScope.launch {
+            authRepository.currentUser.collect { user ->
+                _uiState.update {
+                    it.copy(
+                        authUser = user,
+                        backupMetadata = if (user != null) metadataStore.get() else null
+                    )
+                }
+            }
         }
     }
 
     fun signOut() {
-        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
-            .requestEmail()
-            .requestScopes(com.google.android.gms.common.api.Scope(DriveScopes.DRIVE_APPDATA))
-            .build()
-        GoogleSignIn.getClient(context, gso).signOut().addOnCompleteListener {
-            _uiState.update {
-                it.copy(account = null, backupMetadata = null)
-            }
+        viewModelScope.launch {
+            authRepository.signOut()
             metadataStore.clear()
+            _uiState.update { it.copy(authUser = null, backupMetadata = null) }
         }
     }
 
     fun backupNow() {
-        val account = _uiState.value.account ?: return
+        val user = _uiState.value.authUser ?: return
+        if (!user.isGoogleProvider) return
         _uiState.update { it.copy(isBackingUp = true) }
 
         viewModelScope.launch {
-            when (val result = driveBackupService.backup(account)) {
+            when (val result = driveBackupService.backup(user)) {
                 is BackupResult.Success -> {
                     _uiState.update {
                         it.copy(
@@ -110,11 +85,12 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun restore() {
-        val account = _uiState.value.account ?: return
+        val user = _uiState.value.authUser ?: return
+        if (!user.isGoogleProvider) return
         _uiState.update { it.copy(isRestoring = true) }
 
         viewModelScope.launch {
-            when (val result = driveBackupService.restore(account)) {
+            when (val result = driveBackupService.restore(user)) {
                 is RestoreResult.Success -> {
                     _uiState.update {
                         it.copy(

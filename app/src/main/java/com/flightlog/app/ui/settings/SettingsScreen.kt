@@ -1,13 +1,7 @@
 package com.flightlog.app.ui.settings
 
-import android.app.Activity
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -26,7 +19,6 @@ import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -49,13 +41,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.flightlog.app.data.backup.BackupMetadata
-import com.google.android.gms.auth.api.signin.GoogleSignIn
 import java.text.DateFormat
 import java.util.Date
 
@@ -63,22 +53,12 @@ import java.util.Date
 @Composable
 fun SettingsScreen(
     onNavigateBack: () -> Unit,
+    onNavigateToLogin: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var showRestoreDialog by remember { mutableStateOf(false) }
-
-    val signInLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        if (result.resultCode == Activity.RESULT_OK) {
-            val account = GoogleSignIn.getSignedInAccountFromIntent(result.data).result
-            viewModel.onSignInResult(account)
-        } else {
-            viewModel.onSignInResult(null)
-        }
-    }
 
     LaunchedEffect(uiState.snackbarMessage) {
         uiState.snackbarMessage?.let { msg ->
@@ -119,13 +99,14 @@ fun SettingsScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // ── Account Section ──────────────────────────────────────────────
+            // -- Account Section --
             SectionHeader("Account")
 
-            if (uiState.account != null) {
+            val authUser = uiState.authUser
+            if (authUser != null) {
                 ListItem(
                     headlineContent = { Text("Signed in as") },
-                    supportingContent = { Text(uiState.account?.email ?: "") }
+                    supportingContent = { Text(authUser.email ?: authUser.displayName ?: "Unknown") }
                 )
                 ListItem(
                     headlineContent = {
@@ -136,98 +117,106 @@ fun SettingsScreen(
                 )
             } else {
                 ListItem(
-                    headlineContent = { Text("Sign in with Google to enable cloud backup") },
-                    supportingContent = { Text("Your backup is stored in a private app folder on your Google Drive") }
+                    headlineContent = { Text("Sign in to enable cloud backup") },
+                    supportingContent = { Text("Supports Google, GitHub, and email sign-in") }
                 )
                 ListItem(
                     headlineContent = {
-                        GoogleSignInButton(
-                            onClick = { signInLauncher.launch(viewModel.getSignInIntent()) },
-                            isLoading = uiState.isSigningIn
-                        )
+                        Button(onClick = onNavigateToLogin) {
+                            Text("Sign In")
+                        }
                     }
                 )
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // ── Backup Section ───────────────────────────────────────────────
+            // -- Backup Section --
             SectionHeader("Backup")
 
-            val metadata = uiState.backupMetadata
-            if (metadata != null) {
-                BackupInfoItem(metadata)
-            } else {
+            val isGoogleUser = authUser?.isGoogleProvider == true
+
+            if (!isGoogleUser && authUser != null) {
                 ListItem(
-                    headlineContent = { Text("No backup yet") },
-                    supportingContent = { Text("Back up your flights to Google Drive") }
+                    headlineContent = { Text("Drive backup requires Google sign-in") },
+                    supportingContent = { Text("Sign in with Google to back up your flights to Google Drive") }
                 )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = { viewModel.backupNow() },
-                    enabled = uiState.account != null && !uiState.isBackingUp && !uiState.isRestoring,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    if (uiState.isBackingUp) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp,
-                            color = MaterialTheme.colorScheme.onPrimary
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    } else {
-                        Icon(
-                            Icons.Default.CloudUpload,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    Text("Back Up Now")
+            } else {
+                val metadata = uiState.backupMetadata
+                if (metadata != null) {
+                    BackupInfoItem(metadata)
+                } else {
+                    ListItem(
+                        headlineContent = { Text("No backup yet") },
+                        supportingContent = { Text("Back up your flights to Google Drive") }
+                    )
                 }
 
-                OutlinedButton(
-                    onClick = { showRestoreDialog = true },
-                    enabled = uiState.account != null && !uiState.isBackingUp && !uiState.isRestoring,
-                    modifier = Modifier.weight(1f)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (uiState.isRestoring) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                    } else {
-                        Icon(
-                            Icons.Default.Restore,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = { viewModel.backupNow() },
+                        enabled = isGoogleUser && !uiState.isBackingUp && !uiState.isRestoring,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (uiState.isBackingUp) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp,
+                                color = MaterialTheme.colorScheme.onPrimary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        } else {
+                            Icon(
+                                Icons.Default.CloudUpload,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text("Back Up Now")
                     }
-                    Text("Restore")
-                }
-            }
 
-            if (uiState.account == null) {
-                Text(
-                    text = "Sign in to enable backup and restore",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
+                    OutlinedButton(
+                        onClick = { showRestoreDialog = true },
+                        enabled = isGoogleUser && !uiState.isBackingUp && !uiState.isRestoring,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        if (uiState.isRestoring) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        } else {
+                            Icon(
+                                Icons.Default.Restore,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                        }
+                        Text("Restore")
+                    }
+                }
+
+                if (authUser == null) {
+                    Text(
+                        text = "Sign in to enable backup and restore",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            // ── About Section ────────────────────────────────────────────────
+            // -- About Section --
             SectionHeader("About")
 
             ListItem(
@@ -272,41 +261,6 @@ private fun BackupInfoItem(metadata: BackupMetadata) {
         headlineContent = { Text("Last backup: $dateStr") },
         supportingContent = { Text("${metadata.flightCount} flights, $sizeStr") }
     )
-}
-
-@Composable
-private fun GoogleSignInButton(
-    onClick: () -> Unit,
-    isLoading: Boolean
-) {
-    OutlinedButton(
-        onClick = onClick,
-        enabled = !isLoading,
-        shape = RoundedCornerShape(4.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
-        ),
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-        modifier = Modifier.border(
-            width = 1.dp,
-            color = MaterialTheme.colorScheme.outline,
-            shape = RoundedCornerShape(4.dp)
-        )
-    ) {
-        if (isLoading) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(18.dp),
-                strokeWidth = 2.dp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-        }
-        Text(
-            text = "Sign in with Google",
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Medium
-        )
-    }
 }
 
 @Composable

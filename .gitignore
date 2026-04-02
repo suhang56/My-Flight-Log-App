@@ -28,6 +28,9 @@ Thumbs.db
 .env.local
 .claude/
 
+# Firebase
+app/google-services.json
+
 # Signing
 *.jks
 *.keystore
