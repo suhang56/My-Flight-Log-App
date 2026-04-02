@@ -42,6 +42,8 @@ class HomeViewModel @Inject constructor(
     val syncMessage: StateFlow<String?> = _syncMessage.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
+    private val _selectedTab = MutableStateFlow(FlightTab.UPCOMING)
+    private val _isSearchExpanded = MutableStateFlow(false)
 
     // Stable Flow references: each DAO @Query returns a new Flow per call,
     // but these are captured once at property init time.
@@ -78,6 +80,10 @@ class HomeViewModel @Inject constructor(
             searchQuery = query,
             routeSegments = HomeUiState.computeRouteSegments(upcoming, past)
         )
+    }.combine(_selectedTab) { state, tab ->
+        state.copy(selectedTab = tab)
+    }.combine(_isSearchExpanded) { state, expanded ->
+        state.copy(isSearchExpanded = expanded)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     init {
@@ -113,6 +119,17 @@ class HomeViewModel @Inject constructor(
 
     fun updateSearchQuery(query: String) {
         _searchQuery.value = query
+    }
+
+    fun selectTab(tab: FlightTab) {
+        _selectedTab.value = tab
+    }
+
+    fun toggleSearch() {
+        _isSearchExpanded.value = !_isSearchExpanded.value
+        if (!_isSearchExpanded.value) {
+            _searchQuery.value = ""
+        }
     }
 
     fun clearSyncMessage() {

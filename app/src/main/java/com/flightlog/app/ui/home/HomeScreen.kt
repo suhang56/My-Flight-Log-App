@@ -7,6 +7,7 @@ import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,15 +34,16 @@ import androidx.compose.material.icons.filled.FlightTakeoff
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.BottomSheetScaffold
-import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SheetValue
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -110,7 +112,7 @@ fun HomeScreen(
     )
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Full-screen map background (always renders, even with no routes)
+        // Full-screen map background
         AllRoutesMapCanvas(
             routes = uiState.routeSegments,
             modifier = Modifier.fillMaxSize()
@@ -134,14 +136,17 @@ fun HomeScreen(
             scaffoldState = scaffoldState,
             sheetPeekHeight = 140.dp,
             sheetContainerColor = MaterialTheme.colorScheme.surface,
-            sheetShape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            sheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             sheetDragHandle = { DragHandlePill() },
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(snackbarHostState) },
             sheetContent = {
                 SheetContent(
                     uiState = uiState,
+                    onAddFlight = onAddFlight,
+                    onToggleSearch = { viewModel.toggleSearch() },
                     onSearchQueryChange = { viewModel.updateSearchQuery(it) },
+                    onSelectTab = { viewModel.selectTab(it) },
                     onViewLogbookFlight = onViewLogbookFlight,
                     onRequestPermission = {
                         permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
@@ -156,16 +161,6 @@ fun HomeScreen(
             }
         ) {
             // No scaffold body -- map fills background via Box
-        }
-
-        // FAB for adding flights
-        FloatingActionButton(
-            onClick = onAddFlight,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 16.dp, bottom = 156.dp)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Add flight")
         }
     }
 }
@@ -189,10 +184,14 @@ private fun DragHandlePill() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SheetContent(
     uiState: HomeUiState,
+    onAddFlight: () -> Unit,
+    onToggleSearch: () -> Unit,
     onSearchQueryChange: (String) -> Unit,
+    onSelectTab: (FlightTab) -> Unit,
     onViewLogbookFlight: (Long) -> Unit,
     onRequestPermission: () -> Unit,
     onOpenSettings: () -> Unit
@@ -200,7 +199,7 @@ private fun SheetContent(
     val focusManager = LocalFocusManager.current
 
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Inline permission prompt (inside drawer, not full-screen blocker)
+        // Inline permission prompt
         when (uiState.permissionState) {
             is PermissionState.NotRequested -> {
                 InlinePermissionBanner(
@@ -226,70 +225,108 @@ private fun SheetContent(
             is PermissionState.Granted -> { /* no banner */ }
         }
 
-        // Search bar
-        OutlinedTextField(
-            value = uiState.searchQuery,
-            onValueChange = onSearchQueryChange,
-            placeholder = { Text("Search flights...") },
-            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-            trailingIcon = {
-                if (uiState.searchQuery.isNotEmpty()) {
-                    IconButton(onClick = { onSearchQueryChange("") }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear search")
-                    }
-                }
-            },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+        // Sheet header: "Flights" title + search icon + add icon
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp)
-        )
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Flights",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(onClick = onToggleSearch) {
+                Icon(
+                    imageVector = if (uiState.isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
+                    contentDescription = if (uiState.isSearchExpanded) "Close search" else "Search flights"
+                )
+            }
+            IconButton(onClick = onAddFlight) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add flight"
+                )
+            }
+        }
 
-        val hasItems = uiState.upcomingItems.isNotEmpty() || uiState.pastItems.isNotEmpty()
+        // Expandable search field
+        AnimatedVisibility(visible = uiState.isSearchExpanded) {
+            OutlinedTextField(
+                value = uiState.searchQuery,
+                onValueChange = onSearchQueryChange,
+                placeholder = { Text("Search flights...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (uiState.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { onSearchQueryChange("") }) {
+                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                        }
+                    }
+                },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+            )
+        }
 
-        if (!hasItems) {
-            EmptyHomeState(modifier = Modifier.fillMaxWidth().padding(32.dp))
+        // Segmented tab row: Upcoming / Past
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            SegmentedButton(
+                selected = uiState.selectedTab == FlightTab.UPCOMING,
+                onClick = { onSelectTab(FlightTab.UPCOMING) },
+                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2)
+            ) {
+                Text("Upcoming")
+            }
+            SegmentedButton(
+                selected = uiState.selectedTab == FlightTab.PAST,
+                onClick = { onSelectTab(FlightTab.PAST) },
+                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2)
+            ) {
+                Text("Past")
+            }
+        }
+
+        val activeItems = when (uiState.selectedTab) {
+            FlightTab.UPCOMING -> uiState.upcomingItems
+            FlightTab.PAST -> uiState.pastItems
+        }
+
+        if (activeItems.isEmpty()) {
+            val emptyMessage = when (uiState.selectedTab) {
+                FlightTab.UPCOMING -> "No upcoming flights"
+                FlightTab.PAST -> "No past flights"
+            }
+            EmptyTabState(
+                message = emptyMessage,
+                modifier = Modifier.fillMaxWidth().padding(32.dp)
+            )
         } else {
             LazyColumn(
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                if (uiState.upcomingItems.isNotEmpty()) {
-                    item(key = "header_upcoming") {
-                        SectionHeader(title = "Upcoming", count = uiState.upcomingItems.size)
-                    }
-                    items(
-                        items = uiState.upcomingItems,
-                        key = { "upcoming_${it.itemKey}" }
-                    ) { item ->
-                        UnifiedFlightCard(
-                            item = item,
-                            onClick = when (item) {
-                                is UnifiedFlightItem.FromLogbook -> ({ onViewLogbookFlight(item.flight.id) })
-                                is UnifiedFlightItem.FromCalendar -> null
-                            }
-                        )
-                    }
-                }
-
-                if (uiState.pastItems.isNotEmpty()) {
-                    item(key = "header_past") {
-                        SectionHeader(title = "Past", count = uiState.pastItems.size)
-                    }
-                    items(
-                        items = uiState.pastItems,
-                        key = { "past_${it.itemKey}" }
-                    ) { item ->
-                        UnifiedFlightCard(
-                            item = item,
-                            onClick = when (item) {
-                                is UnifiedFlightItem.FromLogbook -> ({ onViewLogbookFlight(item.flight.id) })
-                                is UnifiedFlightItem.FromCalendar -> null
-                            }
-                        )
-                    }
+                items(
+                    items = activeItems,
+                    key = { "${uiState.selectedTab.name}_${it.itemKey}" }
+                ) { item ->
+                    UnifiedFlightCard(
+                        item = item,
+                        onClick = when (item) {
+                            is UnifiedFlightItem.FromLogbook -> ({ onViewLogbookFlight(item.flight.id) })
+                            is UnifiedFlightItem.FromCalendar -> null
+                        }
+                    )
                 }
             }
         }
@@ -333,16 +370,6 @@ private val UnifiedFlightItem.itemKey: String
         is UnifiedFlightItem.FromCalendar -> "cal_${flight.id}"
         is UnifiedFlightItem.FromLogbook -> "log_${flight.id}"
     }
-
-@Composable
-private fun SectionHeader(title: String, count: Int) {
-    Text(
-        text = "$title ($count)",
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.padding(vertical = 4.dp)
-    )
-}
 
 @Composable
 private fun UnifiedFlightCard(
@@ -428,7 +455,7 @@ private fun UnifiedFlightCard(
 }
 
 @Composable
-private fun EmptyHomeState(modifier: Modifier = Modifier) {
+private fun EmptyTabState(message: String, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -442,7 +469,7 @@ private fun EmptyHomeState(modifier: Modifier = Modifier) {
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
-            text = "No flights yet",
+            text = message,
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )

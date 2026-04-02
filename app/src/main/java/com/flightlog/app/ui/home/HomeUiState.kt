@@ -2,13 +2,17 @@ package com.flightlog.app.ui.home
 
 import com.flightlog.app.ui.calendarflights.PermissionState
 
+enum class FlightTab { UPCOMING, PAST }
+
 data class HomeUiState(
     val upcomingItems: List<UnifiedFlightItem> = emptyList(),
     val pastItems: List<UnifiedFlightItem> = emptyList(),
     val isRefreshing: Boolean = false,
     val permissionState: PermissionState = PermissionState.NotRequested,
     val searchQuery: String = "",
-    val routeSegments: List<RouteSegment> = emptyList()
+    val routeSegments: List<RouteSegment> = emptyList(),
+    val selectedTab: FlightTab = FlightTab.UPCOMING,
+    val isSearchExpanded: Boolean = false
 ) {
     companion object {
         fun computeRouteSegments(

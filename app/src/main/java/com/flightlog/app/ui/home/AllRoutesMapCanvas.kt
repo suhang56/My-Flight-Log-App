@@ -1,8 +1,12 @@
 package com.flightlog.app.ui.home
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Paint
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.contentDescription
@@ -13,9 +17,9 @@ import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.LatLngBounds
-import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
@@ -23,21 +27,7 @@ import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 
 private val ARC_COLOR = Color(0xFF9ECAFF)
-
-// Dark map style JSON — hides labels, roads, transit; shows water/land in dark tones
-private val DARK_MAP_STYLE = """
-[
-  {"elementType":"geometry","stylers":[{"color":"#1a1c1e"}]},
-  {"elementType":"labels","stylers":[{"visibility":"off"}]},
-  {"featureType":"water","elementType":"geometry","stylers":[{"color":"#0e1621"}]},
-  {"featureType":"landscape","elementType":"geometry","stylers":[{"color":"#1a1c1e"}]},
-  {"featureType":"administrative","elementType":"geometry.stroke","stylers":[{"color":"#2c2f33"},{"weight":0.5}]},
-  {"featureType":"administrative.country","elementType":"geometry.stroke","stylers":[{"color":"#3a3d42"},{"visibility":"on"}]},
-  {"featureType":"road","stylers":[{"visibility":"off"}]},
-  {"featureType":"transit","stylers":[{"visibility":"off"}]},
-  {"featureType":"poi","stylers":[{"visibility":"off"}]}
-]
-""".trimIndent()
+private val BRIGHT_ARC_COLOR = Color(0xFF00E5FF)
 
 /**
  * A single route segment to render on the map.
@@ -48,6 +38,32 @@ data class RouteSegment(
     val arrivalCode: String,
     val isHighlighted: Boolean = false
 )
+
+private fun createCircleMarkerBitmap(
+    sizePx: Int,
+    fillColor: Int,
+    borderColor: Int,
+    borderWidthPx: Float
+): Bitmap {
+    val bitmap = Bitmap.createBitmap(sizePx, sizePx, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+    val center = sizePx / 2f
+    val radius = center - borderWidthPx
+
+    val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = borderColor
+        style = Paint.Style.FILL
+    }
+    canvas.drawCircle(center, center, center, borderPaint)
+
+    val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = fillColor
+        style = Paint.Style.FILL
+    }
+    canvas.drawCircle(center, center, radius, fillPaint)
+
+    return bitmap
+}
 
 @Composable
 fun AllRoutesMapCanvas(
@@ -81,6 +97,28 @@ fun AllRoutesMapCanvas(
         }
     }
 
+    // Pre-create marker bitmaps (~12dp diameter, 36px at ~3x density)
+    val markerBitmapHighlighted = remember {
+        BitmapDescriptorFactory.fromBitmap(
+            createCircleMarkerBitmap(
+                sizePx = 36,
+                fillColor = ARC_COLOR.toArgb(),
+                borderColor = android.graphics.Color.WHITE,
+                borderWidthPx = 4f
+            )
+        )
+    }
+    val markerBitmapDimmed = remember {
+        BitmapDescriptorFactory.fromBitmap(
+            createCircleMarkerBitmap(
+                sizePx = 36,
+                fillColor = ARC_COLOR.copy(alpha = 0.6f).toArgb(),
+                borderColor = android.graphics.Color.argb(153, 255, 255, 255),
+                borderWidthPx = 4f
+            )
+        )
+    }
+
     // Compute camera bounds
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(LatLng(30.0, 0.0), 2f)
@@ -100,7 +138,7 @@ fun AllRoutesMapCanvas(
 
     val mapProperties = remember {
         MapProperties(
-            mapStyleOptions = MapStyleOptions(DARK_MAP_STYLE),
+            mapType = MapType.HYBRID,
             isBuildingEnabled = false,
             isIndoorEnabled = false
         )
@@ -138,8 +176,8 @@ fun AllRoutesMapCanvas(
             if (arcPoints.size >= 2) {
                 Polyline(
                     points = arcPoints,
-                    color = if (route.isHighlighted) ARC_COLOR else ARC_COLOR.copy(alpha = 0.4f),
-                    width = if (route.isHighlighted) 6f else 3f,
+                    color = if (route.isHighlighted) BRIGHT_ARC_COLOR else Color.White.copy(alpha = 0.35f),
+                    width = if (route.isHighlighted) 8f else 3f,
                     geodesic = true
                 )
             }
@@ -162,11 +200,8 @@ fun AllRoutesMapCanvas(
             Marker(
                 state = MarkerState(position = position),
                 title = code,
-                icon = BitmapDescriptorFactory.defaultMarker(
-                    if (highlighted) BitmapDescriptorFactory.HUE_AZURE
-                    else BitmapDescriptorFactory.HUE_BLUE
-                ),
-                alpha = if (highlighted) 1f else 0.6f
+                icon = if (highlighted) markerBitmapHighlighted else markerBitmapDimmed,
+                anchor = Offset(0.5f, 0.5f)
             )
         }
     }
