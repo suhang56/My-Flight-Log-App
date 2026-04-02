@@ -7,6 +7,17 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
+import java.util.Properties
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localPropertiesFile.inputStream().use { localProperties.load(it) }
+}
+
+fun localProp(key: String): String =
+    localProperties.getProperty(key) ?: project.findProperty(key)?.toString() ?: ""
+
 android {
     namespace = "com.flightlog.app"
     compileSdk = 35
@@ -23,16 +34,16 @@ android {
         buildConfigField(
             "String",
             "AVIATION_STACK_KEY",
-            "\"${project.findProperty("AVIATION_STACK_KEY") ?: ""}\""
+            "\"${localProp("AVIATION_STACK_KEY")}\""
         )
 
         buildConfigField(
             "String",
             "FLIGHTAWARE_API_KEY",
-            "\"${project.findProperty("FLIGHTAWARE_API_KEY") ?: ""}\""
+            "\"${localProp("FLIGHTAWARE_API_KEY")}\""
         )
 
-        manifestPlaceholders["MAPS_API_KEY"] = project.findProperty("MAPS_API_KEY") ?: ""
+        manifestPlaceholders["MAPS_API_KEY"] = localProp("MAPS_API_KEY")
     }
 
     buildTypes {

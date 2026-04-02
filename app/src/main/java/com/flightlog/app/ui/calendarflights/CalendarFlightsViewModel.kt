@@ -9,6 +9,9 @@ import com.flightlog.app.data.repository.CalendarRepository
 import com.flightlog.app.data.repository.LogbookRepository
 import com.flightlog.app.data.repository.SyncResult
 import com.flightlog.app.worker.CalendarSyncWorker
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -58,6 +61,17 @@ class CalendarFlightsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(CalendarFlightsUiState())
     val uiState: StateFlow<CalendarFlightsUiState> = _uiState.asStateFlow()
+
+    init {
+        val hasPermission = ContextCompat.checkSelfPermission(
+            application, Manifest.permission.READ_CALENDAR
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (hasPermission) {
+            _permissionState.value = PermissionState.Granted
+            performSync(application.contentResolver)
+        }
+    }
 
     val visibleCount: StateFlow<Int> = repository.getVisibleCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
@@ -188,10 +202,27 @@ class CalendarFlightsViewModel @Inject constructor(
 
             when (val result = withContext(Dispatchers.IO) { repository.syncFromCalendar(contentResolver) }) {
                 is SyncResult.Success -> {
+                    // Auto-log new synced flights to logbook
+                    val autoLoggedCount = withContext(Dispatchers.IO) {
+                        var count = 0
+                        val allFlights = (upcomingFlights.value + pastFlights.value).distinctBy { it.id }
+                        for (flight in allFlights) {
+                            if (!logbookRepository.isAlreadyLogged(flight.calendarEventId)) {
+                                try {
+                                    logbookRepository.addFromCalendarFlight(flight)
+                                    count++
+                                } catch (_: Exception) { /* skip failures */ }
+                            }
+                        }
+                        count
+                    }
+
                     val msg = when {
-                        result.syncedCount == 0 && result.removedCount == 0 -> "No flights found"
+                        result.syncedCount == 0 && result.removedCount == 0 && autoLoggedCount == 0 -> "No flights found"
                         result.removedCount > 0 ->
-                            "Synced ${result.syncedCount} flights, removed ${result.removedCount}"
+                            "Synced ${result.syncedCount} flights, removed ${result.removedCount}, logged $autoLoggedCount"
+                        autoLoggedCount > 0 ->
+                            "Synced ${result.syncedCount} flights, logged $autoLoggedCount to logbook"
                         else -> "Synced ${result.syncedCount} flights"
                     }
                     _uiState.update {
