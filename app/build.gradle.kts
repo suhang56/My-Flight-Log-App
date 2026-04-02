@@ -137,9 +137,8 @@ dependencies {
     implementation(libs.google.api.client.android)
     implementation(libs.google.api.services.drive)
 
-    // Firebase
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth.ktx)
+    // Firebase Auth
+    implementation("com.google.firebase:firebase-auth-ktx:23.2.0")
 
     // Core library desugaring for java.time on older APIs
     coreLibraryDesugaring(libs.desugar.jdk.libs)

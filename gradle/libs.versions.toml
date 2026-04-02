@@ -28,8 +28,7 @@ robolectric = "4.14.1"
 playServicesAuth = "21.2.0"
 googleApiClient = "2.2.0"
 googleDriveApi = "v3-rev20240521-2.0.0"
-firebase = "33.7.0"
-googleServices = "4.4.2"
+googleServices = "4.4.4"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -78,8 +77,6 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClient" }
 google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleDriveApi" }
-firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebase" }
-firebase-auth-ktx = { group = "com.google.firebase", name = "firebase-auth-ktx" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
