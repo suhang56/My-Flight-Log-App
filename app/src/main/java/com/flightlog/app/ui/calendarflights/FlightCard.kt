@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,13 +23,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.flightlog.app.data.local.entity.CalendarFlight
-import com.flightlog.app.util.DATE_TIME_TZ_FORMATTER
-import com.flightlog.app.util.FULL_DATE_TIME_TZ_FORMATTER
-import com.flightlog.app.util.formatInZone
 import com.flightlog.app.util.toRelativeTimeLabel
-import java.time.Instant
-import java.time.LocalDate
-import java.time.ZoneId
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ── Badge colors (exact spec values with light/dark variants) ──────────────────
 
@@ -50,34 +48,6 @@ internal object BadgeColors {
     val pastTextDark = Color(0xFFBDBDBD)
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────────
-
-/**
- * "Today" flights appear in BOTH tabs. Merge them into each tab's list.
- */
-internal fun flightsForTab(
-    tab: FlightTab,
-    upcoming: List<CalendarFlight>,
-    past: List<CalendarFlight>
-): List<CalendarFlight> {
-    val today = LocalDate.now()
-    val todayFlights = (upcoming + past).distinctBy { it.id }.filter {
-        Instant.ofEpochMilli(it.scheduledTime).atZone(ZoneId.systemDefault()).toLocalDate() == today
-    }
-    return when (tab) {
-        FlightTab.UPCOMING -> {
-            val ids = upcoming.map { it.id }.toSet()
-            val missing = todayFlights.filter { it.id !in ids }
-            (upcoming + missing).sortedBy { it.scheduledTime }
-        }
-        FlightTab.PAST -> {
-            val ids = past.map { it.id }.toSet()
-            val missing = todayFlights.filter { it.id !in ids }
-            (missing + past).sortedByDescending { it.scheduledTime }
-        }
-    }
-}
-
 // ── Flight card ────────────────────────────────────────────────────────────────
 
 @Composable
@@ -85,10 +55,12 @@ internal fun FlightCard(
     flight: CalendarFlight,
     onClick: () -> Unit
 ) {
-    val now = System.currentTimeMillis()
+    val now = remember { System.currentTimeMillis() }
     val isUpcoming = flight.scheduledTime >= now
     val relativeLabel = flight.scheduledTime.toRelativeTimeLabel(now)
     val isToday = relativeLabel == "Today"
+
+    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy  HH:mm", Locale.getDefault()) }
 
     ElevatedCard(
         onClick = onClick,
@@ -131,7 +103,7 @@ internal fun FlightCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = formatInZone(flight.scheduledTime, flight.departureTimezone),
+                    text = dateFormat.format(Date(flight.scheduledTime)),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -151,7 +123,7 @@ internal fun FlightCard(
 // ── Relative time badge with exact spec colors (light + dark) ──────────────────
 
 @Composable
-private fun RelativeTimeBadge(
+internal fun RelativeTimeBadge(
     label: String,
     isUpcoming: Boolean,
     isToday: Boolean

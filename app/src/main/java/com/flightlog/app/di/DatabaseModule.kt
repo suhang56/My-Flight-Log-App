@@ -2,12 +2,8 @@ package com.flightlog.app.di
 
 import android.content.Context
 import androidx.room.Room
-import com.flightlog.app.data.local.AirportDatabase
 import com.flightlog.app.data.local.FlightDatabase
-import com.flightlog.app.data.local.dao.AchievementDao
-import com.flightlog.app.data.local.dao.AirportDao
 import com.flightlog.app.data.local.dao.CalendarFlightDao
-import com.flightlog.app.data.local.dao.FlightStatusDao
 import com.flightlog.app.data.local.dao.LogbookFlightDao
 import dagger.Module
 import dagger.Provides
@@ -30,12 +26,7 @@ object DatabaseModule {
         )
             .addMigrations(
                 FlightDatabase.MIGRATION_1_2,
-                FlightDatabase.MIGRATION_2_3,
-                FlightDatabase.MIGRATION_3_4,
-                FlightDatabase.MIGRATION_4_5,
-                FlightDatabase.MIGRATION_5_6,
-                FlightDatabase.MIGRATION_6_7,
-                FlightDatabase.MIGRATION_7_8
+                FlightDatabase.MIGRATION_2_3
             )
             .build()
     }
@@ -48,34 +39,5 @@ object DatabaseModule {
     @Provides
     fun provideLogbookFlightDao(database: FlightDatabase): LogbookFlightDao {
         return database.logbookFlightDao()
-    }
-
-    @Provides
-    fun provideAchievementDao(database: FlightDatabase): AchievementDao {
-        return database.achievementDao()
-    }
-
-    @Provides
-    fun provideFlightStatusDao(database: FlightDatabase): FlightStatusDao {
-        return database.flightStatusDao()
-    }
-
-    @Provides
-    @Singleton
-    fun provideAirportDatabase(@ApplicationContext context: Context): AirportDatabase {
-        return Room.databaseBuilder(
-            context,
-            AirportDatabase::class.java,
-            "airport_lookup.db"
-        )
-            .createFromAsset("airports.db")
-            .fallbackToDestructiveMigration()
-            .build()
-    }
-
-    @Provides
-    @Singleton
-    fun provideAirportDao(database: AirportDatabase): AirportDao {
-        return database.airportDao()
     }
 }

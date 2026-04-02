@@ -1,6 +1,7 @@
 package com.flightlog.app.ui.calendarflights
 
-import com.flightlog.app.util.toRelativeElapsedLabel
+import com.flightlog.app.data.local.entity.CalendarFlight
+import com.flightlog.app.util.toRelativeTimeLabel
 
 // -- Permission state --
 
@@ -36,20 +37,19 @@ data class CalendarFlightsUiState(
     val syncMessage: String?     = null,
     val lastSyncedAtMillis: Long? = null,
     val selectedTab: FlightTab   = FlightTab.UPCOMING,
-    val selectedFlight: com.flightlog.app.data.local.entity.CalendarFlight? = null,
-    val showDetailSheet: Boolean = false
+    val selectedFlight: CalendarFlight? = null,
+    val drawerAnchor: DrawerAnchor = DrawerAnchor.COLLAPSED,
+    val searchQuery: String = ""
 ) {
-    /** Convenience for the PullToRefreshBox [isRefreshing] parameter. */
     val isSyncing: Boolean get() = syncStatus == SyncStatus.SYNCING
 
-    /** Human-readable subtitle describing the last sync time. */
     fun syncSubtitle(): String = when (syncStatus) {
         SyncStatus.NEVER_SYNCED -> "Never synced"
         SyncStatus.SYNCING      -> "Syncing..."
         SyncStatus.FAILED       -> "Sync failed -- tap to retry"
         SyncStatus.IDLE         -> {
             val millis = lastSyncedAtMillis ?: return "Never synced"
-            "Last synced: ${millis.toRelativeElapsedLabel()}"
+            "Last synced: ${millis.toRelativeTimeLabel()}"
         }
     }
 }

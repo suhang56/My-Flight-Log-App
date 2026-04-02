@@ -1,16 +1,16 @@
 package com.flightlog.app.data.repository
 
 import android.content.ContentResolver
-import com.flightlog.app.data.AirportTimezoneMap
 import com.flightlog.app.data.calendar.CalendarDataSource
 import com.flightlog.app.data.calendar.FlightEventParser
-import com.flightlog.app.data.calendar.ParsedFlight
-import com.flightlog.app.data.calendar.RawCalendarEvent
 import com.flightlog.app.data.local.dao.CalendarFlightDao
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.network.FlightRouteService
 import kotlinx.coroutines.flow.Flow
+import com.flightlog.app.data.calendar.ParsedFlight
+import com.flightlog.app.data.calendar.RawCalendarEvent
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -71,22 +71,18 @@ class CalendarRepository @Inject constructor(
 
             // 2. Parse; discard events that don't contain recognisable flight data.
             //    A single calendar event can produce multiple legs (e.g. "WN1946/3034").
-            //    Track which eventIds produced flights vs which produced nothing.
-            val parsedEventIds = mutableSetOf<Long>()
-            val unparsedEventIds = mutableSetOf<Long>()
             val flights = rawEvents.flatMap { event ->
                 val parsedLegs = flightEventParser.parse(
                     title       = event.title,
                     description = event.description,
                     location    = event.location
                 )
-                if (parsedLegs.isNotEmpty()) {
-                    parsedEventIds.add(event.eventId)
-                } else {
-                    unparsedEventIds.add(event.eventId)
-                }
+                val eventDate = Instant.ofEpochMilli(event.dtStart)
+                    .atZone(ZoneId.systemDefault())
+                    .toLocalDate()
+
                 parsedLegs.mapIndexed { legIndex, parsed ->
-                    resolveFlight(event, parsed, legIndex, now)
+                    resolveFlight(event, legIndex, parsed, eventDate, now)
                 }
             }
 
@@ -104,25 +100,14 @@ class CalendarRepository @Inject constructor(
             }
 
             // 4. Remove stale rows — only safe with a non-empty valid-ID set.
-            //    Also remove rows for events that still exist in the calendar but
-            //    no longer parse as flights (e.g. false positives fixed by parser update).
             val removedCount = if (rawEvents.isNotEmpty()) {
                 val validIds  = rawEvents.map { it.eventId }
                 val storedIds = calendarFlightDao.getAllCalendarEventIds().toSet()
-
-                // 4a. Remove rows for calendar events that no longer exist.
-                val deletedFromCalendar = (storedIds - validIds.toSet()).size
+                val stale     = (storedIds - validIds.toSet()).size
                 if (validIds.isNotEmpty()) {
                     calendarFlightDao.removeStaleIds(validIds)
                 }
-
-                // 4b. Remove rows for events that exist but no longer parse as flights.
-                val orphanedIds = unparsedEventIds.intersect(storedIds)
-                if (orphanedIds.isNotEmpty()) {
-                    calendarFlightDao.removeByEventIds(orphanedIds.toList())
-                }
-
-                deletedFromCalendar + orphanedIds.size
+                stale
             } else {
                 // Empty result could mean no calendar events or a silent permission problem.
                 // Skip removal to avoid wiping existing data.
@@ -139,61 +124,37 @@ class CalendarRepository @Inject constructor(
     }
 
     /**
-     * Resolves a single parsed leg into a [CalendarFlight] entity.
-     *
-     * Fills in missing airport codes via [FlightRouteService] and resolves
-     * timezones from the API response or the static [AirportTimezoneMap].
+     * Resolves a single parsed leg into a [CalendarFlight], using the route API
+     * to fill in missing departure/arrival codes when only a flight number is known.
      */
     private suspend fun resolveFlight(
         event: RawCalendarEvent,
-        parsed: ParsedFlight,
         legIndex: Int,
-        syncTimestamp: Long
+        parsed: ParsedFlight,
+        eventDate: LocalDate,
+        now: Long
     ): CalendarFlight {
         var depCode = parsed.departureCode
         var arrCode = parsed.arrivalCode
-        var depTz: String? = null
-        var arrTz: String? = null
 
-        // Use departure airport timezone for date computation when available.
-        val depZone = if (depCode.isNotEmpty()) {
-            AirportTimezoneMap.timezoneFor(depCode)?.let { ZoneId.of(it) }
-        } else null
-        val eventDate = Instant.ofEpochMilli(event.dtStart)
-            .atZone(depZone ?: ZoneId.systemDefault())
-            .toLocalDate()
-
-        // Resolve routes via API for legs missing airport codes.
         if (depCode.isEmpty() && arrCode.isEmpty() && parsed.flightNumber.isNotEmpty()) {
             val route = flightRouteService.lookupRoute(parsed.flightNumber, eventDate)
             if (route != null) {
                 depCode = route.departureIata
                 arrCode = route.arrivalIata
-                depTz = route.departureTimezone
-                arrTz = route.arrivalTimezone
             }
         }
 
-        // Resolve timezones: prefer API response, fall back to static map.
-        if (depTz == null && depCode.isNotEmpty()) {
-            depTz = AirportTimezoneMap.timezoneFor(depCode)
-        }
-        if (arrTz == null && arrCode.isNotEmpty()) {
-            arrTz = AirportTimezoneMap.timezoneFor(arrCode)
-        }
-
         return CalendarFlight(
-            calendarEventId   = event.eventId,
-            legIndex          = legIndex,
-            flightNumber      = parsed.flightNumber,
-            departureCode     = depCode,
-            arrivalCode       = arrCode,
-            rawTitle          = event.title,
-            scheduledTime     = event.dtStart,
-            endTime           = event.dtEnd,
-            departureTimezone = depTz,
-            arrivalTimezone   = arrTz,
-            syncedAt          = syncTimestamp
+            calendarEventId = event.eventId,
+            legIndex        = legIndex,
+            flightNumber    = parsed.flightNumber,
+            departureCode   = depCode,
+            arrivalCode     = arrCode,
+            rawTitle        = event.title,
+            scheduledTime   = event.dtStart,
+            endTime         = event.dtEnd,
+            syncedAt        = now
         )
     }
 }

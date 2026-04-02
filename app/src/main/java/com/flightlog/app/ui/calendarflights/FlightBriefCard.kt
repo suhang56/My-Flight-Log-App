@@ -9,12 +9,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material3.Button
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -40,9 +37,9 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-internal fun FlightDetailContent(
+internal fun FlightBriefCard(
     flight: CalendarFlight,
-    onDismissFlight: (CalendarFlight) -> Unit,
+    onDismiss: (CalendarFlight) -> Unit,
     onAddToLogbook: suspend (CalendarFlight) -> Boolean,
     isAlreadyLogged: suspend (Long) -> Boolean,
     onLogbookSuccess: () -> Unit,
@@ -54,7 +51,6 @@ internal fun FlightDetailContent(
     val isUpcoming = flight.scheduledTime >= now
     val isToday = relativeLabel == "Today"
     val scope = rememberCoroutineScope()
-    val scrollState = rememberScrollState()
 
     var alreadyLogged by remember { mutableStateOf<Boolean?>(null) }
     var isAdding by remember { mutableStateOf(false) }
@@ -66,9 +62,7 @@ internal fun FlightDetailContent(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .verticalScroll(scrollState)
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .padding(horizontal = 24.dp, vertical = 16.dp)
     ) {
         // Flight number + badge
         Row(
@@ -78,7 +72,8 @@ internal fun FlightDetailContent(
         ) {
             Text(
                 text = flight.flightNumber.ifBlank { "Unknown" },
-                style = MaterialTheme.typography.headlineMedium,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             RelativeTimeBadge(
@@ -100,14 +95,16 @@ internal fun FlightDetailContent(
             )
         } else {
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = flight.departureCode,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.width(16.dp))
                 Icon(
@@ -123,18 +120,22 @@ internal fun FlightDetailContent(
                     text = flight.arrivalCode,
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    fontFamily = FontFamily.Monospace,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Date/time
         Text(
             text = dateFormat.format(Date(flight.scheduledTime)),
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
         )
 
+        // Arrival time
         flight.endTime?.let { end ->
             Spacer(modifier = Modifier.height(4.dp))
             Text(
@@ -144,6 +145,7 @@ internal fun FlightDetailContent(
             )
         }
 
+        // Duration
         flight.endTime?.let { end ->
             val durationMinutes = ((end - flight.scheduledTime) / 60000).coerceAtLeast(0)
             val hours = durationMinutes / 60
@@ -157,23 +159,14 @@ internal fun FlightDetailContent(
         }
 
         Spacer(modifier = Modifier.height(16.dp))
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        Spacer(modifier = Modifier.height(16.dp))
 
-        Text(
-            text = "Calendar: ${flight.rawTitle}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.outline
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
+        // Action buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             OutlinedButton(
-                onClick = { onDismissFlight(flight) },
+                onClick = { onDismiss(flight) },
                 modifier = Modifier.weight(1f)
             ) {
                 Text("Dismiss")
@@ -209,7 +202,5 @@ internal fun FlightDetailContent(
                 }
             }
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
     }
 }

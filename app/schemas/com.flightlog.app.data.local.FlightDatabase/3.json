@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 3,
-    "identityHash": "ae5d144f33711db85520d6280a30f8d8",
+    "identityHash": "d193fa3834090e170bb01c5d96f3af5c",
     "entities": [
       {
         "tableName": "calendar_flights",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `calendarEventId` INTEGER NOT NULL, `legIndex` INTEGER NOT NULL, `flightNumber` TEXT NOT NULL, `departureCode` TEXT NOT NULL, `arrivalCode` TEXT NOT NULL, `rawTitle` TEXT NOT NULL, `scheduledTime` INTEGER NOT NULL, `endTime` INTEGER, `syncedAt` INTEGER NOT NULL, `departureTimezone` TEXT, `arrivalTimezone` TEXT, `isManuallyDismissed` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `calendarEventId` INTEGER NOT NULL, `legIndex` INTEGER NOT NULL, `flightNumber` TEXT NOT NULL, `departureCode` TEXT NOT NULL, `arrivalCode` TEXT NOT NULL, `rawTitle` TEXT NOT NULL, `scheduledTime` INTEGER NOT NULL, `endTime` INTEGER, `syncedAt` INTEGER NOT NULL, `isManuallyDismissed` INTEGER NOT NULL)",
         "fields": [
           {
             "fieldPath": "id",
@@ -69,18 +69,6 @@
             "notNull": true
           },
           {
-            "fieldPath": "departureTimezone",
-            "columnName": "departureTimezone",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
-            "fieldPath": "arrivalTimezone",
-            "columnName": "arrivalTimezone",
-            "affinity": "TEXT",
-            "notNull": false
-          },
-          {
             "fieldPath": "isManuallyDismissed",
             "columnName": "isManuallyDismissed",
             "affinity": "INTEGER",
@@ -115,12 +103,144 @@
           }
         ],
         "foreignKeys": []
+      },
+      {
+        "tableName": "logbook_flights",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceCalendarEventId` INTEGER, `flightNumber` TEXT NOT NULL, `departureCode` TEXT NOT NULL, `arrivalCode` TEXT NOT NULL, `departureDateEpochDay` INTEGER NOT NULL, `departureTimeMillis` INTEGER NOT NULL, `arrivalTimeMillis` INTEGER, `durationMinutes` INTEGER, `departureTimezone` TEXT, `arrivalTimezone` TEXT, `aircraftType` TEXT, `seatClass` TEXT, `seatNumber` TEXT, `distanceKm` INTEGER, `notes` TEXT, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceCalendarEventId",
+            "columnName": "sourceCalendarEventId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "flightNumber",
+            "columnName": "flightNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "departureCode",
+            "columnName": "departureCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "arrivalCode",
+            "columnName": "arrivalCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "departureDateEpochDay",
+            "columnName": "departureDateEpochDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "departureTimeMillis",
+            "columnName": "departureTimeMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "arrivalTimeMillis",
+            "columnName": "arrivalTimeMillis",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "durationMinutes",
+            "columnName": "durationMinutes",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "departureTimezone",
+            "columnName": "departureTimezone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "arrivalTimezone",
+            "columnName": "arrivalTimezone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "aircraftType",
+            "columnName": "aircraftType",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "seatClass",
+            "columnName": "seatClass",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "seatNumber",
+            "columnName": "seatNumber",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "distanceKm",
+            "columnName": "distanceKm",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_logbook_flights_departureDateEpochDay",
+            "unique": false,
+            "columnNames": [
+              "departureDateEpochDay"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_logbook_flights_departureDateEpochDay` ON `${TABLE_NAME}` (`departureDateEpochDay`)"
+          }
+        ],
+        "foreignKeys": []
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ae5d144f33711db85520d6280a30f8d8')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'd193fa3834090e170bb01c5d96f3af5c')"
     ]
   }
 }

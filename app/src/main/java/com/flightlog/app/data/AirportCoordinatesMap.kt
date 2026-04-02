@@ -1,209 +1,227 @@
 package com.flightlog.app.data
 
+import kotlin.math.PI
 import kotlin.math.asin
+import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.pow
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * Static lookup of IATA airport codes to latitude/longitude coordinates.
- * Used to compute great-circle distance between departure and arrival airports.
+ * Airport lat/lon coordinates and great-circle distance calculator.
  *
- * Covers ~200 of the world's busiest airports by passenger volume.
+ * Covers the same airports referenced in AirportNameMap and major international hubs.
  */
 object AirportCoordinatesMap {
 
-    data class LatLng(val lat: Double, val lng: Double)
+    /** Pair of (latitude, longitude) in degrees. */
+    private val coords: Map<String, Pair<Double, Double>> = mapOf(
+        // --- US domestic ---
+        "ATL" to Pair(33.6407, -84.4277),
+        "ANC" to Pair(61.1743, -149.9962),
+        "AUS" to Pair(30.1975, -97.6664),
+        "BNA" to Pair(36.1263, -86.6774),
+        "BOS" to Pair(42.3656, -71.0096),
+        "BWI" to Pair(39.1754, -76.6683),
+        "CLE" to Pair(41.4117, -81.8498),
+        "CLT" to Pair(35.2140, -80.9431),
+        "CMH" to Pair(39.9980, -82.8919),
+        "CVG" to Pair(39.0489, -84.6678),
+        "DCA" to Pair(38.8512, -77.0402),
+        "DEN" to Pair(39.8561, -104.6737),
+        "DFW" to Pair(32.8998, -97.0403),
+        "DTW" to Pair(42.2124, -83.3534),
+        "EWR" to Pair(40.6895, -74.1745),
+        "FLL" to Pair(26.0726, -80.1527),
+        "HNL" to Pair(21.3187, -157.9224),
+        "HOU" to Pair(29.6454, -95.2789),
+        "IAD" to Pair(38.9445, -77.4558),
+        "IAH" to Pair(29.9902, -95.3368),
+        "IND" to Pair(39.7173, -86.2944),
+        "JFK" to Pair(40.6413, -73.7781),
+        "LAS" to Pair(36.0840, -115.1537),
+        "LAX" to Pair(33.9416, -118.4085),
+        "LGA" to Pair(40.7769, -73.8740),
+        "MCI" to Pair(39.2976, -94.7139),
+        "MCO" to Pair(28.4312, -81.3081),
+        "MDW" to Pair(41.7868, -87.7522),
+        "MIA" to Pair(25.7959, -80.2870),
+        "MSP" to Pair(44.8848, -93.2223),
+        "MSY" to Pair(29.9934, -90.2580),
+        "OAK" to Pair(37.7213, -122.2208),
+        "ORD" to Pair(41.9742, -87.9073),
+        "PDX" to Pair(45.5898, -122.5951),
+        "PHX" to Pair(33.4373, -112.0078),
+        "PIT" to Pair(40.4915, -80.2329),
+        "RDU" to Pair(35.8801, -78.7880),
+        "RNO" to Pair(39.4991, -119.7681),
+        "SAN" to Pair(32.7338, -117.1933),
+        "SEA" to Pair(47.4502, -122.3088),
+        "SFO" to Pair(37.6213, -122.3790),
+        "SJC" to Pair(37.3639, -121.9290),
+        "SLC" to Pair(40.7884, -111.9778),
+        "STL" to Pair(38.7487, -90.3700),
+        "TPA" to Pair(27.9756, -82.5333),
 
-    /** Returns coordinates for the given IATA code, or null if unknown. */
-    fun coordinatesFor(iataCode: String): LatLng? = MAP[iataCode.uppercase()]
+        // --- Major international hubs ---
+        "LHR" to Pair(51.4700, -0.4543),
+        "CDG" to Pair(49.0097, 2.5479),
+        "FRA" to Pair(50.0379, 8.5622),
+        "AMS" to Pair(52.3105, 4.7683),
+        "MAD" to Pair(40.4983, -3.5676),
+        "FCO" to Pair(41.8003, 12.2389),
+        "IST" to Pair(41.2753, 28.7519),
+        "DXB" to Pair(25.2532, 55.3657),
+        "DOH" to Pair(25.2731, 51.6081),
+        "SIN" to Pair(1.3644, 103.9915),
+        "HKG" to Pair(22.3080, 113.9185),
+        "NRT" to Pair(35.7647, 140.3864),
+        "HND" to Pair(35.5494, 139.7798),
+        "KIX" to Pair(34.4347, 135.2440),
+        "ICN" to Pair(37.4602, 126.4407),
+        "PEK" to Pair(40.0799, 116.6031),
+        "PVG" to Pair(31.1443, 121.8083),
+        "TPE" to Pair(25.0797, 121.2342),
+        "BKK" to Pair(13.6900, 100.7501),
+        "SYD" to Pair(-33.9461, 151.1772),
+        "MEL" to Pair(-37.6733, 144.8433),
+        "AKL" to Pair(-37.0082, 174.7850),
+        "YYZ" to Pair(43.6777, -79.6248),
+        "YVR" to Pair(49.1967, -123.1815),
+        "MEX" to Pair(19.4363, -99.0721),
+        "GRU" to Pair(-23.4356, -46.4731),
+        "EZE" to Pair(-34.8222, -58.5358),
+        "BOG" to Pair(4.7016, -74.1469),
+        "LIM" to Pair(-12.0219, -77.1143),
+        "SCL" to Pair(-33.3930, -70.7858),
+        "JNB" to Pair(-26.1392, 28.2460),
+        "CAI" to Pair(30.1219, 31.4056),
+        "ADD" to Pair(8.9779, 38.7993),
+        "DEL" to Pair(28.5562, 77.1000),
+        "BOM" to Pair(19.0896, 72.8656),
+        "KUL" to Pair(2.7456, 101.7099),
+        "MNL" to Pair(14.5086, 121.0198),
+        "CGK" to Pair(-6.1256, 106.6559),
+        "CTS" to Pair(42.7752, 141.6925),
+        "FUK" to Pair(33.5859, 130.4513),
+        "NGO" to Pair(34.8584, 136.8049),
+        "OKA" to Pair(26.1958, 127.6459),
 
-    /**
-     * Computes the great-circle distance in nautical miles between two airports.
-     * Returns null if either airport code is unknown.
-     */
-    fun distanceNm(departureIata: String, arrivalIata: String): Int? {
-        val from = coordinatesFor(departureIata) ?: return null
-        val to = coordinatesFor(arrivalIata) ?: return null
-        return haversineNm(from.lat, from.lng, to.lat, to.lng)
-    }
+        // --- Additional popular airports ---
+        "SNA" to Pair(33.6757, -117.8681),
+        "BUR" to Pair(34.2005, -118.3586),
+        "DAL" to Pair(32.8471, -96.8518),
+        "SAT" to Pair(29.5337, -98.4698),
+        "RIC" to Pair(37.5052, -77.3197),
+        "JAX" to Pair(30.4941, -81.6879),
+        "ABQ" to Pair(35.0402, -106.6091),
+        "OMA" to Pair(41.3032, -95.8941),
+        "MKE" to Pair(42.9472, -87.8966),
+        "BUF" to Pair(42.9405, -78.7322),
+        "PBI" to Pair(26.6832, -80.0956),
+        "RSW" to Pair(26.5362, -81.7552),
+        "SMF" to Pair(38.6954, -121.5908),
+        "MEM" to Pair(35.0424, -89.9767),
+        "OKC" to Pair(35.3931, -97.6007),
+        "TUL" to Pair(36.1984, -95.8881),
+        "ONT" to Pair(34.0560, -117.6012),
+        "SDF" to Pair(38.1741, -85.7360),
+        "DSM" to Pair(41.5341, -93.6631),
+        "LIT" to Pair(34.7294, -92.2243),
+        "BHM" to Pair(33.5629, -86.7535),
+        "ORF" to Pair(36.8946, -76.2012),
+        "CHS" to Pair(32.8986, -80.0405),
+        "SAV" to Pair(32.1276, -81.2021),
+        "PHL" to Pair(39.8721, -75.2411),
 
-    /**
-     * Haversine formula returning distance in nautical miles.
-     * Earth radius = 3440.065 NM.
-     */
-    private fun haversineNm(lat1: Double, lng1: Double, lat2: Double, lng2: Double): Int {
-        val earthRadiusNm = 3440.065
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLng = Math.toRadians(lng2 - lng1)
-        val a = sin(dLat / 2) * sin(dLat / 2) +
-                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
-                sin(dLng / 2) * sin(dLng / 2)
-        val c = 2 * asin(sqrt(a))
-        return (earthRadiusNm * c).toInt()
-    }
-
-    @Suppress("MagicNumber")
-    private val MAP: Map<String, LatLng> = mapOf(
-        // ── North America ───────────────────────────────────────────────────
-        // United States — Eastern
-        "ATL" to LatLng(33.6407, -84.4277),
-        "BOS" to LatLng(42.3656, -71.0096),
-        "BWI" to LatLng(39.1754, -76.6684),
-        "CLT" to LatLng(35.2140, -80.9431),
-        "CMH" to LatLng(39.9980, -82.8919),
-        "DTW" to LatLng(42.2124, -83.3534),
-        "EWR" to LatLng(40.6895, -74.1745),
-        "FLL" to LatLng(26.0726, -80.1527),
-        "IAD" to LatLng(38.9445, -77.4558),
-        "JFK" to LatLng(40.6413, -73.7781),
-        "LGA" to LatLng(40.7769, -73.8740),
-        "MCO" to LatLng(28.4312, -81.3081),
-        "MIA" to LatLng(25.7959, -80.2870),
-        "PBI" to LatLng(26.6832, -80.0956),
-        "PHL" to LatLng(39.8721, -75.2411),
-        "PIT" to LatLng(40.4915, -80.2329),
-        "RDU" to LatLng(35.8776, -78.7875),
-        "TPA" to LatLng(27.9755, -82.5332),
-        "DCA" to LatLng(38.8512, -77.0402),
-
-        // United States — Central
-        "AUS" to LatLng(30.1975, -97.6664),
-        "BNA" to LatLng(36.1263, -86.6774),
-        "DFW" to LatLng(32.8998, -97.0403),
-        "HOU" to LatLng(29.6454, -95.2789),
-        "IAH" to LatLng(29.9902, -95.3368),
-        "IND" to LatLng(39.7173, -86.2944),
-        "MCI" to LatLng(39.2976, -94.7139),
-        "MDW" to LatLng(41.7868, -87.7522),
-        "MKE" to LatLng(42.9472, -87.8966),
-        "MSP" to LatLng(44.8820, -93.2218),
-        "MSY" to LatLng(29.9934, -90.2580),
-        "ORD" to LatLng(41.9742, -87.9073),
-        "SAT" to LatLng(29.5337, -98.4698),
-        "STL" to LatLng(38.7487, -90.3700),
-
-        // United States — Mountain
-        "ABQ" to LatLng(35.0402, -106.6090),
-        "DEN" to LatLng(39.8561, -104.6737),
-        "PHX" to LatLng(33.4373, -112.0078),
-        "SLC" to LatLng(40.7884, -111.9778),
-
-        // United States — Pacific
-        "LAX" to LatLng(33.9416, -118.4085),
-        "LAS" to LatLng(36.0840, -115.1537),
-        "OAK" to LatLng(37.7213, -122.2208),
-        "PDX" to LatLng(45.5898, -122.5951),
-        "SAN" to LatLng(32.7338, -117.1933),
-        "SEA" to LatLng(47.4502, -122.3088),
-        "SFO" to LatLng(37.6213, -122.3790),
-        "SJC" to LatLng(37.3626, -121.9290),
-        "SMF" to LatLng(38.6954, -121.5908),
-
-        // United States — Hawaii / Alaska
-        "HNL" to LatLng(21.3187, -157.9225),
-        "ANC" to LatLng(61.1743, -149.9962),
-
-        // Canada
-        "YYZ" to LatLng(43.6777, -79.6248),
-        "YVR" to LatLng(49.1967, -123.1815),
-        "YUL" to LatLng(45.4707, -73.7408),
-        "YOW" to LatLng(45.3225, -75.6692),
-        "YYC" to LatLng(51.1215, -114.0076),
-        "YEG" to LatLng(53.3097, -113.5800),
-
-        // Mexico
-        "MEX" to LatLng(19.4363, -99.0721),
-        "CUN" to LatLng(21.0365, -86.8771),
-        "GDL" to LatLng(20.5218, -103.3111),
-
-        // ── Europe ──────────────────────────────────────────────────────────
-        "LHR" to LatLng(51.4700, -0.4543),
-        "LGW" to LatLng(51.1537, -0.1821),
-        "STN" to LatLng(51.8860, 0.2389),
-        "CDG" to LatLng(49.0097, 2.5479),
-        "ORY" to LatLng(48.7233, 2.3794),
-        "AMS" to LatLng(52.3105, 4.7683),
-        "FRA" to LatLng(50.0379, 8.5622),
-        "MUC" to LatLng(48.3538, 11.7861),
-        "BER" to LatLng(52.3667, 13.5033),
-        "MAD" to LatLng(40.4983, -3.5676),
-        "BCN" to LatLng(41.2974, 2.0833),
-        "FCO" to LatLng(41.8003, 12.2389),
-        "MXP" to LatLng(45.6306, 8.7281),
-        "ZRH" to LatLng(47.4647, 8.5492),
-        "VIE" to LatLng(48.1103, 16.5697),
-        "CPH" to LatLng(55.6180, 12.6508),
-        "OSL" to LatLng(60.1939, 11.1004),
-        "ARN" to LatLng(59.6519, 17.9186),
-        "HEL" to LatLng(60.3172, 24.9633),
-        "DUB" to LatLng(53.4264, -6.2499),
-        "LIS" to LatLng(38.7742, -9.1342),
-        "ATH" to LatLng(37.9364, 23.9445),
-        "IST" to LatLng(41.2753, 28.7519),
-        "WAW" to LatLng(52.1657, 20.9671),
-        "PRG" to LatLng(50.1008, 14.2600),
-        "BUD" to LatLng(47.4369, 19.2556),
-        "OTP" to LatLng(44.5711, 26.0850),
-        "SVO" to LatLng(55.9726, 37.4146),
-        "LED" to LatLng(59.8003, 30.2625),
-        "EDI" to LatLng(55.9500, -3.3725),
-        "MAN" to LatLng(53.3537, -2.2750),
-        "BRU" to LatLng(50.9010, 4.4844),
-
-        // ── Asia-Pacific ────────────────────────────────────────────────────
-        "NRT" to LatLng(35.7647, 140.3864),
-        "HND" to LatLng(35.5494, 139.7798),
-        "KIX" to LatLng(34.4347, 135.2441),
-        "ICN" to LatLng(37.4602, 126.4407),
-        "GMP" to LatLng(37.5583, 126.7906),
-        "PEK" to LatLng(40.0799, 116.6031),
-        "PVG" to LatLng(31.1443, 121.8083),
-        "CAN" to LatLng(23.3924, 113.2988),
-        "HKG" to LatLng(22.3080, 113.9185),
-        "TPE" to LatLng(25.0797, 121.2342),
-        "SIN" to LatLng(1.3644, 103.9915),
-        "BKK" to LatLng(13.6900, 100.7501),
-        "KUL" to LatLng(2.7456, 101.7099),
-        "CGK" to LatLng(-6.1256, 106.6559),
-        "MNL" to LatLng(14.5086, 121.0198),
-        "DEL" to LatLng(28.5562, 77.1000),
-        "BOM" to LatLng(19.0896, 72.8656),
-        "BLR" to LatLng(13.1986, 77.7066),
-        "MAA" to LatLng(12.9941, 80.1709),
-        "CCU" to LatLng(22.6547, 88.4467),
-
-        // ── Middle East ─────────────────────────────────────────────────────
-        "DXB" to LatLng(25.2532, 55.3657),
-        "AUH" to LatLng(24.4330, 54.6511),
-        "DOH" to LatLng(25.2731, 51.6081),
-        "JED" to LatLng(21.6796, 39.1565),
-        "RUH" to LatLng(24.9576, 46.6988),
-        "TLV" to LatLng(32.0055, 34.8854),
-
-        // ── Oceania ─────────────────────────────────────────────────────────
-        "SYD" to LatLng(-33.9461, 151.1772),
-        "MEL" to LatLng(-37.6690, 144.8410),
-        "BNE" to LatLng(-27.3842, 153.1175),
-        "AKL" to LatLng(-37.0082, 174.7850),
-
-        // ── Africa ──────────────────────────────────────────────────────────
-        "JNB" to LatLng(-26.1367, 28.2411),
-        "CPT" to LatLng(-33.9715, 18.6021),
-        "CAI" to LatLng(30.1219, 31.4056),
-        "ADD" to LatLng(8.9779, 38.7993),
-        "NBO" to LatLng(-1.3192, 36.9278),
-        "LOS" to LatLng(6.5774, 3.3213),
-        "CMN" to LatLng(33.3675, -7.5898),
-
-        // ── South America ───────────────────────────────────────────────────
-        "GRU" to LatLng(-23.4356, -46.4731),
-        "GIG" to LatLng(-22.8100, -43.2505),
-        "EZE" to LatLng(-34.8222, -58.5358),
-        "AEP" to LatLng(-34.5592, -58.4156),
-        "SCL" to LatLng(-33.3930, -70.7858),
-        "BOG" to LatLng(4.7016, -74.1469),
-        "LIM" to LatLng(-12.0219, -77.1143),
-        "PTY" to LatLng(9.0714, -79.3835)
+        // --- Europe ---
+        "MUC" to Pair(48.3538, 11.7861),
+        "ZRH" to Pair(47.4647, 8.5492),
+        "BCN" to Pair(41.2971, 2.0785),
+        "LIS" to Pair(38.7742, -9.1342),
+        "OSL" to Pair(60.1976, 11.1004),
+        "CPH" to Pair(55.6180, 12.6508),
+        "ARN" to Pair(59.6498, 17.9238),
+        "HEL" to Pair(60.3172, 24.9633),
+        "VIE" to Pair(48.1103, 16.5697),
+        "DUB" to Pair(53.4264, -6.2499),
+        "EDI" to Pair(55.9508, -3.3615),
+        "MAN" to Pair(53.3537, -2.2750),
+        "BRU" to Pair(50.9014, 4.4844),
+        "WAW" to Pair(52.1657, 20.9671),
+        "PRG" to Pair(50.1008, 14.2600),
+        "ATH" to Pair(37.9364, 23.9445),
+        "NCE" to Pair(43.6584, 7.2159),
+        "GVA" to Pair(46.2381, 6.1089)
     )
+
+    /** Returns (latitude, longitude) for an IATA code, or null if unknown. */
+    fun getCoords(iataCode: String): Pair<Double, Double>? =
+        coords[iataCode.uppercase()]
+
+    /**
+     * Generates intermediate points along the great-circle arc between two coordinates.
+     * Uses spherical linear interpolation (slerp).
+     *
+     * @param dep (latitude, longitude) in degrees
+     * @param arr (latitude, longitude) in degrees
+     * @param numPoints number of intermediate points (excluding endpoints). Default 20.
+     * @return List of (lat, lon) pairs including start and end. Size = numPoints + 2.
+     */
+    fun interpolateArc(
+        dep: Pair<Double, Double>,
+        arr: Pair<Double, Double>,
+        numPoints: Int = 20
+    ): List<Pair<Double, Double>> {
+        val lat1 = dep.first.toRadians()
+        val lon1 = dep.second.toRadians()
+        val lat2 = arr.first.toRadians()
+        val lon2 = arr.second.toRadians()
+
+        val d = 2 * asin(
+            sqrt(
+                sin((lat2 - lat1) / 2).pow(2) +
+                    cos(lat1) * cos(lat2) * sin((lon2 - lon1) / 2).pow(2)
+            )
+        )
+
+        if (d < 1e-10) return listOf(dep, arr)
+
+        val points = mutableListOf<Pair<Double, Double>>()
+        val totalSteps = numPoints + 1
+        for (i in 0..totalSteps) {
+            val f = i.toDouble() / totalSteps
+            val a = sin((1 - f) * d) / sin(d)
+            val b = sin(f * d) / sin(d)
+            val x = a * cos(lat1) * cos(lon1) + b * cos(lat2) * cos(lon2)
+            val y = a * cos(lat1) * sin(lon1) + b * cos(lat2) * sin(lon2)
+            val z = a * sin(lat1) + b * sin(lat2)
+            val lat = atan2(z, sqrt(x * x + y * y))
+            val lon = atan2(y, x)
+            points.add(Pair(lat * 180.0 / PI, lon * 180.0 / PI))
+        }
+        return points
+    }
+
+    /** Returns great-circle distance in km between two airports, or null if either code is unknown. */
+    fun greatCircleKm(depCode: String, arrCode: String): Int? {
+        val (lat1, lon1) = coords[depCode.uppercase()] ?: return null
+        val (lat2, lon2) = coords[arrCode.uppercase()] ?: return null
+        return haversineKm(lat1, lon1, lat2, lon2)
+    }
+
+    private fun haversineKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Int {
+        val r = 6_371.0 // Earth radius in km
+        val dLat = (lat2 - lat1).toRadians()
+        val dLon = (lon2 - lon1).toRadians()
+        val a = sin(dLat / 2) * sin(dLat / 2) +
+                cos(lat1.toRadians()) * cos(lat2.toRadians()) *
+                sin(dLon / 2) * sin(dLon / 2)
+        val c = 2 * asin(sqrt(a))
+        return (r * c).roundToInt()
+    }
+
+    private fun Double.toRadians(): Double = this * PI / 180.0
 }

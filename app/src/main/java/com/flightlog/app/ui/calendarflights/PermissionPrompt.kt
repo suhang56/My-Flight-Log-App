@@ -21,6 +21,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
+// ── Full-screen permission prompt ──────────────────────────────────────────────
+
 @Composable
 internal fun PermissionFullScreen(
     icon: ImageVector,

@@ -40,43 +40,66 @@ class AirlineIataMap @Inject constructor() {
     }
 
     /**
-     * Reverse lookup: maps IATA codes to their canonical full names.
-     * Used by the Statistics screen to display full airline names.
+     * Maps IATA code to the primary (first / longest) airline name.
      */
-    private val canonicalNames: Map<String, String> = mapOf(
-        "WN" to "Southwest Airlines",
-        "AA" to "American Airlines",
-        "DL" to "Delta Air Lines",
-        "UA" to "United Airlines",
-        "B6" to "JetBlue Airways",
-        "AS" to "Alaska Airlines",
-        "NK" to "Spirit Airlines",
-        "F9" to "Frontier Airlines",
-        "HA" to "Hawaiian Airlines",
-        "SY" to "Sun Country Airlines",
-        "G4" to "Allegiant Air",
-        "NH" to "ANA",
-        "JL" to "Japan Airlines",
-        "BA" to "British Airways",
-        "LH" to "Lufthansa",
-        "AF" to "Air France",
-        "EK" to "Emirates",
-        "SQ" to "Singapore Airlines",
-        "CX" to "Cathay Pacific",
-        "QF" to "Qantas",
-        "AC" to "Air Canada",
-        "KE" to "Korean Air",
-        "OZ" to "Asiana Airlines",
-        "TK" to "Turkish Airlines",
-        "QR" to "Qatar Airways"
-    )
-
-    /**
-     * Returns the full airline name for a given IATA code.
-     * Falls back to the uppercase IATA code itself if unknown.
-     */
-    fun getFullName(iataCode: String): String =
-        canonicalNames[iataCode.uppercase()] ?: iataCode.uppercase()
+    private val codeToName: Map<String, String> = buildMap {
+        fun add(iata: String, primaryName: String) {
+            put(iata, primaryName)
+        }
+        add("WN", "Southwest Airlines")
+        add("AA", "American Airlines")
+        add("DL", "Delta Air Lines")
+        add("UA", "United Airlines")
+        add("B6", "JetBlue Airways")
+        add("AS", "Alaska Airlines")
+        add("NK", "Spirit Airlines")
+        add("F9", "Frontier Airlines")
+        add("HA", "Hawaiian Airlines")
+        add("SY", "Sun Country Airlines")
+        add("G4", "Allegiant Air")
+        add("NH", "All Nippon Airways")
+        add("JL", "Japan Airlines")
+        add("CX", "Cathay Pacific")
+        add("SQ", "Singapore Airlines")
+        add("QF", "Qantas")
+        add("EK", "Emirates")
+        add("LH", "Lufthansa")
+        add("BA", "British Airways")
+        add("AF", "Air France")
+        add("KL", "KLM Royal Dutch Airlines")
+        add("QR", "Qatar Airways")
+        add("TK", "Turkish Airlines")
+        add("AC", "Air Canada")
+        add("CA", "Air China")
+        add("MU", "China Eastern Airlines")
+        add("CZ", "China Southern Airlines")
+        add("KE", "Korean Air")
+        add("OZ", "Asiana Airlines")
+        add("TG", "Thai Airways")
+        add("AI", "Air India")
+        add("ET", "Ethiopian Airlines")
+        add("MS", "EgyptAir")
+        add("SK", "SAS Scandinavian Airlines")
+        add("AY", "Finnair")
+        add("IB", "Iberia")
+        add("TP", "TAP Air Portugal")
+        add("LX", "Swiss International Air Lines")
+        add("OS", "Austrian Airlines")
+        add("LO", "LOT Polish Airlines")
+        add("VS", "Virgin Atlantic")
+        add("EY", "Etihad Airways")
+        add("GA", "Garuda Indonesia")
+        add("MH", "Malaysia Airlines")
+        add("PR", "Philippine Airlines")
+        add("VN", "Vietnam Airlines")
+        add("CI", "China Airlines")
+        add("BR", "EVA Air")
+        add("JQ", "Jetstar Airways")
+        add("MM", "Peach Aviation")
+        add("7C", "Jeju Air")
+        add("TW", "T'way Air")
+        add("BC", "Skymark Airlines")
+    }
 
     /**
      * Attempts to find an IATA code for an airline mentioned in [text].
@@ -90,4 +113,9 @@ class AirlineIataMap @Inject constructor() {
         }
         return null
     }
+
+    /**
+     * Returns the full airline name for a given 2-letter IATA [code], or null if unknown.
+     */
+    fun getAirlineName(code: String): String? = codeToName[code.uppercase()]
 }

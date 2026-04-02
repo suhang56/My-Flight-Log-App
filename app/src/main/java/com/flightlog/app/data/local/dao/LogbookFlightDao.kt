@@ -1,216 +1,104 @@
 package com.flightlog.app.data.local.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import androidx.room.Transaction
 import androidx.room.Update
 import com.flightlog.app.data.local.entity.LogbookFlight
-import com.flightlog.app.data.local.model.AirlineCount
-import com.flightlog.app.data.local.model.AirportCount
-import com.flightlog.app.data.local.model.LabelCount
-import com.flightlog.app.data.local.model.MonthlyCount
-import com.flightlog.app.data.local.model.RouteCount
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface LogbookFlightDao {
 
-    /** All logbook entries ordered by departure time, most recent first. */
-    @Query("SELECT * FROM logbook_flights ORDER BY departureTimeUtc DESC, id DESC")
+    @Query("SELECT * FROM logbook_flights ORDER BY departureDateEpochDay DESC")
     fun getAll(): Flow<List<LogbookFlight>>
-
-    /** All logbook entries ordered chronologically (oldest first) — one-shot for export. */
-    @Query("SELECT * FROM logbook_flights ORDER BY departureTimeUtc ASC")
-    suspend fun getAllOnce(): List<LogbookFlight>
 
     @Query("SELECT * FROM logbook_flights WHERE id = :id")
     suspend fun getById(id: Long): LogbookFlight?
 
-    /** Single flight by ID as a reactive Flow — used by FlightDetailScreen for live updates. */
-    @Query("SELECT * FROM logbook_flights WHERE id = :id")
-    fun getByIdFlow(id: Long): Flow<LogbookFlight?>
+    @Query("SELECT * FROM logbook_flights WHERE sourceCalendarEventId = :calendarEventId LIMIT 1")
+    suspend fun findByCalendarEventId(calendarEventId: Long): LogbookFlight?
 
-    /**
-     * Returns true if a logbook entry already exists for the given calendar source.
-     * Used to prevent duplicate "Add to Logbook" actions.
-     */
-    @Query(
-        """
-        SELECT EXISTS(
-            SELECT 1 FROM logbook_flights
-            WHERE sourceCalendarEventId = :calendarEventId
-              AND sourceLegIndex = :legIndex
-        )
-        """
-    )
-    suspend fun existsBySource(calendarEventId: Long, legIndex: Int): Boolean
-
-    /**
-     * Returns true if a flight exists with the same route and departure date (UTC day).
-     * Used to warn about potential manual duplicates.
-     */
-    @Query(
-        """
-        SELECT EXISTS(
-            SELECT 1 FROM logbook_flights
-            WHERE departureCode = :depCode
-              AND arrivalCode = :arrCode
-              AND departureTimeUtc / 86400000 = :utcDay
-              AND (:excludeId IS NULL OR id != :excludeId)
-        )
-        """
-    )
-    suspend fun existsByRouteAndDate(depCode: String, arrCode: String, utcDay: Long, excludeId: Long? = null): Boolean
-
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    @Insert
     suspend fun insert(flight: LogbookFlight): Long
-
-    /** Batch insert for restore — transactional, bypasses per-flight triggers. */
-    @Transaction
-    @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertAll(flights: List<LogbookFlight>): List<Long>
-
-    /** Insert or replace — used by undo-delete to restore a flight with its original ID. */
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsert(flight: LogbookFlight): Long
 
     @Update
     suspend fun update(flight: LogbookFlight)
 
-    @Query("DELETE FROM logbook_flights WHERE id = :id")
-    suspend fun deleteById(id: Long)
+    @Delete
+    suspend fun delete(flight: LogbookFlight)
+
+    // --- Stats queries ---
 
     @Query("SELECT COUNT(*) FROM logbook_flights")
-    fun getCount(): Flow<Int>
+    fun getFlightCount(): Flow<Int>
 
-    /** Sum of all known distances in nautical miles. */
-    @Query("SELECT COALESCE(SUM(distanceNm), 0) FROM logbook_flights")
-    fun getTotalDistanceNm(): Flow<Int>
-
-    /** Most recent flight by departure time — used by widget worker for one-shot read. */
-    @Query("SELECT * FROM logbook_flights ORDER BY departureTimeUtc DESC LIMIT 1")
-    suspend fun getMostRecentFlight(): LogbookFlight?
-
-    // ── Statistics queries ───────────────────────────────────────────────────────
-
-    /** Total flight time in minutes (sum of arrival - departure for flights with both times). */
-    @Query(
-        """
-        SELECT SUM((arrivalTimeUtc - departureTimeUtc) / 60000)
-        FROM logbook_flights
-        WHERE arrivalTimeUtc IS NOT NULL
-          AND arrivalTimeUtc > departureTimeUtc
-        """
-    )
+    @Query("SELECT SUM(durationMinutes) FROM logbook_flights")
     fun getTotalDurationMinutes(): Flow<Long?>
 
-    /** All distinct airport codes (departure + arrival), excluding empty strings. */
+    @Query("SELECT SUM(distanceKm) FROM logbook_flights")
+    fun getTotalDistanceKm(): Flow<Long?>
+
     @Query(
         """
-        SELECT code FROM (
-            SELECT departureCode AS code FROM logbook_flights WHERE departureCode != ''
+        SELECT COUNT(*) FROM (
+            SELECT departureCode AS code FROM logbook_flights
             UNION
-            SELECT arrivalCode AS code FROM logbook_flights WHERE arrivalCode != ''
+            SELECT arrivalCode AS code FROM logbook_flights
         )
         """
     )
-    fun getDistinctAirportCodes(): Flow<List<String>>
+    fun getUniqueAirportCount(): Flow<Int>
 
-    /** Airline prefixes (2-letter IATA from flightNumber), grouped by count descending. */
+    // --- Statistics queries ---
+
     @Query(
         """
-        SELECT UPPER(SUBSTR(flightNumber, 1, 2)) AS airline,
-               COUNT(*) AS count
-        FROM logbook_flights
-        WHERE LENGTH(flightNumber) >= 2 AND flightNumber != ''
-        GROUP BY airline
-        ORDER BY count DESC
-        """
-    )
-    fun getDistinctAirlinePrefixes(): Flow<List<AirlineCount>>
-
-    /** Flights grouped by year-month (YYYY-MM), ordered chronologically. */
-    @Query(
-        """
-        SELECT strftime('%Y-%m', departureTimeUtc / 1000, 'unixepoch') AS yearMonth,
-               COUNT(*) AS count
-        FROM logbook_flights
-        GROUP BY yearMonth
-        ORDER BY yearMonth ASC
-        """
-    )
-    fun getFlightsPerMonth(): Flow<List<MonthlyCount>>
-
-    /** Top departure airports by count, descending. */
-    @Query(
-        """
-        SELECT departureCode AS code, COUNT(*) AS count
-        FROM logbook_flights
-        WHERE departureCode != ''
-        GROUP BY departureCode
-        ORDER BY count DESC
-        LIMIT :limit
-        """
-    )
-    fun getTopDepartureAirports(limit: Int = 5): Flow<List<AirportCount>>
-
-    /** Top arrival airports by count, descending. */
-    @Query(
-        """
-        SELECT arrivalCode AS code, COUNT(*) AS count
-        FROM logbook_flights
-        WHERE arrivalCode != ''
-        GROUP BY arrivalCode
-        ORDER BY count DESC
-        LIMIT :limit
-        """
-    )
-    fun getTopArrivalAirports(limit: Int = 5): Flow<List<AirportCount>>
-
-    /** Flights grouped by seat class, excluding empty values. */
-    @Query(
-        """
-        SELECT seatClass AS label, COUNT(*) AS count
+        SELECT seatClass, COUNT(*) AS count
         FROM logbook_flights
         WHERE seatClass IS NOT NULL AND seatClass != ''
         GROUP BY seatClass
         ORDER BY count DESC
         """
     )
-    fun getSeatClassBreakdown(): Flow<List<LabelCount>>
+    fun getSeatClassCounts(): Flow<List<SeatClassCount>>
 
-    /** Flights grouped by aircraft type, excluding empty values. */
     @Query(
         """
-        SELECT aircraftType AS label, COUNT(*) AS count
+        SELECT substr(flightNumber, 1, 2) AS airlineCode, COUNT(*) AS count
         FROM logbook_flights
-        WHERE aircraftType != ''
-        GROUP BY aircraftType
+        WHERE flightNumber != ''
+        GROUP BY airlineCode
         ORDER BY count DESC
+        LIMIT :limit
         """
     )
-    fun getAircraftTypeDistribution(): Flow<List<LabelCount>>
+    fun getTopAirlines(limit: Int = 5): Flow<List<AirlineCount>>
 
-    /** Longest flight by distance. */
-    @Query("SELECT * FROM logbook_flights WHERE distanceNm IS NOT NULL ORDER BY distanceNm DESC LIMIT 1")
-    fun getLongestFlightByDistance(): Flow<LogbookFlight?>
-
-    /** Longest flight by duration (arrival - departure). */
     @Query(
         """
         SELECT * FROM logbook_flights
-        WHERE arrivalTimeUtc IS NOT NULL AND arrivalTimeUtc > departureTimeUtc
-        ORDER BY (arrivalTimeUtc - departureTimeUtc) DESC LIMIT 1
+        WHERE distanceKm IS NOT NULL
+        ORDER BY distanceKm DESC
+        LIMIT 1
+        """
+    )
+    fun getLongestFlightByDistance(): Flow<LogbookFlight?>
+
+    @Query(
+        """
+        SELECT * FROM logbook_flights
+        WHERE durationMinutes IS NOT NULL AND durationMinutes > 0
+        ORDER BY durationMinutes DESC
+        LIMIT 1
         """
     )
     fun getLongestFlightByDuration(): Flow<LogbookFlight?>
 
-    /** Top routes by frequency. */
     @Query(
         """
-        SELECT departureCode, arrivalCode, COUNT(*) AS count
+        SELECT departureCode || '→' || arrivalCode AS label, COUNT(*) AS count
         FROM logbook_flights
         WHERE departureCode != '' AND arrivalCode != ''
         GROUP BY departureCode, arrivalCode
@@ -220,24 +108,43 @@ interface LogbookFlightDao {
     )
     fun getTopRoutes(limit: Int = 5): Flow<List<RouteCount>>
 
-    /** First flight ever logged by departure time. */
-    @Query("SELECT * FROM logbook_flights ORDER BY departureTimeUtc ASC LIMIT 1")
+    @Query(
+        """
+        SELECT * FROM logbook_flights
+        ORDER BY departureTimeMillis ASC
+        LIMIT 1
+        """
+    )
     fun getFirstFlight(): Flow<LogbookFlight?>
 
-    /** Distinct years present in the logbook (UTC-based), descending. */
-    @Query("""
-        SELECT DISTINCT strftime('%Y', departureTimeUtc / 1000, 'unixepoch') AS year
+    @Query(
+        """
+        SELECT strftime('%Y-%m', departureTimeMillis / 1000, 'unixepoch') AS month,
+               COUNT(*) AS count
         FROM logbook_flights
-        ORDER BY year DESC
-    """)
-    fun getDistinctYears(): Flow<List<String>>
-
-    /** Distinct seat class values present in the logbook, alphabetical. */
-    @Query("""
-        SELECT DISTINCT seatClass
-        FROM logbook_flights
-        WHERE seatClass IS NOT NULL AND seatClass != ''
-        ORDER BY seatClass ASC
-    """)
-    fun getDistinctSeatClasses(): Flow<List<String>>
+        GROUP BY month
+        ORDER BY month ASC
+        """
+    )
+    fun getMonthlyFlightCounts(): Flow<List<MonthlyCount>>
 }
+
+data class SeatClassCount(
+    val seatClass: String,
+    val count: Int
+)
+
+data class AirlineCount(
+    val airlineCode: String,
+    val count: Int
+)
+
+data class RouteCount(
+    val label: String,
+    val count: Int
+)
+
+data class MonthlyCount(
+    val month: String,
+    val count: Int
+)

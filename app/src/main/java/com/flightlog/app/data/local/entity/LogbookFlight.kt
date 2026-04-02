@@ -4,75 +4,50 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-/**
- * A flight that the user has explicitly added to their personal logbook.
- *
- * Created from a [CalendarFlight] via the "Add to Logbook" action.
- * The [sourceCalendarEventId] + [sourceLegIndex] pair links back to the original
- * calendar row and prevents duplicate imports.
- */
-/**
- * Note on the unique index: SQLite treats each NULL pair as distinct, so manually created
- * flights (sourceCalendarEventId=NULL, sourceLegIndex=NULL) will never conflict with each
- * other via this index. This is intentional — manual flights are de-duplicated at the UI
- * level via a same-route-and-date warning, not a hard database constraint.
- */
 @Entity(
     tableName = "logbook_flights",
-    indices = [
-        Index(value = ["sourceCalendarEventId", "sourceLegIndex"], unique = true),
-        Index(value = ["departureTimeUtc"])
-    ]
+    indices = [Index(value = ["departureDateEpochDay"])]
 )
 data class LogbookFlight(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
-    /** Links to [CalendarFlight.calendarEventId]; null if manually created (future). */
+    /** Soft link to CalendarFlight.calendarEventId — not a foreign key. */
     val sourceCalendarEventId: Long? = null,
 
-    /** Links to [CalendarFlight.legIndex]; null if manually created. */
-    val sourceLegIndex: Int? = null,
-
-    /** IATA/ICAO flight number, e.g. "AA11". */
-    val flightNumber: String = "",
-
-    /** Departure airport IATA code, e.g. "ORD". */
+    val flightNumber: String,
     val departureCode: String,
-
-    /** Arrival airport IATA code, e.g. "CMH". */
     val arrivalCode: String,
 
-    /** Departure time in UTC epoch millis. */
-    val departureTimeUtc: Long,
+    /** LocalDate.toEpochDay() of the departure date in the departure timezone. */
+    val departureDateEpochDay: Long,
 
-    /** Arrival time in UTC epoch millis; null when unknown. */
-    val arrivalTimeUtc: Long? = null,
+    /** Departure time in epoch millis. */
+    val departureTimeMillis: Long,
 
-    /** IANA timezone of departure airport, e.g. "America/Chicago". */
+    /** Arrival time in epoch millis. Null when unknown. */
+    val arrivalTimeMillis: Long? = null,
+
+    val durationMinutes: Int? = null,
+
+    /** IANA timezone ID for the departure airport. */
     val departureTimezone: String? = null,
 
-    /** IANA timezone of arrival airport, e.g. "America/New_York". */
+    /** IANA timezone ID for the arrival airport. */
     val arrivalTimezone: String? = null,
 
-    /** Great-circle distance in nautical miles; null when coordinates are unknown. */
-    val distanceNm: Int? = null,
+    val aircraftType: String? = null,
 
-    /** Aircraft type, e.g. "Boeing 737-800". */
-    val aircraftType: String = "",
+    /** One of: economy, premium_economy, business, first. */
+    val seatClass: String? = null,
 
-    /** Seat class, e.g. "Economy", "Business", "First". */
-    val seatClass: String = "",
+    val seatNumber: String? = null,
 
-    /** Seat number, e.g. "12A". */
-    val seatNumber: String = "",
+    /** Great-circle distance in kilometres. */
+    val distanceKm: Int? = null,
 
-    /** User-editable notes. */
-    val notes: String = "",
+    val notes: String? = null,
 
-    /** Epoch millis when this row was added to the logbook. */
-    val addedAt: Long = System.currentTimeMillis(),
-
-    /** Epoch millis when this row was last updated; null if never edited. */
-    val updatedAt: Long? = null
+    val createdAt: Long = System.currentTimeMillis(),
+    val updatedAt: Long = System.currentTimeMillis()
 )

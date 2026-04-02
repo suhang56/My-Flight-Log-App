@@ -1,8 +1,5 @@
 package com.flightlog.app.data.calendar
 
-import com.flightlog.app.data.AirportCoordinatesMap
-import com.flightlog.app.data.AirportNameMap
-import com.flightlog.app.data.AirportTimezoneMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -100,6 +97,8 @@ class FlightEventParser @Inject constructor(
         RegexOption.IGNORE_CASE
     )
 
+    // Airport name → IATA code mapping lives in AirportNameMap.kt (top-level val).
+
     /**
      * Attempts to parse flight info from a calendar event.
      *
@@ -184,7 +183,7 @@ class FlightEventParser @Inject constructor(
     private fun resolveMultiLegRoutes(text: String, legCount: Int): List<Pair<String, String>> {
         val departureCode = PATTERN_DEPARTS.find(text)?.groupValues?.get(1)?.uppercase()
         val arrivalCode = PATTERN_ARRIVES.find(text)?.groupValues?.get(1)?.uppercase()
-        val stopCode = PATTERN_STOP.find(text)?.groupValues?.get(1)?.trim()?.let { AirportNameMap.resolve(it) }
+        val stopCode = PATTERN_STOP.find(text)?.groupValues?.get(1)?.trim()?.let { resolveAirportName(it) }
 
         // 2-leg flight with stop: Leg1 = departs→stop, Leg2 = stop→arrives
         if (legCount == 2 && departureCode != null && arrivalCode != null && stopCode != null) {
@@ -206,29 +205,44 @@ class FlightEventParser @Inject constructor(
         return List(legCount) { "" to "" }
     }
 
+    /**
+     * Resolves an airport/city name to an IATA code.
+     * Tries exact match first, then substring match on known airport names.
+     */
+    private fun resolveAirportName(name: String): String? {
+        val lower = name.lowercase().trim()
+
+        // Direct match
+        AIRPORT_NAME_MAP[lower]?.let { return it }
+
+        // Substring match: check if any known name appears in the input
+        for ((key, code) in AIRPORT_NAME_MAP) {
+            if (lower.contains(key)) return code
+        }
+
+        // Check if it's already a 3-letter IATA code
+        if (lower.length == 3 && lower.all { it.isLetter() }) {
+            return lower.uppercase()
+        }
+
+        return null
+    }
+
     private fun parseWithFlightKeyword(text: String): ParsedFlight? {
         val m = PATTERN_FLIGHT_KEYWORD.find(text) ?: return null
-        val dep = m.groupValues[2].uppercase()
-        val arr = m.groupValues[3].uppercase()
-        // Validate at least one airport code is known to avoid false positives
-        if (!isKnownAirport(dep) && !isKnownAirport(arr)) return null
         return ParsedFlight(
             flightNumber  = m.groupValues[1].uppercase(),
-            departureCode = dep,
-            arrivalCode   = arr
+            departureCode = m.groupValues[2].uppercase(),
+            arrivalCode   = m.groupValues[3].uppercase()
         )
     }
 
     private fun parseCodeRoute(text: String): ParsedFlight? {
         val m = PATTERN_CODE_ROUTE.find(text) ?: return null
-        val dep = m.groupValues[2].uppercase()
-        val arr = m.groupValues[3].uppercase()
-        // Validate at least one airport code is known to avoid false positives
-        if (!isKnownAirport(dep) && !isKnownAirport(arr)) return null
         return ParsedFlight(
             flightNumber  = m.groupValues[1].uppercase(),
-            departureCode = dep,
-            arrivalCode   = arr
+            departureCode = m.groupValues[2].uppercase(),
+            arrivalCode   = m.groupValues[3].uppercase()
         )
     }
 
@@ -236,9 +250,6 @@ class FlightEventParser @Inject constructor(
         val routeMatch = PATTERN_ROUTE_TO.find(text) ?: return null
         val dep = routeMatch.groupValues[1].uppercase()
         val arr = routeMatch.groupValues[2].uppercase()
-        // Validate at least one code is a known airport to avoid false positives
-        // like "Day to Add" being parsed as DAY → ADD
-        if (!isKnownAirport(dep) || !isKnownAirport(arr)) return null
         val flightNumber = PATTERN_FLIGHT_NUMBER.find(text)
             ?.groupValues?.get(1)?.uppercase()
             .orEmpty()
@@ -249,16 +260,9 @@ class FlightEventParser @Inject constructor(
         val routeMatch = PATTERN_ROUTE_ARROW.find(text) ?: return null
         val dep = routeMatch.groupValues[1].uppercase()
         val arr = routeMatch.groupValues[2].uppercase()
-        // Validate at least one code is a known airport
-        if (!isKnownAirport(dep) || !isKnownAirport(arr)) return null
         val flightNumber = PATTERN_FLIGHT_NUMBER.find(text)
             ?.groupValues?.get(1)?.uppercase()
             .orEmpty()
         return ParsedFlight(flightNumber = flightNumber, departureCode = dep, arrivalCode = arr)
     }
-
-    /** Checks if a 3-letter code is a known IATA airport code. */
-    private fun isKnownAirport(code: String): Boolean =
-        AirportCoordinatesMap.coordinatesFor(code) != null ||
-        AirportTimezoneMap.timezoneFor(code) != null
 }

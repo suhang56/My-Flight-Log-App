@@ -4,7 +4,6 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.google.services)
 }
 
 android {
@@ -22,29 +21,16 @@ android {
 
         buildConfigField(
             "String",
-            "FLIGHTAWARE_API_KEY",
-            "\"${project.findProperty("FLIGHTAWARE_API_KEY") ?: ""}\""
+            "AVIATION_STACK_KEY",
+            "\"${project.findProperty("AVIATION_STACK_KEY") ?: ""}\""
         )
 
-        manifestPlaceholders["MAPS_API_KEY"] = project.findProperty("MAPS_API_KEY") as String? ?: ""
-    }
-
-    signingConfigs {
-        create("release") {
-            val storePath = project.findProperty("FLIGHT_LOG_STORE_FILE") as String? ?: ""
-            if (storePath.isNotBlank()) {
-                storeFile = file(storePath)
-            }
-            storePassword = project.findProperty("FLIGHT_LOG_STORE_PASSWORD") as String? ?: ""
-            keyAlias = project.findProperty("FLIGHT_LOG_KEY_ALIAS") as String? ?: ""
-            keyPassword = project.findProperty("FLIGHT_LOG_KEY_PASSWORD") as String? ?: ""
-        }
+        manifestPlaceholders["MAPS_API_KEY"] = project.findProperty("MAPS_API_KEY") ?: ""
     }
 
     buildTypes {
         release {
             isMinifyEnabled = true
-            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -65,15 +51,6 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-
-    packaging {
-        resources {
-            excludes += setOf(
-                "META-INF/INDEX.LIST",
-                "META-INF/DEPENDENCIES"
-            )
-        }
     }
 }
 
@@ -115,16 +92,14 @@ dependencies {
     // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
 
-    // Glance (home screen widget)
-    implementation(libs.androidx.glance.appwidget)
-    implementation(libs.androidx.glance.material3)
-
-    // DataStore (widget data persistence)
-    implementation(libs.androidx.datastore.preferences)
-
     // Lifecycle
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
+
+    // Google Maps
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
+    implementation(libs.maps.utils)
 
     // Networking
     implementation(libs.retrofit.core)
@@ -132,31 +107,13 @@ dependencies {
     implementation(libs.okhttp.core)
     implementation(libs.okhttp.logging)
     implementation(libs.moshi.core)
-    ksp(libs.moshi.kotlin.codegen)
-
-    // Google Sign-In + Drive
-    implementation(libs.play.services.auth)
-    implementation(libs.google.api.client.android)
-    implementation(libs.google.api.services.drive)
-
-    // Firebase Auth
-    implementation(libs.firebase.auth.ktx)
-
-    // Google Maps
-    implementation(libs.maps.compose)
-    implementation(libs.play.services.maps)
+    implementation(libs.moshi.kotlin)
 
     // Core library desugaring for java.time on older APIs
     coreLibraryDesugaring(libs.desugar.jdk.libs)
 
     // Testing
     testImplementation(libs.junit)
-    testImplementation(libs.mockk)
-    testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.androidx.room.testing)
-    testImplementation(libs.androidx.arch.core.testing)
-    testImplementation(libs.robolectric)
-    testImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

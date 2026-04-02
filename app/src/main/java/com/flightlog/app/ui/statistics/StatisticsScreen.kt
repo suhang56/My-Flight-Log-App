@@ -1,11 +1,12 @@
 package com.flightlog.app.ui.statistics
 
+import android.graphics.Paint
+import android.graphics.Typeface
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,61 +15,54 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AirplanemodeActive
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.FlightTakeoff
-import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.SyncAlt
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.flightlog.app.data.calendar.AirlineIataMap
+import com.flightlog.app.data.local.dao.AirlineCount
+import com.flightlog.app.data.local.dao.MonthlyCount
+import com.flightlog.app.data.local.dao.RouteCount
+import com.flightlog.app.data.local.dao.SeatClassCount
 import com.flightlog.app.data.local.entity.LogbookFlight
-import com.flightlog.app.data.local.model.LabelCount
-import com.flightlog.app.data.local.model.MonthlyCount
-import com.flightlog.app.data.local.model.RouteCount
-import com.flightlog.app.data.local.model.StatsData
-import java.time.Instant
+import java.text.SimpleDateFormat
 import java.time.YearMonth
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Date
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,167 +72,131 @@ fun StatisticsScreen(
 ) {
     val stats by viewModel.stats.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
-    val tabTitles = listOf("Stats", "Achievements")
-
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("Statistics") })
         }
     ) { padding ->
-        Column(modifier = Modifier.padding(padding)) {
-            TabRow(selectedTabIndex = selectedTab) {
-                tabTitles.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title) }
+        if (stats.flightCount == 0) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.BarChart,
+                        contentDescription = null,
+                        modifier = Modifier.size(64.dp),
+                        tint = MaterialTheme.colorScheme.outlineVariant
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        text = "No statistics yet",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Log some flights to see your statistics.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.outline,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 40.dp)
                     )
                 }
             }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Spacer(modifier = Modifier.height(4.dp))
 
-            when (selectedTab) {
-                0 -> StatsTabContent(stats)
-                1 -> AchievementsContent()
-            }
-        }
-    }
-}
-
-@Composable
-private fun StatsTabContent(stats: StatsData) {
-    if (stats.isEmpty) {
-        StatisticsEmptyState(modifier = Modifier.fillMaxSize())
-    } else {
-        LazyColumn(
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item(key = "hero") {
+                // Hero stats row
                 HeroStatsRow(stats)
-            }
-            stats.firstFlight?.let { flight ->
-                item(key = "firstFlight") {
+
+                // First flight milestone card (#7)
+                stats.firstFlight?.let { flight ->
                     FirstFlightCard(flight)
                 }
-            }
-            if (stats.monthlyFlightCounts.isNotEmpty()) {
-                item(key = "chart") {
-                    MonthlyBarChart(stats.monthlyFlightCounts)
+
+                // Monthly bar chart (#2, #6)
+                if (stats.monthlyFlightCounts.isNotEmpty()) {
+                    MonthlyBarChartSection(stats.monthlyFlightCounts)
                 }
-            }
-            if (stats.topRoutes.size >= 2) {
-                item(key = "routes") {
-                    TopRoutesSection(stats.topRoutes)
+
+                // Seat class breakdown (#1)
+                if (stats.seatClassCounts.isNotEmpty()) {
+                    SeatClassBreakdown(stats.seatClassCounts, stats.flightCount)
                 }
-            }
-            if (stats.topAirports.size >= 2) {
-                item(key = "airports") {
-                    TopListSection(
-                        title = "Top Airports",
-                        icon = Icons.Default.LocationOn,
-                        items = stats.topAirports.take(5).map { it.code to it.count }
+
+                // Airlines top list (#3)
+                if (stats.topAirlines.isNotEmpty()) {
+                    AirlinesTopList(stats.topAirlines)
+                }
+
+                // Longest flight by distance
+                stats.longestByDistance?.let { flight ->
+                    LongestFlightCard(
+                        title = "Longest Flight (Distance)",
+                        flight = flight,
+                        icon = Icons.Default.Route
                     )
                 }
-            }
-            if (stats.topAirlines.size >= 2) {
-                item(key = "airlines") {
-                    TopListSection(
-                        title = "Top Airlines",
-                        icon = Icons.Default.AirplanemodeActive,
-                        items = stats.topAirlines.take(5).map { it.airline to it.count },
-                        labelWidth = 160.dp
-                    )
-                }
-            }
-            stats.longestFlight?.takeIf { it.distanceNm != null }?.let { flight ->
-                item(key = "longest") {
-                    LongestFlightCard(flight)
-                }
-            }
-            stats.longestFlightByDuration?.let { flight ->
-                item(key = "longestDuration") {
+
+                // Longest flight by duration (#4)
+                stats.longestByDuration?.let { flight ->
                     LongestFlightByDurationCard(flight)
                 }
-            }
-            if (stats.seatClassBreakdown.isNotEmpty()) {
-                item(key = "seats") {
-                    SeatClassBreakdown(stats.seatClassBreakdown)
+
+                // Top routes (#5)
+                if (stats.topRoutes.isNotEmpty()) {
+                    TopRoutesSection(stats.topRoutes)
                 }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
-            if (stats.aircraftTypeDistribution.size >= 2) {
-                item(key = "aircraft") {
-                    TopListSection(
-                        title = "Aircraft Types",
-                        icon = Icons.Default.Flight,
-                        items = stats.aircraftTypeDistribution.take(5).map { it.label to it.count }
-                    )
-                }
-            }
-            item { Spacer(modifier = Modifier.height(8.dp)) }
         }
     }
 }
-
-// -- Hero stats row -----------------------------------------------------------
 
 @Composable
 private fun HeroStatsRow(stats: StatsData) {
-    val hours = stats.totalDurationMinutes / 60
-    val minutes = stats.totalDurationMinutes % 60
-    val timeLabel = when {
-        stats.totalDurationMinutes == 0L -> "\u2014"
-        hours > 0 -> "${hours}h ${minutes}m"
-        else -> "${minutes}m"
-    }
-
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
+        HeroStatItem(label = "Flights", value = "${stats.flightCount}")
         HeroStatItem(
-            icon = Icons.Default.FlightTakeoff,
-            value = "${stats.flightCount}",
-            label = if (stats.flightCount == 1) "Flight" else "Flights"
+            label = "Hours",
+            value = String.format(Locale.US, "%.1f", stats.totalDurationMinutes / 60.0)
         )
         HeroStatItem(
-            icon = Icons.Default.Route,
-            value = if (stats.totalDistanceNm > 0) "%,d".format(stats.totalDistanceNm) else "\u2014",
-            label = "NM"
+            label = "Distance",
+            value = if (stats.totalDistanceKm >= 1000) {
+                String.format(Locale.US, "%.1fk km", stats.totalDistanceKm / 1000.0)
+            } else {
+                "${stats.totalDistanceKm} km"
+            }
         )
-        HeroStatItem(
-            icon = Icons.Default.Schedule,
-            value = timeLabel,
-            label = "In the Air"
-        )
-        HeroStatItem(
-            icon = Icons.Default.LocationOn,
-            value = if (stats.uniqueAirportCount > 0) "${stats.uniqueAirportCount}" else "\u2014",
-            label = if (stats.uniqueAirportCount == 1) "Airport" else "Airports"
-        )
+        HeroStatItem(label = "Airports", value = "${stats.uniqueAirportCount}")
     }
 }
 
 @Composable
-private fun HeroStatItem(
-    icon: ImageVector,
-    value: String,
-    label: String
-) {
+private fun HeroStatItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            tint = MaterialTheme.colorScheme.primary
-        )
-        Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
         )
         Text(
             text = label,
@@ -248,76 +206,41 @@ private fun HeroStatItem(
     }
 }
 
-// -- First flight milestone card ----------------------------------------------
-
-private val FIRST_FLIGHT_DATE_FORMATTER = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.getDefault())
+// --- #7: First Flight Milestone Card ---
 
 @Composable
 private fun FirstFlightCard(flight: LogbookFlight) {
-    val dateText = remember(flight) {
-        val zone = runCatching {
-            flight.departureTimezone?.let { ZoneId.of(it) }
-        }.getOrNull() ?: ZoneId.of("UTC")
-        val localDate = Instant.ofEpochMilli(flight.departureTimeUtc)
-            .atZone(zone)
-            .toLocalDate()
-        localDate.format(FIRST_FLIGHT_DATE_FORMATTER)
-    }
+    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
 
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "First Flight",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary
+            Icon(
+                imageVector = Icons.Default.Star,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(24.dp)
             )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
                 Text(
-                    text = flight.departureCode,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    text = "First Flight",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.width(12.dp))
-                Icon(
-                    imageVector = Icons.Default.Flight,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .rotate(90f),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(12.dp))
                 Text(
-                    text = flight.arrivalCode,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+                    text = "${flight.departureCode} \u2192 ${flight.arrivalCode}",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontFamily = FontFamily.Monospace,
+                    fontWeight = FontWeight.SemiBold
                 )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = dateText,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            if (flight.flightNumber.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = flight.flightNumber,
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = dateFormat.format(Date(flight.departureTimeMillis)),
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -325,254 +248,327 @@ private fun FirstFlightCard(flight: LogbookFlight) {
     }
 }
 
-// -- Monthly bar chart --------------------------------------------------------
-
-private val MONTH_LABEL_FORMATTER = DateTimeFormatter.ofPattern("MMM", Locale.getDefault())
+// --- #2 & #6: Monthly Bar Chart with Toggle ---
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MonthlyBarChart(data: List<MonthlyCount>) {
-    var showAllTime by remember { mutableStateOf(false) }
-
-    // Zero-fill the last 12 months for the default view
-    val filledData = remember(data, showAllTime) {
-        if (showAllTime) {
-            data
-        } else {
-            val now = YearMonth.now()
-            val dataMap = data.associate { it.yearMonth to it.count }
-            (11 downTo 0).map { offset ->
-                val ym = now.minusMonths(offset.toLong())
-                val key = ym.toString() // "YYYY-MM"
-                MonthlyCount(key, dataMap[key] ?: 0)
-            }
-        }
-    }
-
-    val currentYearMonth = remember { YearMonth.now().toString() }
+private fun MonthlyBarChartSection(monthlyCounts: List<MonthlyCount>) {
+    var selectedIndex by remember { mutableIntStateOf(0) }
+    val options = listOf("Last 12 Months", "All Time")
 
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Flights per Month",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
-                        selected = !showAllTime,
-                        onClick = { showAllTime = false },
-                        label = { Text("12 Mo") }
-                    )
-                    FilterChip(
-                        selected = showAllTime,
-                        onClick = { showAllTime = true },
-                        label = { Text("All Time") }
-                    )
-                }
-            }
+            Text(
+                text = "Flights per Month",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
             Spacer(modifier = Modifier.height(12.dp))
 
-            val maxCount = filledData.maxOfOrNull { it.count }?.coerceAtLeast(1) ?: 1
-            val barColor = MaterialTheme.colorScheme.primaryContainer
-            val highlightColor = MaterialTheme.colorScheme.primary
-            val onSurfaceColor = MaterialTheme.colorScheme.onSurface
-            val onPrimaryColor = MaterialTheme.colorScheme.onPrimary
-            val density = LocalDensity.current
-
-            val textPaint = remember {
-                android.graphics.Paint().apply {
-                    textSize = 28f
-                    textAlign = android.graphics.Paint.Align.CENTER
-                    isAntiAlias = true
-                }
-            }
-
-            val needsScroll = showAllTime && filledData.size > 24
-            val scrollModifier = if (needsScroll) {
-                Modifier.horizontalScroll(rememberScrollState())
-            } else {
-                Modifier
-            }
-
-            val chartDescription = remember(filledData) {
-                val totalFlights = filledData.sumOf { it.count }
-                val nonZero = filledData.filter { it.count > 0 }
-                val peak = nonZero.maxByOrNull { it.count }
-                buildString {
-                    append("Flights per month chart. $totalFlights total flights across ${filledData.size} months.")
-                    if (peak != null) {
-                        append(" Peak: ${peak.count} flights in ${peak.yearMonth}.")
-                    }
-                }
-            }
-
-            Box(modifier = scrollModifier) {
-                Canvas(
-                    modifier = (if (needsScroll) {
-                        Modifier
-                            .width(with(density) { (filledData.size * 24).dp })
-                            .height(140.dp)
-                    } else {
-                        Modifier
-                            .fillMaxWidth()
-                            .height(140.dp)
-                    }).semantics { contentDescription = chartDescription }
-                ) {
-                    val barCount = filledData.size
-                    val barSpacing = 4.dp.toPx()
-                    val totalSpacing = barSpacing * (barCount - 1)
-                    val barWidth = ((size.width - totalSpacing) / barCount).coerceAtLeast(4f)
-                    val chartHeight = size.height
-                    val labelPadding = 2.dp.toPx()
-
-                    filledData.forEachIndexed { index, item ->
-                        val barHeight = if (item.count > 0)
-                            (item.count.toFloat() / maxCount) * chartHeight
-                        else
-                            0f
-                        val x = index * (barWidth + barSpacing)
-                        val isCurrentMonth = item.yearMonth == currentYearMonth
-                        val color = if (isCurrentMonth) highlightColor else barColor
-
-                        if (barHeight > 0) {
-                            drawRoundRect(
-                                color = color,
-                                topLeft = Offset(x, chartHeight - barHeight),
-                                size = Size(barWidth, barHeight),
-                                cornerRadius = CornerRadius(2.dp.toPx())
-                            )
-                        }
-
-                        // Draw count label above bar
-                        if (item.count > 0) {
-                            textPaint.color = if (isCurrentMonth) {
-                                onPrimaryColor.toArgb()
-                            } else {
-                                onSurfaceColor.toArgb()
-                            }
-                            val labelY = (chartHeight - barHeight - 4.dp.toPx())
-                                .coerceIn(textPaint.textSize, chartHeight - labelPadding)
-                            drawContext.canvas.nativeCanvas.drawText(
-                                "${item.count}",
-                                x + barWidth / 2,
-                                labelY,
-                                textPaint
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Month labels with adaptive step
-            val labelStep = (filledData.size / 6).coerceAtLeast(1)
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                filledData.forEachIndexed { index, item ->
-                    if (index % labelStep == 0 || index == filledData.lastIndex) {
-                        val ym = runCatching { YearMonth.parse(item.yearMonth) }.getOrNull()
-                        val label = ym?.format(MONTH_LABEL_FORMATTER) ?: item.yearMonth.takeLast(2)
-                        Text(
-                            text = label,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                options.forEachIndexed { index, label ->
+                    SegmentedButton(
+                        selected = selectedIndex == index,
+                        onClick = { selectedIndex = index },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = options.size
                         )
-                    } else {
-                        Spacer(modifier = Modifier.width(1.dp))
+                    ) {
+                        Text(label, style = MaterialTheme.typography.labelSmall)
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            val displayData = if (selectedIndex == 0) {
+                // Last 12 months: fill in missing months with 0
+                val now = YearMonth.now()
+                val last12 = (11 downTo 0).map { now.minusMonths(it.toLong()) }
+                val countMap = monthlyCounts.associate { it.month to it.count }
+                last12.map { ym ->
+                    val key = ym.format(DateTimeFormatter.ofPattern("yyyy-MM"))
+                    MonthlyCount(key, countMap[key] ?: 0)
+                }
+            } else {
+                monthlyCounts
+            }
+
+            if (selectedIndex == 1 && displayData.size > 12) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                ) {
+                    MonthlyBarChart(
+                        data = displayData,
+                        modifier = Modifier
+                            .width((displayData.size * 40).dp)
+                            .height(180.dp)
+                    )
+                }
+            } else {
+                MonthlyBarChart(
+                    data = displayData,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(180.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonthlyBarChart(data: List<MonthlyCount>, modifier: Modifier = Modifier) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val outlineColor = MaterialTheme.colorScheme.outline
+    val labelColor = MaterialTheme.colorScheme.onSurface
+
+    Canvas(modifier = modifier) {
+        if (data.isEmpty()) return@Canvas
+
+        val maxCount = data.maxOf { it.count }.coerceAtLeast(1)
+        val barSpacing = 4.dp.toPx()
+        val bottomPadding = 24.dp.toPx()
+        val topPadding = 20.dp.toPx()
+        val chartHeight = size.height - bottomPadding - topPadding
+        val barWidth = (size.width - barSpacing * (data.size + 1)) / data.size
+
+        // Label paint for count labels above bars
+        val countLabelPaint = Paint().apply {
+            color = labelColor.toArgb()
+            textSize = 10.dp.toPx()
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT
+            isAntiAlias = true
+        }
+
+        // Month label paint
+        val monthLabelPaint = Paint().apply {
+            color = outlineColor.toArgb()
+            textSize = 8.dp.toPx()
+            textAlign = Paint.Align.CENTER
+            isAntiAlias = true
+        }
+
+        data.forEachIndexed { index, item ->
+            val x = barSpacing + index * (barWidth + barSpacing)
+            val barHeight = if (maxCount > 0) (item.count.toFloat() / maxCount) * chartHeight else 0f
+            val barTop = topPadding + chartHeight - barHeight
+
+            // Draw bar
+            if (item.count > 0) {
+                drawRect(
+                    color = primaryColor,
+                    topLeft = Offset(x, barTop),
+                    size = Size(barWidth, barHeight)
+                )
+
+                // Draw count label above bar (#2)
+                drawContext.canvas.nativeCanvas.drawText(
+                    "${item.count}",
+                    x + barWidth / 2,
+                    barTop - 4.dp.toPx(),
+                    countLabelPaint
+                )
+            }
+
+            // Draw month label below
+            val monthLabel = if (item.month.length >= 7) {
+                item.month.substring(5, 7)
+            } else {
+                item.month
+            }
+            drawContext.canvas.nativeCanvas.drawText(
+                monthLabel,
+                x + barWidth / 2,
+                size.height - 4.dp.toPx(),
+                monthLabelPaint
+            )
+        }
+    }
+}
+
+// --- #1: Seat Class Breakdown ---
+
+@Composable
+private fun SeatClassBreakdown(seatClassCounts: List<SeatClassCount>, totalFlights: Int) {
+    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Seat Class",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            val totalWithClass = seatClassCounts.sumOf { it.count }
+
+            seatClassCounts.forEach { seatClass ->
+                val percentage = (seatClass.count.toFloat() / totalWithClass * 100)
+                val percentText = if (percentage > 0 && percentage < 1) {
+                    "<1%"
+                } else {
+                    "${percentage.toInt()}%"
+                }
+                val displayName = seatClassDisplayName(seatClass.seatClass)
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = displayName,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Text(
+                        text = "$percentText (${seatClass.count})",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
     }
 }
 
-// -- Top routes section -------------------------------------------------------
+private fun seatClassDisplayName(seatClass: String): String = when (seatClass) {
+    "economy" -> "Economy"
+    "premium_economy" -> "Premium Economy"
+    "business" -> "Business"
+    "first" -> "First"
+    else -> seatClass.replaceFirstChar { it.uppercase() }
+}
+
+// --- #3: Airlines Top List ---
 
 @Composable
-private fun TopRoutesSection(routes: List<RouteCount>) {
-    val maxCount = routes.maxOfOrNull { it.count } ?: 1
-    val barColor = MaterialTheme.colorScheme.primaryContainer
+private fun AirlinesTopList(airlines: List<AirlineCount>) {
+    val airlineIataMap = remember { AirlineIataMap() }
+
+    TopListSection(
+        title = "Top Airlines",
+        icon = Icons.Default.FlightTakeoff,
+        items = airlines.map { airline ->
+            val fullName = airlineIataMap.getAirlineName(airline.airlineCode)
+            val display = if (fullName != null) {
+                "${airline.airlineCode} \u2014 $fullName"
+            } else {
+                airline.airlineCode
+            }
+            display to airline.count
+        }
+    )
+}
+
+// --- #4: Longest Flight by Duration ---
+
+@Composable
+private fun LongestFlightByDurationCard(flight: LogbookFlight) {
+    LongestFlightCard(
+        title = "Longest Flight (Duration)",
+        flight = flight,
+        icon = Icons.Default.Schedule
+    )
+}
+
+@Composable
+private fun LongestFlightCard(
+    title: String,
+    flight: LogbookFlight,
+    icon: ImageVector
+) {
+    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
 
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Default.Route,
+                    imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Top Routes",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-
-            routes.take(5).forEach { route ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "${flight.departureCode} \u2192 ${flight.arrivalCode}",
+                style = MaterialTheme.typography.bodyLarge,
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.SemiBold
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (flight.distanceKm != null) {
                     Text(
-                        text = "${route.departureCode} \u2192 ${route.arrivalCode}",
+                        text = "${flight.distanceKm} km",
                         style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.width(120.dp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(modifier = Modifier.weight(1f)) {
-                        val fraction = route.count.toFloat() / maxCount
-                        Canvas(
-                            modifier = Modifier
-                                .fillMaxWidth(fraction)
-                                .height(20.dp)
-                        ) {
-                            drawRoundRect(
-                                color = barColor,
-                                size = size,
-                                cornerRadius = CornerRadius(4.dp.toPx())
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "${route.count}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.width(32.dp),
-                        textAlign = TextAlign.End
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
                     )
                 }
+                if (flight.durationMinutes != null) {
+                    val h = flight.durationMinutes / 60
+                    val m = flight.durationMinutes % 60
+                    Text(
+                        text = "${h}h ${m}m",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                Text(
+                    text = dateFormat.format(Date(flight.departureTimeMillis)),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (flight.flightNumber.isNotBlank()) {
+                Text(
+                    text = flight.flightNumber,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
             }
         }
     }
 }
 
-// -- Top list section ---------------------------------------------------------
+// --- #5: Top Routes ---
+
+@Composable
+private fun TopRoutesSection(routes: List<RouteCount>) {
+    TopListSection(
+        title = "Top Routes",
+        icon = Icons.Default.SyncAlt,
+        items = routes.map { it.label to it.count }
+    )
+}
+
+// --- Shared TopListSection ---
 
 @Composable
 private fun TopListSection(
     title: String,
     icon: ImageVector,
-    items: List<Pair<String, Int>>,
-    labelWidth: Dp = 48.dp
+    items: List<Pair<String, Int>>
 ) {
     ElevatedCard(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -580,330 +576,31 @@ private fun TopListSection(
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
             }
-            Spacer(modifier = Modifier.height(12.dp))
-
-            val maxCount = items.maxOfOrNull { it.second } ?: 1
-            val barColor = MaterialTheme.colorScheme.primaryContainer
-
+            Spacer(modifier = Modifier.height(8.dp))
             items.forEach { (label, count) ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = label,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        fontFamily = FontFamily.Monospace,
-                        modifier = Modifier.width(labelWidth),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(modifier = Modifier.weight(1f)) {
-                        val fraction = count.toFloat() / maxCount
-                        Canvas(
-                            modifier = Modifier
-                                .fillMaxWidth(fraction)
-                                .height(20.dp)
-                        ) {
-                            drawRoundRect(
-                                color = barColor,
-                                size = size,
-                                cornerRadius = CornerRadius(4.dp.toPx())
-                            )
-                        }
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "$count",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.width(32.dp),
-                        textAlign = TextAlign.End
-                    )
-                }
-            }
-        }
-    }
-}
-
-// -- Longest flight card (by distance) ----------------------------------------
-
-@Composable
-private fun LongestFlightCard(flight: LogbookFlight) {
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Longest Flight",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = flight.departureCode,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Icon(
-                    imageVector = Icons.Default.Flight,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .rotate(90f),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = flight.arrivalCode,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            flight.distanceNm?.let { nm ->
-                Text(
-                    text = "%,d NM".format(nm),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            if (flight.flightNumber.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = flight.flightNumber,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-// -- Longest flight card (by duration) ----------------------------------------
-
-@Composable
-private fun LongestFlightByDurationCard(flight: LogbookFlight) {
-    val durationText = remember(flight) {
-        val arrivalUtc = flight.arrivalTimeUtc ?: return@remember "\u2014"
-        val durationMs = arrivalUtc - flight.departureTimeUtc
-        if (durationMs <= 0) return@remember "\u2014"
-        val totalMinutes = durationMs / 60_000
-        val hours = totalMinutes / 60
-        val minutes = totalMinutes % 60
-        if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
-    }
-
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = "Longest Flight by Time",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = flight.departureCode,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Icon(
-                    imageVector = Icons.Default.Flight,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .rotate(90f),
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = flight.arrivalCode,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = durationText,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            if (flight.flightNumber.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = flight.flightNumber,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-}
-
-// -- Seat class breakdown (with Largest Remainder rounding fix) ----------------
-
-@Composable
-private fun SeatClassBreakdown(data: List<LabelCount>) {
-    val total = data.sumOf { it.count }.coerceAtLeast(1)
-    val colors = listOf(
-        MaterialTheme.colorScheme.primary,
-        MaterialTheme.colorScheme.secondary,
-        MaterialTheme.colorScheme.tertiary,
-        MaterialTheme.colorScheme.primaryContainer,
-        MaterialTheme.colorScheme.secondaryContainer
-    )
-
-    // Largest Remainder Method for % rounding to exactly 100%
-    val finalPcts = remember(data, total) {
-        val rawPcts = data.map { (it.count * 100.0) / total }
-        val floored = rawPcts.map { it.toInt() }
-        val remainders = rawPcts.mapIndexed { i, raw -> raw - floored[i] }
-        val deficit = 100 - floored.sum()
-        val sortedIndices = remainders.indices.sortedByDescending { remainders[it] }
-        val result = floored.toMutableList()
-        sortedIndices.take(deficit).forEach { result[it]++ }
-        result
-    }
-
-    ElevatedCard(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = "Seat Class",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text(
-                text = "of flights with seat class recorded",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Stacked horizontal bar
-            val barColors = data.mapIndexed { index, _ -> colors[index % colors.size] }
-            Canvas(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(24.dp)
-            ) {
-                var xOffset = 0f
-                data.forEachIndexed { index, item ->
-                    val segmentWidth = (item.count.toFloat() / total) * size.width
-                    drawRect(
-                        color = barColors[index],
-                        topLeft = Offset(xOffset, 0f),
-                        size = Size(segmentWidth, size.height)
-                    )
-                    xOffset += segmentWidth
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Legend
-            data.forEachIndexed { index, item ->
-                val pct = finalPcts[index]
-                Row(
-                    modifier = Modifier.padding(vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Canvas(modifier = Modifier.size(12.dp)) {
-                        drawRect(color = barColors[index], size = size)
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = item.label,
+                        text = "$label ($count)",
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f)
                     )
-                    Text(
-                        text = "${item.count} ($pct%)",
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
                 }
             }
-        }
-    }
-}
-
-// -- Empty state --------------------------------------------------------------
-
-@Composable
-private fun StatisticsEmptyState(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.BarChart,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.outlineVariant
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "No statistics yet",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "Add flights to your logbook to see your statistics here.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.outline,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 40.dp)
-            )
         }
     }
 }

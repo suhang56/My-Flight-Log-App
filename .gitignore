@@ -26,11 +26,6 @@ Thumbs.db
 # Env
 .env
 .env.local
+
+# Claude
 .claude/
-
-# Firebase
-app/google-services.json
-
-# Signing
-*.jks
-*.keystore

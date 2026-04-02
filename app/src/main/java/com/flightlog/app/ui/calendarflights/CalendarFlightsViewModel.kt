@@ -1,10 +1,7 @@
 package com.flightlog.app.ui.calendarflights
 
-import android.Manifest
 import android.app.Application
 import android.content.ContentResolver
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.local.entity.CalendarFlight
@@ -17,12 +14,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+
+// -- ViewModel --
 
 @HiltViewModel
 class CalendarFlightsViewModel @Inject constructor(
@@ -37,18 +38,6 @@ class CalendarFlightsViewModel @Inject constructor(
 
     /** Observed by the screen to decide which UI surface to render. */
     val permissionState: StateFlow<PermissionState> = _permissionState.asStateFlow()
-
-    init {
-        val alreadyGranted = ContextCompat.checkSelfPermission(
-            application,
-            Manifest.permission.READ_CALENDAR
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (alreadyGranted) {
-            _permissionState.value = PermissionState.Granted
-            performSync(application.contentResolver)
-        }
-    }
 
     // -- Refreshing indicator --
 
@@ -69,6 +58,25 @@ class CalendarFlightsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(CalendarFlightsUiState())
     val uiState: StateFlow<CalendarFlightsUiState> = _uiState.asStateFlow()
+
+    val visibleCount: StateFlow<Int> = repository.getVisibleCount()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    val filteredFlights: StateFlow<List<CalendarFlight>> =
+        combine(
+            upcomingFlights,
+            pastFlights,
+            _uiState.map { it.searchQuery }
+        ) { upcoming, past, query ->
+            val all = (upcoming + past).distinctBy { it.id }
+            if (query.isBlank()) all
+            else all.filter { flight ->
+                flight.flightNumber.contains(query, ignoreCase = true) ||
+                    flight.departureCode.contains(query, ignoreCase = true) ||
+                    flight.arrivalCode.contains(query, ignoreCase = true) ||
+                    flight.rawTitle.contains(query, ignoreCase = true)
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // -- Public API --
 
@@ -111,54 +119,64 @@ class CalendarFlightsViewModel @Inject constructor(
     }
 
     fun selectFlight(flight: CalendarFlight) {
-        _uiState.update { it.copy(selectedFlight = flight, showDetailSheet = true) }
+        _uiState.update {
+            it.copy(
+                selectedFlight = flight,
+                drawerAnchor = DrawerAnchor.HALF_EXPANDED
+            )
+        }
+    }
+
+    fun onFlightCardTapped(flight: CalendarFlight) {
+        selectFlight(flight)
+    }
+
+    fun onMapTapped() {
+        _uiState.update {
+            it.copy(selectedFlight = null, drawerAnchor = DrawerAnchor.COLLAPSED)
+        }
+    }
+
+    fun setDrawerAnchor(anchor: DrawerAnchor) {
+        _uiState.update { state ->
+            if (anchor == DrawerAnchor.COLLAPSED) {
+                state.copy(drawerAnchor = anchor, selectedFlight = null)
+            } else {
+                state.copy(drawerAnchor = anchor)
+            }
+        }
+    }
+
+    fun onSearchQueryChanged(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
     }
 
     fun dismissDetailSheet() {
-        _uiState.update { it.copy(showDetailSheet = false, selectedFlight = null) }
+        _uiState.update { it.copy(drawerAnchor = DrawerAnchor.COLLAPSED, selectedFlight = null) }
     }
 
     fun dismissFlight(id: Long) {
         viewModelScope.launch {
             repository.dismiss(id)
-            _uiState.update { it.copy(showDetailSheet = false, selectedFlight = null) }
+            _uiState.update {
+                it.copy(drawerAnchor = DrawerAnchor.COLLAPSED, selectedFlight = null)
+            }
         }
     }
 
-    fun addToLogbook(flight: CalendarFlight) {
-        viewModelScope.launch {
-            try {
-                val alreadyLogged = logbookRepository.isAlreadyLogged(flight)
-                if (alreadyLogged) {
-                    _uiState.update {
-                        it.copy(
-                            syncMessage = "This flight is already in your logbook",
-                            showDetailSheet = false,
-                            selectedFlight = null
-                        )
-                    }
-                    return@launch
-                }
-                logbookRepository.addFromCalendarFlight(flight)
-                _uiState.update {
-                    it.copy(
-                        syncMessage = "Added to logbook",
-                        showDetailSheet = false,
-                        selectedFlight = null
-                    )
-                }
-            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                _uiState.update {
-                    it.copy(
-                        syncMessage = "Failed to add flight: ${e.message}",
-                        showDetailSheet = false,
-                        selectedFlight = null
-                    )
-                }
-            }
+    // -- Logbook integration --
+
+    suspend fun addToLogbook(calendarFlight: CalendarFlight): Boolean {
+        return try {
+            logbookRepository.addFromCalendarFlight(calendarFlight)
+            true
+        } catch (_: Exception) {
+            false
         }
+    }
+
+    suspend fun isAlreadyLogged(calendarEventId: Long): Boolean {
+        return logbookRepository.isAlreadyLogged(calendarEventId)
     }
 
     // -- Private helpers --

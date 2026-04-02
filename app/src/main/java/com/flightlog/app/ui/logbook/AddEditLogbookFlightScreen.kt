@@ -1,7 +1,6 @@
 package com.flightlog.app.ui.logbook
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,35 +8,24 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -54,24 +42,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import java.time.Instant
-import java.time.LocalDate
-import java.time.LocalTime
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
 import java.util.Locale
-
-private val DISPLAY_DATE_FORMATTER = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.getDefault())
-private val DISPLAY_TIME_FORMATTER = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
-
-private val SEAT_CLASS_OPTIONS = listOf("", "Economy", "Premium Economy", "Business", "First")
+import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -79,69 +57,27 @@ fun AddEditLogbookFlightScreen(
     onNavigateBack: () -> Unit,
     viewModel: AddEditLogbookFlightViewModel = hiltViewModel()
 ) {
-    val form by viewModel.form.collectAsState()
-    val departureSuggestions by viewModel.departureSuggestions.collectAsState()
-    val arrivalSuggestions by viewModel.arrivalSuggestions.collectAsState()
-    var showDeleteConfirmation by remember { mutableStateOf(false) }
+    val formState by viewModel.formState.collectAsState()
 
-    LaunchedEffect(form.savedSuccessfully) {
-        if (form.savedSuccessfully) onNavigateBack()
+    LaunchedEffect(formState.isSaved) {
+        if (formState.isSaved) onNavigateBack()
     }
 
-    form.duplicateWarning?.let { warning ->
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissDuplicateWarning() },
-            title = { Text("Possible duplicate") },
-            text = { Text(warning) },
-            confirmButton = {
-                TextButton(onClick = { viewModel.confirmSaveDespiteDuplicate() }) {
-                    Text("Save Anyway")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissDuplicateWarning() }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
+    var showDatePicker by remember { mutableStateOf(false) }
+    var showDepartureTimePicker by remember { mutableStateOf(false) }
+    var showArrivalTimePicker by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
-    if (showDeleteConfirmation) {
-        AlertDialog(
-            onDismissRequest = { showDeleteConfirmation = false },
-            title = { Text("Delete flight?") },
-            text = { Text("This will permanently remove the flight from your logbook.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDeleteConfirmation = false
-                    viewModel.delete()
-                }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteConfirmation = false }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
+    val dateFormat = remember { SimpleDateFormat("MMM d, yyyy", Locale.getDefault()) }
+    val timeFormat = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (form.isEditMode) "Edit Flight" else "Add Flight") },
+                title = { Text(if (formState.isEditMode) "Edit Flight" else "Add Flight") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                actions = {
-                    TextButton(
-                        onClick = { viewModel.save() },
-                        enabled = !form.isSaving && !form.isSearching
-                    ) {
-                        Text("Save")
                     }
                 }
             )
@@ -155,461 +91,290 @@ fun AddEditLogbookFlightScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // Flight Search section (add mode only)
-            if (!form.isEditMode) {
-                Text(
-                    "Flight Search",
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary
+            // Airport codes row
+            Row(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = formState.departureCode,
+                    onValueChange = viewModel::updateDepartureCode,
+                    label = { Text("Departure") },
+                    placeholder = { Text("NRT") },
+                    isError = formState.departureCodeError != null,
+                    supportingText = formState.departureCodeError?.let { { Text(it) } },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
                 )
+                Spacer(modifier = Modifier.width(12.dp))
+                OutlinedTextField(
+                    value = formState.arrivalCode,
+                    onValueChange = viewModel::updateArrivalCode,
+                    label = { Text("Arrival") },
+                    placeholder = { Text("HND") },
+                    isError = formState.arrivalCodeError != null,
+                    supportingText = formState.arrivalCodeError?.let { { Text(it) } },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.Top
-                ) {
-                    OutlinedTextField(
-                        value = form.flightSearchQuery,
-                        onValueChange = { viewModel.updateFlightSearchQuery(it) },
-                        label = { Text("Flight No.") },
-                        placeholder = { Text("JL5") },
-                        singleLine = true,
-                        enabled = !form.isSearching,
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Characters,
-                            imeAction = ImeAction.Search
-                        ),
-                        keyboardActions = KeyboardActions(
-                            onSearch = { viewModel.searchFlight() }
-                        ),
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    DatePickerField(
-                        date = form.flightSearchDate,
-                        onDateSelected = { viewModel.updateFlightSearchDate(it) },
-                        label = "Date",
-                        enabled = !form.isSearching,
-                        modifier = Modifier.weight(1f)
-                    )
-
-                    if (form.isSearching) {
-                        Box(
-                            modifier = Modifier.size(48.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(24.dp),
-                                strokeWidth = 2.dp
-                            )
-                        }
-                    } else {
-                        FilledIconButton(
-                            onClick = { viewModel.searchFlight() },
-                            enabled = form.flightSearchQuery.isNotBlank(),
-                            modifier = Modifier.size(48.dp)
-                        ) {
-                            Icon(Icons.Default.Search, contentDescription = "Search flight")
+            // Date picker
+            OutlinedTextField(
+                value = formState.departureDateMillis?.let { dateFormat.format(Date(it)) } ?: "",
+                onValueChange = {},
+                label = { Text("Departure Date") },
+                readOnly = true,
+                isError = formState.departureDateError != null,
+                supportingText = formState.departureDateError?.let { { Text(it) } },
+                modifier = Modifier.fillMaxWidth(),
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }.also { source ->
+                    LaunchedEffect(source) {
+                        source.interactions.collect { interaction ->
+                            if (interaction is androidx.compose.foundation.interaction.PressInteraction.Release) {
+                                showDatePicker = true
+                            }
                         }
                     }
                 }
+            )
 
-                form.searchError?.let { error ->
-                    Text(
-                        text = error,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                if (form.autoFillApplied) {
-                    AssistChip(
-                        onClick = { viewModel.dismissAutoFillBanner() },
-                        label = { Text("Auto-filled from flight data") },
-                        trailingIcon = {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Dismiss",
-                                modifier = Modifier.size(18.dp)
-                            )
-                        },
-                        colors = AssistChipDefaults.assistChipColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer,
-                            labelColor = MaterialTheme.colorScheme.onSecondaryContainer
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 4.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
+            // Time pickers row
+            Row(modifier = Modifier.fillMaxWidth()) {
+                OutlinedTextField(
+                    value = formState.departureTimeMillis?.let { timeFormat.format(Date(it)) } ?: "",
+                    onValueChange = {},
+                    label = { Text("Dep. Time") },
+                    readOnly = true,
+                    modifier = Modifier.weight(1f),
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }.also { source ->
+                        LaunchedEffect(source) {
+                            source.interactions.collect { interaction ->
+                                if (interaction is androidx.compose.foundation.interaction.PressInteraction.Release) {
+                                    showDepartureTimePicker = true
+                                }
+                            }
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.width(12.dp))
+                OutlinedTextField(
+                    value = formState.arrivalTimeMillis?.let { timeFormat.format(Date(it)) } ?: "",
+                    onValueChange = {},
+                    label = { Text("Arr. Time") },
+                    readOnly = true,
+                    modifier = Modifier.weight(1f),
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }.also { source ->
+                        LaunchedEffect(source) {
+                            source.interactions.collect { interaction ->
+                                if (interaction is androidx.compose.foundation.interaction.PressInteraction.Release) {
+                                    showArrivalTimePicker = true
+                                }
+                            }
+                        }
+                    }
                 )
             }
 
-            // Route section
-            Text("Route", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                AirportAutocompleteField(
-                    value = form.departureCode,
-                    onValueChange = { if (it.length <= 3) viewModel.updateDepartureCode(it) },
-                    suggestions = departureSuggestions,
-                    onAirportSelected = { viewModel.selectDepartureAirport(it) },
-                    onDismissSuggestions = { viewModel.dismissDepartureSuggestions() },
-                    label = "From",
-                    placeholder = "ORD",
-                    isError = form.departureCodeError != null,
-                    errorText = form.departureCodeError,
-                    enabled = !form.isSearching,
-                    modifier = Modifier.weight(1f)
-                )
-                AirportAutocompleteField(
-                    value = form.arrivalCode,
-                    onValueChange = { if (it.length <= 3) viewModel.updateArrivalCode(it) },
-                    suggestions = arrivalSuggestions,
-                    onAirportSelected = { viewModel.selectArrivalAirport(it) },
-                    onDismissSuggestions = { viewModel.dismissArrivalSuggestions() },
-                    label = "To",
-                    placeholder = "CMH",
-                    isError = form.arrivalCodeError != null,
-                    errorText = form.arrivalCodeError,
-                    enabled = !form.isSearching,
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
+            // Flight number
             OutlinedTextField(
-                value = form.flightNumber,
-                onValueChange = { viewModel.updateFlightNumber(it) },
+                value = formState.flightNumber,
+                onValueChange = viewModel::updateFlightNumber,
                 label = { Text("Flight Number") },
-                placeholder = { Text("AA11") },
+                placeholder = { Text("NH211") },
                 singleLine = true,
-                enabled = !form.isSearching,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Characters,
-                    imeAction = ImeAction.Next
-                ),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Date & Time section
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Date & Time", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-
-            DatePickerField(
-                date = form.date,
-                onDateSelected = { viewModel.updateDate(it) },
-                label = "Date",
-                enabled = !form.isSearching
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                TimePickerField(
-                    time = form.departureTime,
-                    onTimeSelected = { viewModel.updateDepartureTime(it) },
-                    label = "Departure",
-                    modifier = Modifier.weight(1f)
-                )
-                TimePickerField(
-                    time = form.arrivalTime,
-                    onTimeSelected = { viewModel.updateArrivalTime(it) },
-                    label = "Arrival",
-                    modifier = Modifier.weight(1f)
-                )
-            }
-
-            // Details section
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Details", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-
+            // Aircraft type
             OutlinedTextField(
-                value = form.aircraftType,
-                onValueChange = { viewModel.updateAircraftType(it) },
+                value = formState.aircraftType,
+                onValueChange = viewModel::updateAircraftType,
                 label = { Text("Aircraft Type") },
-                placeholder = { Text("Boeing 737-800") },
+                placeholder = { Text("B787-9") },
                 singleLine = true,
-                enabled = !form.isSearching,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth()
             )
 
+            // Seat class dropdown
             SeatClassDropdown(
-                selected = form.seatClass,
-                onSelected = { viewModel.updateSeatClass(it) }
+                selectedClass = formState.seatClass,
+                onClassSelected = viewModel::updateSeatClass
             )
 
+            // Seat number
             OutlinedTextField(
-                value = form.seatNumber,
-                onValueChange = { viewModel.updateSeatNumber(it) },
+                value = formState.seatNumber,
+                onValueChange = viewModel::updateSeatNumber,
                 label = { Text("Seat Number") },
                 placeholder = { Text("12A") },
                 singleLine = true,
-                enabled = !form.isSearching,
-                keyboardOptions = KeyboardOptions(
-                    capitalization = KeyboardCapitalization.Characters,
-                    imeAction = ImeAction.Next
-                ),
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Notes section
-            Spacer(modifier = Modifier.height(4.dp))
-            Text("Notes", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
-
+            // Notes
             OutlinedTextField(
-                value = form.notes,
-                onValueChange = { viewModel.updateNotes(it) },
+                value = formState.notes,
+                onValueChange = viewModel::updateNotes,
                 label = { Text("Notes") },
-                placeholder = { Text("Add any notes about this flight...") },
-                enabled = !form.isSearching,
-                minLines = 3,
-                maxLines = 5,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                maxLines = 5
             )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Save button
+            Button(
+                onClick = viewModel::saveFlight,
+                enabled = !formState.isSaving,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(if (formState.isEditMode) "Update Flight" else "Save Flight")
+            }
 
             // Delete button (edit mode only)
-            if (form.isEditMode) {
-                Spacer(modifier = Modifier.height(8.dp))
+            if (formState.isEditMode) {
                 OutlinedButton(
-                    onClick = { showDeleteConfirmation = true },
+                    onClick = { showDeleteDialog = true },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    ),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.error
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Delete Flight", color = MaterialTheme.colorScheme.error)
+                    Text("Delete Flight")
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
-}
 
-// ── Date picker field ───────────────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun DatePickerField(
-    date: LocalDate,
-    onDateSelected: (LocalDate) -> Unit,
-    label: String,
-    enabled: Boolean = true,
-    modifier: Modifier = Modifier.fillMaxWidth()
-) {
-    var showDialog by remember { mutableStateOf(false) }
-
-    val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-    )
-
-    LaunchedEffect(date) {
-        datePickerState.selectedDateMillis = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
-    }
-
-    OutlinedTextField(
-        value = date.format(DISPLAY_DATE_FORMATTER),
-        onValueChange = {},
-        label = { Text(label) },
-        readOnly = true,
-        enabled = enabled,
-        trailingIcon = {
-            IconButton(onClick = { showDialog = true }, enabled = enabled) {
-                Icon(Icons.Default.CalendarMonth, contentDescription = "Pick date")
-            }
-        },
-        modifier = modifier
-    )
-
-    if (showDialog) {
+    // Date picker dialog
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState(
+            initialSelectedDateMillis = formState.departureDateMillis
+        )
         DatePickerDialog(
-            onDismissRequest = { showDialog = false },
+            onDismissRequest = { showDatePicker = false },
             confirmButton = {
                 TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        val selected = Instant.ofEpochMilli(millis)
-                            .atZone(ZoneOffset.UTC)
-                            .toLocalDate()
-                        onDateSelected(selected)
-                    }
-                    showDialog = false
+                    viewModel.updateDepartureDate(datePickerState.selectedDateMillis)
+                    showDatePicker = false
                 }) { Text("OK") }
             },
             dismissButton = {
-                TextButton(onClick = { showDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
             }
         ) {
             DatePicker(state = datePickerState)
         }
     }
-}
 
-// ── Time picker field ───────────────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun TimePickerField(
-    time: LocalTime?,
-    onTimeSelected: (LocalTime) -> Unit,
-    label: String,
-    modifier: Modifier = Modifier
-) {
-    var showDialog by remember { mutableStateOf(false) }
-
-    val displayTime = time ?: LocalTime.of(12, 0)
-    val timePickerState = rememberTimePickerState(
-        initialHour = displayTime.hour,
-        initialMinute = displayTime.minute,
-        is24Hour = true
-    )
-
-    OutlinedTextField(
-        value = time?.format(DISPLAY_TIME_FORMATTER) ?: "",
-        onValueChange = {},
-        label = { Text(label) },
-        placeholder = { Text("HH:mm") },
-        readOnly = true,
-        trailingIcon = {
-            IconButton(onClick = { showDialog = true }) {
-                Icon(Icons.Default.Schedule, contentDescription = "Pick time")
-            }
-        },
-        modifier = modifier
-    )
-
-    if (showDialog) {
+    // Departure time picker dialog
+    if (showDepartureTimePicker) {
         TimePickerDialog(
-            onDismiss = { showDialog = false },
-            onConfirm = {
-                onTimeSelected(LocalTime.of(timePickerState.hour, timePickerState.minute))
-                showDialog = false
+            onDismiss = { showDepartureTimePicker = false },
+            onConfirm = { hour, minute ->
+                val baseDate = formState.departureDateMillis ?: System.currentTimeMillis()
+                val cal = Calendar.getInstance().apply {
+                    timeInMillis = baseDate
+                    set(Calendar.HOUR_OF_DAY, hour)
+                    set(Calendar.MINUTE, minute)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                viewModel.updateDepartureTime(cal.timeInMillis)
+                showDepartureTimePicker = false
             }
-        ) {
-            TimePicker(state = timePickerState)
-        }
+        )
+    }
+
+    // Arrival time picker dialog
+    if (showArrivalTimePicker) {
+        TimePickerDialog(
+            onDismiss = { showArrivalTimePicker = false },
+            onConfirm = { hour, minute ->
+                val baseDate = formState.departureDateMillis ?: System.currentTimeMillis()
+                val cal = Calendar.getInstance().apply {
+                    timeInMillis = baseDate
+                    set(Calendar.HOUR_OF_DAY, hour)
+                    set(Calendar.MINUTE, minute)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                viewModel.updateArrivalTime(cal.timeInMillis)
+                showArrivalTimePicker = false
+            }
+        )
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Flight") },
+            text = { Text("Are you sure you want to delete this flight? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteDialog = false
+                        viewModel.deleteFlight()
+                    }
+                ) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
-// ── Time picker dialog wrapper ──────────────────────────────────────────────────
-
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TimePickerDialog(
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit,
-    content: @Composable () -> Unit
+    onConfirm: (hour: Int, minute: Int) -> Unit
 ) {
-    androidx.compose.material3.AlertDialog(
+    val timePickerState = rememberTimePickerState()
+
+    AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text("OK") }
+            TextButton(onClick = { onConfirm(timePickerState.hour, timePickerState.minute) }) {
+                Text("OK")
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
-        text = { content() }
+        text = {
+            TimePicker(state = timePickerState)
+        }
     )
 }
-
-// ── Airport autocomplete field ──────────────────────────────────────────────────
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AirportAutocompleteField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    suggestions: List<com.flightlog.app.data.local.entity.Airport>,
-    onAirportSelected: (com.flightlog.app.data.local.entity.Airport) -> Unit,
-    onDismissSuggestions: () -> Unit,
-    label: String,
-    placeholder: String,
-    isError: Boolean,
-    errorText: String?,
-    enabled: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val expanded = suggestions.isNotEmpty()
-
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { if (!it) onDismissSuggestions() },
-        modifier = modifier
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            label = { Text(label) },
-            placeholder = { Text(placeholder) },
-            isError = isError,
-            supportingText = errorText?.let { err -> { Text(err) } },
-            singleLine = true,
-            enabled = enabled,
-            keyboardOptions = KeyboardOptions(
-                capitalization = KeyboardCapitalization.Characters,
-                imeAction = ImeAction.Next
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .menuAnchor(MenuAnchorType.PrimaryEditable)
-        )
-        ExposedDropdownMenu(
-            expanded = expanded,
-            onDismissRequest = onDismissSuggestions
-        ) {
-            suggestions.forEach { airport ->
-                DropdownMenuItem(
-                    text = {
-                        Column {
-                            Text(
-                                text = "${airport.iata} — ${airport.city}",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
-                            Text(
-                                text = airport.name,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    },
-                    onClick = { onAirportSelected(airport) }
-                )
-            }
-        }
-    }
-}
-
-// ── Seat class dropdown ─────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SeatClassDropdown(
-    selected: String,
-    onSelected: (String) -> Unit
+    selectedClass: String,
+    onClassSelected: (String) -> Unit
 ) {
+    val options = listOf("" to "Not specified", "economy" to "Economy", "premium_economy" to "Premium Economy", "business" to "Business", "first" to "First")
     var expanded by remember { mutableStateOf(false) }
+    val displayText = options.find { it.first == selectedClass }?.second ?: "Not specified"
 
     ExposedDropdownMenuBox(
         expanded = expanded,
-        onExpandedChange = { expanded = !expanded }
+        onExpandedChange = { expanded = it }
     ) {
         OutlinedTextField(
-            value = selected.ifEmpty { "Not specified" },
+            value = displayText,
             onValueChange = {},
-            label = { Text("Seat Class") },
             readOnly = true,
+            label = { Text("Seat Class") },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -619,11 +384,11 @@ private fun SeatClassDropdown(
             expanded = expanded,
             onDismissRequest = { expanded = false }
         ) {
-            SEAT_CLASS_OPTIONS.forEach { option ->
+            options.forEach { (value, label) ->
                 DropdownMenuItem(
-                    text = { Text(option.ifEmpty { "Not specified" }) },
+                    text = { Text(label) },
                     onClick = {
-                        onSelected(option)
+                        onClassSelected(value)
                         expanded = false
                     }
                 )
