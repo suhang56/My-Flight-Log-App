@@ -28,9 +28,10 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val application: Application,
     private val calendarRepository: CalendarRepository,
-    private val logbookRepository: LogbookRepository,
-    private val clock: () -> Long = { System.currentTimeMillis() }
+    private val logbookRepository: LogbookRepository
 ) : AndroidViewModel(application) {
+
+    internal var clock: () -> Long = { System.currentTimeMillis() }
 
     private val _permissionState = MutableStateFlow<PermissionState>(PermissionState.NotRequested)
     val permissionState: StateFlow<PermissionState> = _permissionState.asStateFlow()
