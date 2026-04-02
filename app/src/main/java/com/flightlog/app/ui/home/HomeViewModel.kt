@@ -28,7 +28,8 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val application: Application,
     private val calendarRepository: CalendarRepository,
-    private val logbookRepository: LogbookRepository
+    private val logbookRepository: LogbookRepository,
+    private val clock: () -> Long = { System.currentTimeMillis() }
 ) : AndroidViewModel(application) {
 
     private val _permissionState = MutableStateFlow<PermissionState>(PermissionState.NotRequested)
@@ -54,7 +55,7 @@ class HomeViewModel @Inject constructor(
         _searchQuery
     ) { calendarFlights, logbookFlights, permState, refreshing, query ->
         val merged = UnifiedFlightItem.merge(calendarFlights, logbookFlights)
-        val now = System.currentTimeMillis()
+        val now = clock()
 
         val filtered = if (query.isBlank()) merged else {
             val q = query.trim().lowercase()
@@ -73,7 +74,8 @@ class HomeViewModel @Inject constructor(
             pastItems = past,
             isRefreshing = refreshing,
             permissionState = permState,
-            searchQuery = query
+            searchQuery = query,
+            routeSegments = HomeUiState.computeRouteSegments(upcoming, past)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 

@@ -253,27 +253,27 @@ class UnifiedFlightItemTest {
         assertEquals("HND", result[0].arrivalCode)
     }
 
-    // ── HomeUiState: routeSegments ───────────────────────────────────────────
+    // ── HomeUiState: computeRouteSegments ──────────────────────────────────
 
     @Test
-    fun `routeSegments empty when no items`() {
-        val state = HomeUiState()
-        assertTrue(state.routeSegments.isEmpty())
+    fun `computeRouteSegments empty when no items`() {
+        val segments = HomeUiState.computeRouteSegments(emptyList(), emptyList())
+        assertTrue(segments.isEmpty())
     }
 
     @Test
-    fun `routeSegments skips items with blank codes`() {
+    fun `computeRouteSegments skips items with blank codes`() {
         val items = listOf(
             UnifiedFlightItem.FromCalendar(
                 calendarFlight(id = 1, calendarEventId = 100, depCode = "", arrCode = "")
             )
         )
-        val state = HomeUiState(upcomingItems = items)
-        assertTrue(state.routeSegments.isEmpty())
+        val segments = HomeUiState.computeRouteSegments(items, emptyList())
+        assertTrue(segments.isEmpty())
     }
 
     @Test
-    fun `routeSegments de-duplicates same route`() {
+    fun `computeRouteSegments de-duplicates same route`() {
         val items = listOf(
             UnifiedFlightItem.FromCalendar(
                 calendarFlight(id = 1, calendarEventId = 100, depCode = "HND", arrCode = "LHR", scheduledTime = 2000L)
@@ -282,14 +282,14 @@ class UnifiedFlightItemTest {
                 logbookFlight(id = 2, depCode = "HND", arrCode = "LHR", departureTimeUtc = 1000L)
             )
         )
-        val state = HomeUiState(upcomingItems = items)
-        assertEquals(1, state.routeSegments.size)
-        assertEquals("HND", state.routeSegments[0].departureCode)
-        assertEquals("LHR", state.routeSegments[0].arrivalCode)
+        val segments = HomeUiState.computeRouteSegments(items, emptyList())
+        assertEquals(1, segments.size)
+        assertEquals("HND", segments[0].departureCode)
+        assertEquals("LHR", segments[0].arrivalCode)
     }
 
     @Test
-    fun `routeSegments highlights next upcoming route`() {
+    fun `computeRouteSegments highlights next upcoming route`() {
         val upcoming = listOf(
             UnifiedFlightItem.FromCalendar(
                 calendarFlight(id = 1, calendarEventId = 100, depCode = "NRT", arrCode = "SFO", scheduledTime = 2000L)
@@ -303,10 +303,8 @@ class UnifiedFlightItemTest {
                 logbookFlight(id = 3, depCode = "HND", arrCode = "NRT", departureTimeUtc = 500L)
             )
         )
-        val state = HomeUiState(upcomingItems = upcoming, pastItems = past)
-        val segments = state.routeSegments
+        val segments = HomeUiState.computeRouteSegments(upcoming, past)
         assertEquals(3, segments.size)
-        // NRT->SFO is earliest upcoming, should be highlighted
         val highlighted = segments.filter { it.isHighlighted }
         assertEquals(1, highlighted.size)
         assertEquals("NRT", highlighted[0].departureCode)
@@ -314,14 +312,13 @@ class UnifiedFlightItemTest {
     }
 
     @Test
-    fun `routeSegments no highlight when no upcoming items`() {
+    fun `computeRouteSegments no highlight when no upcoming items`() {
         val past = listOf(
             UnifiedFlightItem.FromLogbook(
                 logbookFlight(id = 1, depCode = "HND", arrCode = "LHR", departureTimeUtc = 500L)
             )
         )
-        val state = HomeUiState(pastItems = past)
-        val segments = state.routeSegments
+        val segments = HomeUiState.computeRouteSegments(emptyList(), past)
         assertEquals(1, segments.size)
         assertTrue(segments.none { it.isHighlighted })
     }

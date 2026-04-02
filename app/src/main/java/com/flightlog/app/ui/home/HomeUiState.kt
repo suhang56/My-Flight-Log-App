@@ -7,10 +7,14 @@ data class HomeUiState(
     val pastItems: List<UnifiedFlightItem> = emptyList(),
     val isRefreshing: Boolean = false,
     val permissionState: PermissionState = PermissionState.NotRequested,
-    val searchQuery: String = ""
+    val searchQuery: String = "",
+    val routeSegments: List<RouteSegment> = emptyList()
 ) {
-    val routeSegments: List<RouteSegment>
-        get() {
+    companion object {
+        fun computeRouteSegments(
+            upcomingItems: List<UnifiedFlightItem>,
+            pastItems: List<UnifiedFlightItem>
+        ): List<RouteSegment> {
             val nextRoute = upcomingItems
                 .sortedBy { it.sortKey }
                 .firstOrNull { it.departureCode.isNotBlank() && it.arrivalCode.isNotBlank() }
@@ -28,4 +32,5 @@ data class HomeUiState(
                     )
                 }
         }
+    }
 }

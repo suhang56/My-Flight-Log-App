@@ -97,8 +97,8 @@ fun HomeScreen(
 
     LaunchedEffect(syncMessage) {
         syncMessage?.let { msg ->
-            viewModel.clearSyncMessage()
             snackbarHostState.showSnackbar(msg)
+            viewModel.clearSyncMessage()
         }
     }
 
@@ -266,10 +266,9 @@ private fun SheetContent(
                     ) { item ->
                         UnifiedFlightCard(
                             item = item,
-                            onClick = {
-                                if (item is UnifiedFlightItem.FromLogbook) {
-                                    onViewLogbookFlight(item.flight.id)
-                                }
+                            onClick = when (item) {
+                                is UnifiedFlightItem.FromLogbook -> ({ onViewLogbookFlight(item.flight.id) })
+                                is UnifiedFlightItem.FromCalendar -> null
                             }
                         )
                     }
@@ -285,10 +284,9 @@ private fun SheetContent(
                     ) { item ->
                         UnifiedFlightCard(
                             item = item,
-                            onClick = {
-                                if (item is UnifiedFlightItem.FromLogbook) {
-                                    onViewLogbookFlight(item.flight.id)
-                                }
+                            onClick = when (item) {
+                                is UnifiedFlightItem.FromLogbook -> ({ onViewLogbookFlight(item.flight.id) })
+                                is UnifiedFlightItem.FromCalendar -> null
                             }
                         )
                     }
@@ -349,10 +347,11 @@ private fun SectionHeader(title: String, count: Int) {
 @Composable
 private fun UnifiedFlightCard(
     item: UnifiedFlightItem,
-    onClick: () -> Unit
+    onClick: (() -> Unit)?
 ) {
     ElevatedCard(
-        onClick = onClick,
+        onClick = onClick ?: {},
+        enabled = onClick != null,
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
