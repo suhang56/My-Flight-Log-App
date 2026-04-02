@@ -28,6 +28,8 @@ robolectric = "4.14.1"
 playServicesAuth = "21.2.0"
 googleApiClient = "2.2.0"
 googleDriveApi = "v3-rev20240521-2.0.0"
+mapsCompose = "6.4.1"
+playServicesMaps = "19.0.0"
 googleServices = "4.4.4"
 
 [libraries]
@@ -77,6 +79,8 @@ androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-co
 play-services-auth = { group = "com.google.android.gms", name = "play-services-auth", version.ref = "playServicesAuth" }
 google-api-client-android = { group = "com.google.api-client", name = "google-api-client-android", version.ref = "googleApiClient" }
 google-api-services-drive = { group = "com.google.apis", name = "google-api-services-drive", version.ref = "googleDriveApi" }
+maps-compose = { group = "com.google.maps.android", name = "maps-compose", version.ref = "mapsCompose" }
+play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

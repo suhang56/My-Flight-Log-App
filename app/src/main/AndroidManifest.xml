@@ -15,6 +15,10 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.FlightLog">
 
+        <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="${MAPS_API_KEY}" />
+
         <!-- Disable default WorkManager initializer; we provide our own via Hilt -->
         <provider
             android:name="androidx.startup.InitializationProvider"

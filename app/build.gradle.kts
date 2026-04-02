@@ -25,6 +25,8 @@ android {
             "FLIGHTAWARE_API_KEY",
             "\"${project.findProperty("FLIGHTAWARE_API_KEY") ?: ""}\""
         )
+
+        manifestPlaceholders["MAPS_API_KEY"] = project.findProperty("MAPS_API_KEY") as String? ?: ""
     }
 
     signingConfigs {
@@ -139,6 +141,10 @@ dependencies {
 
     // Firebase Auth
     implementation("com.google.firebase:firebase-auth-ktx:23.2.0")
+
+    // Google Maps
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
 
     // Core library desugaring for java.time on older APIs
     coreLibraryDesugaring(libs.desugar.jdk.libs)
