@@ -2,6 +2,7 @@ package com.flightlog.app.ui.auth
 
 import android.app.Activity
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,16 +23,16 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -79,165 +80,194 @@ fun LoginScreen(
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHostState) }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 24.dp)
-                .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Spacer(modifier = Modifier.height(64.dp))
-
-            Icon(
-                Icons.Default.Flight,
-                contentDescription = null,
-                modifier = Modifier.size(64.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Text(
-                text = "Flight Log",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Text(
-                text = "Sign in to sync your flights across devices",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            // Google Sign-In button
-            OutlinedButton(
-                onClick = { /* Google sign-in handled via activity result */ },
-                enabled = !isLoading,
-                modifier = Modifier.fillMaxWidth()
+    Surface(
+        modifier = Modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.surface
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // "Skip for now" top-end
+            TextButton(
+                onClick = onNavigateBack,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 48.dp, end = 8.dp)
             ) {
-                Text("Sign in with Google")
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // GitHub Sign-In button
-            OutlinedButton(
-                onClick = {
-                    val activity = context as? Activity
-                    if (activity != null) {
-                        viewModel.signInWithGitHub(activity)
-                    }
-                },
-                enabled = !isLoading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text("Sign in with GitHub")
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
-            ) {
-                HorizontalDivider(modifier = Modifier.weight(1f))
                 Text(
-                    text = "or",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+                    text = "Skip for now",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                HorizontalDivider(modifier = Modifier.weight(1f))
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Email field
-            OutlinedTextField(
-                value = uiState.email,
-                onValueChange = viewModel::onEmailChange,
-                label = { Text("Email") },
-                leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Email,
-                    imeAction = ImeAction.Next
-                ),
-                enabled = !isLoading,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Password field
-            OutlinedTextField(
-                value = uiState.password,
-                onValueChange = viewModel::onPasswordChange,
-                label = { Text("Password") },
-                singleLine = true,
-                visualTransformation = if (passwordVisible) VisualTransformation.None
-                    else PasswordVisualTransformation(),
-                trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(
-                            if (passwordVisible) Icons.Default.VisibilityOff
-                            else Icons.Default.Visibility,
-                            contentDescription = if (passwordVisible) "Hide password" else "Show password"
-                        )
-                    }
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done
-                ),
-                keyboardActions = KeyboardActions(onDone = { viewModel.signInWithEmail() }),
-                enabled = !isLoading,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = { viewModel.signInWithEmail() },
-                enabled = !isLoading,
-                modifier = Modifier.fillMaxWidth()
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 32.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
+                Spacer(modifier = Modifier.height(96.dp))
+
+                Icon(
+                    Icons.Default.Flight,
+                    contentDescription = null,
+                    modifier = Modifier.size(96.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Text(
+                    text = "Sign in to Flight Log",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text(
+                    text = "Sync your flights across devices with cloud backup",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+
+                Spacer(modifier = Modifier.height(40.dp))
+
+                // Google Sign-In -- FilledTonalButton
+                FilledTonalButton(
+                    onClick = { /* Google sign-in handled via activity result */ },
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.Email,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
+                    Text("Sign in with Google")
                 }
-                Text(if (uiState.isCreateAccount) "Create Account" else "Sign In")
-            }
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-            TextButton(onClick = { viewModel.toggleCreateAccount() }) {
-                Text(
-                    if (uiState.isCreateAccount) "Already have an account? Sign in"
-                    else "Don't have an account? Create one"
+                // GitHub Sign-In -- FilledTonalButton
+                FilledTonalButton(
+                    onClick = {
+                        val activity = context as? Activity
+                        if (activity != null) {
+                            viewModel.signInWithGitHub(activity)
+                        }
+                    },
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        Icons.Default.Email,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Sign in with GitHub")
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "or",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Email field
+                OutlinedTextField(
+                    value = uiState.email,
+                    onValueChange = viewModel::onEmailChange,
+                    label = { Text("Email") },
+                    leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth()
                 )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Password field
+                OutlinedTextField(
+                    value = uiState.password,
+                    onValueChange = viewModel::onPasswordChange,
+                    label = { Text("Password") },
+                    singleLine = true,
+                    visualTransformation = if (passwordVisible) VisualTransformation.None
+                        else PasswordVisualTransformation(),
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                if (passwordVisible) Icons.Default.VisibilityOff
+                                else Icons.Default.Visibility,
+                                contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(onDone = { viewModel.signInWithEmail() }),
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = { viewModel.signInWithEmail() },
+                    enabled = !isLoading,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Text(if (uiState.isCreateAccount) "Create Account" else "Sign In")
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                TextButton(onClick = { viewModel.toggleCreateAccount() }) {
+                    Text(
+                        if (uiState.isCreateAccount) "Already have an account? Sign in"
+                        else "Don't have an account? Create one"
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            TextButton(onClick = onNavigateBack) {
-                Text("Skip for now")
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
         }
     }
 }

@@ -10,7 +10,6 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.flightlog.app.data.auth.AuthRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
@@ -19,22 +18,11 @@ import dagger.assisted.AssistedInject
 class AutoBackupWorker @AssistedInject constructor(
     @Assisted appContext: Context,
     @Assisted params: WorkerParameters,
-    private val driveBackupService: DriveBackupService,
-    private val authRepository: AuthRepository
+    private val driveBackupService: DriveBackupService
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val user = authRepository.currentUser.value
-        if (user == null) {
-            Log.d(TAG, "No signed-in user, skipping auto-backup")
-            return Result.success()
-        }
-        if (!user.isGoogleProvider) {
-            Log.d(TAG, "Non-Google user, skipping auto-backup")
-            return Result.success()
-        }
-
-        return when (val result = driveBackupService.backup(user)) {
+        return when (val result = driveBackupService.backup()) {
             is BackupResult.Success -> {
                 Log.d(TAG, "Auto-backup succeeded: ${result.flightCount} flights")
                 Result.success()

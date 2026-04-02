@@ -62,7 +62,7 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(isBackingUp = true) }
 
         viewModelScope.launch {
-            when (val result = driveBackupService.backup(user)) {
+            when (val result = driveBackupService.backup()) {
                 is BackupResult.Success -> {
                     _uiState.update {
                         it.copy(
@@ -90,7 +90,7 @@ class SettingsViewModel @Inject constructor(
         _uiState.update { it.copy(isRestoring = true) }
 
         viewModelScope.launch {
-            when (val result = driveBackupService.restore(user)) {
+            when (val result = driveBackupService.restore()) {
                 is RestoreResult.Success -> {
                     _uiState.update {
                         it.copy(

@@ -3,7 +3,7 @@ package com.flightlog.app.data.backup
 import android.content.Context
 import android.util.Log
 import com.flightlog.app.BuildConfig
-import com.flightlog.app.data.auth.AuthUser
+import com.flightlog.app.data.auth.AuthRepository
 import com.flightlog.app.data.export.ExportService
 import com.flightlog.app.data.export.LogbookFlightExportWrapper
 import com.flightlog.app.data.local.entity.LogbookFlight
@@ -39,12 +39,13 @@ class DriveBackupService @Inject constructor(
     private val exportService: ExportService,
     private val repository: LogbookRepository,
     private val moshi: Moshi,
-    private val metadataStore: BackupMetadataStore
+    private val metadataStore: BackupMetadataStore,
+    private val authRepository: AuthRepository
 ) {
 
-    suspend fun backup(user: AuthUser): BackupResult = withContext(Dispatchers.IO) {
+    suspend fun backup(): BackupResult = withContext(Dispatchers.IO) {
         try {
-            val driveService = buildDriveService(user)
+            val driveService = buildDriveService()
                 ?: return@withContext BackupResult.Failure("Drive backup requires Google sign-in")
 
             val flights = repository.getAllOnce()
@@ -86,9 +87,9 @@ class DriveBackupService @Inject constructor(
         }
     }
 
-    suspend fun restore(user: AuthUser): RestoreResult = withContext(Dispatchers.IO) {
+    suspend fun restore(): RestoreResult = withContext(Dispatchers.IO) {
         try {
-            val driveService = buildDriveService(user)
+            val driveService = buildDriveService()
                 ?: return@withContext RestoreResult.Failure("Drive backup requires Google sign-in")
 
             val fileId = findBackupFileId(driveService)
@@ -136,9 +137,9 @@ class DriveBackupService @Inject constructor(
         }
     }
 
-    suspend fun getRemoteMetadata(user: AuthUser): BackupMetadata? = withContext(Dispatchers.IO) {
+    suspend fun getRemoteMetadata(): BackupMetadata? = withContext(Dispatchers.IO) {
         try {
-            val driveService = buildDriveService(user) ?: return@withContext null
+            val driveService = buildDriveService() ?: return@withContext null
             val fileId = findBackupFileId(driveService) ?: return@withContext null
 
             val file = driveService.files().get(fileId)
@@ -166,7 +167,8 @@ class DriveBackupService @Inject constructor(
         }
     }
 
-    private fun buildDriveService(user: AuthUser): Drive? {
+    private fun buildDriveService(): Drive? {
+        val user = authRepository.currentUser.value ?: return null
         if (!user.isGoogleProvider) return null
         val email = user.email ?: return null
 

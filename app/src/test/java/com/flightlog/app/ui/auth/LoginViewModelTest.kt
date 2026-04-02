@@ -295,4 +295,92 @@ class LoginViewModelTest {
         viewModel.clearError()
         assertTrue(viewModel.uiState.value.authState is AuthUiState.Idle)
     }
+
+    // -- GitHub OAuth cancelled mid-flow --
+
+    @Test
+    fun `GitHub cancelled returns clean error, not stuck loading`() = runTest {
+        val activity = mockk<Activity>()
+        coEvery { authRepository.signInWithGitHub(any()) } returns
+            Result.failure(RuntimeException("User cancelled the sign-in flow"))
+
+        viewModel.signInWithGitHub(activity)
+
+        // Should be Loading immediately
+        assertTrue(viewModel.uiState.value.authState is AuthUiState.Loading)
+
+        advanceUntilIdle()
+
+        // Should transition to Error, not remain Loading
+        val state = viewModel.uiState.value
+        assertTrue(state.authState is AuthUiState.Error)
+        assertTrue((state.authState as AuthUiState.Error).message.contains("cancelled"))
+    }
+
+    // -- Network offline --
+
+    @Test
+    fun `network offline during email sign-in shows error`() = runTest {
+        coEvery { authRepository.signInWithEmail(any(), any()) } returns
+            Result.failure(java.net.UnknownHostException("Unable to resolve host"))
+
+        viewModel.onEmailChange("test@example.com")
+        viewModel.onPasswordChange("password123")
+        viewModel.signInWithEmail()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.authState is AuthUiState.Error)
+        assertTrue((state.authState as AuthUiState.Error).message.contains("resolve host"))
+    }
+
+    @Test
+    fun `network offline during Google sign-in shows error`() = runTest {
+        coEvery { authRepository.signInWithGoogle(any()) } returns
+            Result.failure(java.net.UnknownHostException("Network unavailable"))
+
+        viewModel.signInWithGoogle("token")
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.authState is AuthUiState.Error)
+        assertTrue((state.authState as AuthUiState.Error).message.contains("Network unavailable"))
+    }
+
+    // -- Account linking conflict --
+
+    @Test
+    fun `same email Google and GitHub shows linking error`() = runTest {
+        val activity = mockk<Activity>()
+        coEvery { authRepository.signInWithGitHub(any()) } returns
+            Result.failure(RuntimeException(
+                "An account already exists with the same email address but different sign-in credentials"
+            ))
+
+        viewModel.signInWithGitHub(activity)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertTrue(state.authState is AuthUiState.Error)
+        assertTrue((state.authState as AuthUiState.Error).message.contains("already exists"))
+    }
+
+    // -- Loading state transitions --
+
+    @Test
+    fun `sign-in sets Loading then transitions to final state`() = runTest {
+        coEvery { authRepository.signInWithEmail(any(), any()) } returns Result.success(testUser)
+
+        viewModel.onEmailChange("test@example.com")
+        viewModel.onPasswordChange("password123")
+        viewModel.signInWithEmail()
+
+        // Should be Loading before coroutine completes
+        assertTrue(viewModel.uiState.value.authState is AuthUiState.Loading)
+
+        advanceUntilIdle()
+
+        // Should be Success after completion
+        assertTrue(viewModel.uiState.value.authState is AuthUiState.Success)
+    }
 }
