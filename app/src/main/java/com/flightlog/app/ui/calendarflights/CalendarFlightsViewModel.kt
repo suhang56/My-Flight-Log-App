@@ -1,7 +1,10 @@
 package com.flightlog.app.ui.calendarflights
 
+import android.Manifest
 import android.app.Application
 import android.content.ContentResolver
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.local.entity.CalendarFlight
@@ -34,6 +37,18 @@ class CalendarFlightsViewModel @Inject constructor(
 
     /** Observed by the screen to decide which UI surface to render. */
     val permissionState: StateFlow<PermissionState> = _permissionState.asStateFlow()
+
+    init {
+        val alreadyGranted = ContextCompat.checkSelfPermission(
+            application,
+            Manifest.permission.READ_CALENDAR
+        ) == PackageManager.PERMISSION_GRANTED
+
+        if (alreadyGranted) {
+            _permissionState.value = PermissionState.Granted
+            performSync(application.contentResolver)
+        }
+    }
 
     // -- Refreshing indicator --
 
