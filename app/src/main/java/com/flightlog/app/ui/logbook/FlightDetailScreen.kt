@@ -238,7 +238,7 @@ fun FlightDetailScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         HorizontalDivider()
                         Spacer(modifier = Modifier.height(16.dp))
-                        NotesSection(notes = flight.notes!!)
+                        NotesSection(notes = flight.notes.orEmpty())
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
@@ -457,7 +457,7 @@ private fun FlightInfoSection(flight: LogbookFlight) {
         InfoRow(label = "Flight", value = flight.flightNumber)
     }
     if (!flight.aircraftType.isNullOrBlank()) {
-        InfoRow(label = "Aircraft", value = flight.aircraftType!!)
+        InfoRow(label = "Aircraft", value = flight.aircraftType.orEmpty())
     }
     flight.distanceKm?.let { km ->
         InfoRow(label = "Distance", value = "%,d km".format(km))
@@ -496,10 +496,10 @@ private fun InfoRow(label: String, value: String) {
 @Composable
 private fun SeatInfoSection(flight: LogbookFlight) {
     if (!flight.seatClass.isNullOrBlank()) {
-        InfoRow(label = "Seat Class", value = flight.seatClass!!)
+        InfoRow(label = "Seat Class", value = flight.seatClass.orEmpty())
     }
     if (!flight.seatNumber.isNullOrBlank()) {
-        InfoRow(label = "Seat Number", value = flight.seatNumber!!)
+        InfoRow(label = "Seat Number", value = flight.seatNumber.orEmpty())
     }
 }
 

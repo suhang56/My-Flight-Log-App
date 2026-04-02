@@ -135,12 +135,13 @@ class AddEditLogbookFlightViewModel @Inject constructor(
         viewModelScope.launch {
             val depTz = AirportTimezoneMap.getTimezone(state.departureCode)
             val zoneId = if (depTz != null) ZoneId.of(depTz) else ZoneId.systemDefault()
-            val departureDateEpochDay = Instant.ofEpochMilli(state.departureDateMillis!!)
+            val departureDateMillis = state.departureDateMillis ?: return@launch
+            val departureDateEpochDay = Instant.ofEpochMilli(departureDateMillis)
                 .atZone(zoneId)
                 .toLocalDate()
                 .toEpochDay()
 
-            val departureTimeMillis = state.departureTimeMillis ?: state.departureDateMillis
+            val departureTimeMillis = state.departureTimeMillis ?: departureDateMillis
 
             val durationMinutes = if (state.arrivalTimeMillis != null && state.arrivalTimeMillis > departureTimeMillis) {
                 ((state.arrivalTimeMillis - departureTimeMillis) / 60_000).toInt()

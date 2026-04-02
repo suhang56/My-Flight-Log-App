@@ -17,7 +17,6 @@ import com.flightlog.app.R
 import com.flightlog.app.data.airport.AirportCoordinatesMap
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.google.android.gms.maps.CameraUpdateFactory
-import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
@@ -101,8 +100,9 @@ internal fun FlightMapView(
         selectedRoute?.let { setOf(it.depCode, it.arrCode) } ?: emptySet()
     }
 
-    // Marker bitmaps
-    val unselectedMarkerIcon = remember(density) {
+    // Pre-create raw bitmaps outside GoogleMap; wrap with BitmapDescriptorFactory
+    // inside the map content where the Maps SDK is guaranteed to be initialized.
+    val unselectedMarkerBitmap = remember(density) {
         createCircleBitmap(
             radiusDp = 4f,
             color = MARKER_COLOR_WHITE.toArgb(),
@@ -110,7 +110,7 @@ internal fun FlightMapView(
         )
     }
 
-    val selectedMarkerIcon = remember(density) {
+    val selectedMarkerBitmap = remember(density) {
         createCircleBitmap(
             radiusDp = 5f,
             color = ROUTE_COLOR_PRIMARY.toArgb(),
@@ -182,6 +182,14 @@ internal fun FlightMapView(
         uiSettings = mapUiSettings,
         onMapClick = { onMapTapped() }
     ) {
+        // BitmapDescriptorFactory is only safe inside GoogleMap content
+        val unselectedMarkerIcon = remember(unselectedMarkerBitmap) {
+            BitmapDescriptorFactory.fromBitmap(unselectedMarkerBitmap)
+        }
+        val selectedMarkerIcon = remember(selectedMarkerBitmap) {
+            BitmapDescriptorFactory.fromBitmap(selectedMarkerBitmap)
+        }
+
         // Draw polylines
         routes.forEach { route ->
             val isSelected = route.flightId == selectedFlight?.id
@@ -243,7 +251,7 @@ private fun createCircleBitmap(
     density: Float,
     strokeColor: Int? = null,
     strokeWidth: Float = 0f
-): BitmapDescriptor {
+): Bitmap {
     val radiusPx = (radiusDp * density).toInt().coerceAtLeast(1)
     val totalStroke = if (strokeColor != null) (strokeWidth * density).toInt() else 0
     val size = (radiusPx + totalStroke) * 2
@@ -266,5 +274,5 @@ private fun createCircleBitmap(
     }
     canvas.drawCircle(cx, cy, radiusPx.toFloat(), fillPaint)
 
-    return BitmapDescriptorFactory.fromBitmap(bitmap)
+    return bitmap
 }
