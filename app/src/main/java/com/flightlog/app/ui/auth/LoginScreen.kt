@@ -58,6 +58,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
+import com.google.android.gms.common.api.Scope
+import com.google.api.services.drive.DriveScopes
 
 @Suppress("DEPRECATION")
 @Composable
@@ -166,6 +168,7 @@ fun LoginScreen(
                         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
                             .requestIdToken(webClientId)
                             .requestEmail()
+                            .requestScopes(Scope(DriveScopes.DRIVE_APPDATA))
                             .build()
                         val googleSignInClient = GoogleSignIn.getClient(context, gso)
                         googleSignInLauncher.launch(googleSignInClient.signInIntent)

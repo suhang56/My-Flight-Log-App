@@ -128,7 +128,7 @@ interface LogbookFlightDao {
 
     @Query(
         """
-        SELECT strftime('%Y-%m', departureTimeMillis / 1000, 'unixepoch') AS month,
+        SELECT strftime('%Y-%m', departureDateEpochDay * 86400, 'unixepoch') AS month,
                COUNT(*) AS count
         FROM logbook_flights
         GROUP BY month

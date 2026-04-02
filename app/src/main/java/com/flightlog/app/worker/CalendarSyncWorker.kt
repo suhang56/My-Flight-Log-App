@@ -74,7 +74,7 @@ class CalendarSyncWorker @AssistedInject constructor(
          */
         fun enqueuePeriodicSync(context: Context) {
             val constraints = Constraints.Builder()
-                .setRequiredNetworkType(NetworkType.CONNECTED)
+                .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
                 .build()
 
             val request = PeriodicWorkRequestBuilder<CalendarSyncWorker>(

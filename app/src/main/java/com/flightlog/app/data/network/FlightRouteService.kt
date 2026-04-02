@@ -4,6 +4,9 @@ import java.time.LocalDate
 
 interface FlightRouteService {
     suspend fun lookupRoute(flightNumber: String, date: LocalDate): FlightRoute?
+
+    /** Returns all flights for the given ident on the given date (for disambiguation). */
+    suspend fun lookupAllRoutes(flightNumber: String, date: LocalDate): List<FlightRoute>
 }
 
 data class FlightRoute(

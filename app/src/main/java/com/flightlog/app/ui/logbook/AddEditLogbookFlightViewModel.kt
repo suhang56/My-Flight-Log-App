@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.airport.AirportCoordinatesMap
 import com.flightlog.app.data.airport.AirportTimezoneMap
 import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.data.network.FlightRoute
+import com.flightlog.app.data.network.FlightRouteService
 import com.flightlog.app.data.repository.LogbookRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,33 +18,61 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
+/** Lookup status for the FlightAware API call. */
+sealed interface LookupState {
+    data object Idle : LookupState
+    data object Loading : LookupState
+    data class Success(val route: FlightRoute) : LookupState
+    data class Disambiguate(val routes: List<FlightRoute>) : LookupState
+    data class Error(val message: String) : LookupState
+}
+
 data class LogbookFormState(
+    // -- User input (Step 1) --
+    val flightNumber: String = "",
+    val departureDateMillis: Long? = null,
+
+    // -- Auto-populated from API --
     val departureCode: String = "",
     val arrivalCode: String = "",
-    val departureDateMillis: Long? = null,
     val departureTimeMillis: Long? = null,
     val arrivalTimeMillis: Long? = null,
-    val flightNumber: String = "",
     val aircraftType: String = "",
+    val departureTimezone: String? = null,
+    val arrivalTimezone: String? = null,
+
+    // -- Personal details (user-editable) --
     val seatClass: String = "",
     val seatNumber: String = "",
     val notes: String = "",
+
+    // -- Lookup --
+    val lookupState: LookupState = LookupState.Idle,
+
+    // -- Edit mode --
     val isEditMode: Boolean = false,
     val editId: Long = 0,
     val sourceCalendarEventId: Long? = null,
+    val originalCreatedAt: Long? = null,
+
+    // -- Save --
     val isSaving: Boolean = false,
     val isSaved: Boolean = false,
-    val departureCodeError: String? = null,
-    val arrivalCodeError: String? = null,
+
+    // -- Validation --
+    val flightNumberError: String? = null,
     val departureDateError: String? = null
 )
 
 @HiltViewModel
 class AddEditLogbookFlightViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val repository: LogbookRepository
+    private val repository: LogbookRepository,
+    private val flightRouteService: FlightRouteService
 ) : ViewModel() {
 
     private val _formState = MutableStateFlow(LogbookFormState())
@@ -54,50 +84,34 @@ class AddEditLogbookFlightViewModel @Inject constructor(
             viewModelScope.launch {
                 val flight = repository.getById(flightId) ?: return@launch
                 _formState.value = LogbookFormState(
+                    flightNumber = flight.flightNumber,
+                    departureDateMillis = flight.departureTimeMillis,
                     departureCode = flight.departureCode,
                     arrivalCode = flight.arrivalCode,
-                    departureDateMillis = flight.departureTimeMillis,
                     departureTimeMillis = flight.departureTimeMillis,
                     arrivalTimeMillis = flight.arrivalTimeMillis,
-                    flightNumber = flight.flightNumber,
                     aircraftType = flight.aircraftType ?: "",
+                    departureTimezone = flight.departureTimezone,
+                    arrivalTimezone = flight.arrivalTimezone,
                     seatClass = flight.seatClass ?: "",
                     seatNumber = flight.seatNumber ?: "",
                     notes = flight.notes ?: "",
+                    lookupState = LookupState.Idle,
                     isEditMode = true,
                     editId = flight.id,
-                    sourceCalendarEventId = flight.sourceCalendarEventId
+                    sourceCalendarEventId = flight.sourceCalendarEventId,
+                    originalCreatedAt = flight.createdAt
                 )
             }
         }
     }
 
-    fun updateDepartureCode(value: String) {
-        _formState.update { it.copy(departureCode = value.uppercase().take(4), departureCodeError = null) }
-    }
-
-    fun updateArrivalCode(value: String) {
-        _formState.update { it.copy(arrivalCode = value.uppercase().take(4), arrivalCodeError = null) }
+    fun updateFlightNumber(value: String) {
+        _formState.update { it.copy(flightNumber = value.uppercase().trim(), flightNumberError = null) }
     }
 
     fun updateDepartureDate(millis: Long?) {
         _formState.update { it.copy(departureDateMillis = millis, departureDateError = null) }
-    }
-
-    fun updateDepartureTime(millis: Long?) {
-        _formState.update { it.copy(departureTimeMillis = millis) }
-    }
-
-    fun updateArrivalTime(millis: Long?) {
-        _formState.update { it.copy(arrivalTimeMillis = millis) }
-    }
-
-    fun updateFlightNumber(value: String) {
-        _formState.update { it.copy(flightNumber = value) }
-    }
-
-    fun updateAircraftType(value: String) {
-        _formState.update { it.copy(aircraftType = value) }
     }
 
     fun updateSeatClass(value: String) {
@@ -112,16 +126,26 @@ class AddEditLogbookFlightViewModel @Inject constructor(
         _formState.update { it.copy(notes = value) }
     }
 
-    fun saveFlight() {
+    // Allow manual override of auto-populated fields in edit mode
+    fun updateDepartureCode(value: String) {
+        _formState.update { it.copy(departureCode = value.uppercase().take(4)) }
+    }
+
+    fun updateArrivalCode(value: String) {
+        _formState.update { it.copy(arrivalCode = value.uppercase().take(4)) }
+    }
+
+    fun updateAircraftType(value: String) {
+        _formState.update { it.copy(aircraftType = value) }
+    }
+
+    /** Trigger API lookup with current flight number + date. */
+    fun lookupFlight() {
         val state = _formState.value
         var hasError = false
 
-        if (state.departureCode.length < 3) {
-            _formState.update { it.copy(departureCodeError = "Min 3 characters") }
-            hasError = true
-        }
-        if (state.arrivalCode.length < 3) {
-            _formState.update { it.copy(arrivalCodeError = "Min 3 characters") }
+        if (state.flightNumber.isBlank()) {
+            _formState.update { it.copy(flightNumberError = "Flight number required") }
             hasError = true
         }
         if (state.departureDateMillis == null) {
@@ -130,10 +154,94 @@ class AddEditLogbookFlightViewModel @Inject constructor(
         }
         if (hasError) return
 
+        _formState.update { it.copy(lookupState = LookupState.Loading) }
+
+        viewModelScope.launch {
+            val date = Instant.ofEpochMilli(state.departureDateMillis ?: return@launch)
+                .atZone(ZoneOffset.UTC)
+                .toLocalDate()
+
+            val routes = flightRouteService.lookupAllRoutes(state.flightNumber, date)
+
+            when {
+                routes.isEmpty() -> {
+                    _formState.update {
+                        it.copy(lookupState = LookupState.Error("No flights found for ${state.flightNumber} on this date"))
+                    }
+                }
+                routes.size == 1 -> {
+                    applyRoute(routes.first())
+                }
+                else -> {
+                    _formState.update {
+                        it.copy(lookupState = LookupState.Disambiguate(routes))
+                    }
+                }
+            }
+        }
+    }
+
+    /** User selects a specific flight from disambiguation list. */
+    fun selectRoute(route: FlightRoute) {
+        applyRoute(route)
+    }
+
+    private fun applyRoute(route: FlightRoute) {
+        _formState.update {
+            it.copy(
+                departureCode = route.departureIata,
+                arrivalCode = route.arrivalIata,
+                departureTimeMillis = route.departureScheduledUtc,
+                arrivalTimeMillis = route.arrivalScheduledUtc,
+                aircraftType = route.aircraftType ?: "",
+                departureTimezone = route.departureTimezone,
+                arrivalTimezone = route.arrivalTimezone,
+                lookupState = LookupState.Success(route)
+            )
+        }
+    }
+
+    /** Reset lookup to go back to Step 1 input. */
+    fun resetLookup() {
+        _formState.update {
+            it.copy(
+                lookupState = LookupState.Idle,
+                departureCode = "",
+                arrivalCode = "",
+                departureTimeMillis = null,
+                arrivalTimeMillis = null,
+                aircraftType = "",
+                departureTimezone = null,
+                arrivalTimezone = null
+            )
+        }
+    }
+
+    fun saveFlight() {
+        val state = _formState.value
+        var hasError = false
+
+        if (state.flightNumber.isBlank()) {
+            _formState.update { it.copy(flightNumberError = "Flight number required") }
+            hasError = true
+        }
+        if (state.departureDateMillis == null) {
+            _formState.update { it.copy(departureDateError = "Date required") }
+            hasError = true
+        }
+        if (state.departureCode.length < 3) {
+            hasError = true
+        }
+        if (state.arrivalCode.length < 3) {
+            hasError = true
+        }
+        if (hasError) return
+
         _formState.update { it.copy(isSaving = true) }
 
         viewModelScope.launch {
-            val depTz = AirportTimezoneMap.getTimezone(state.departureCode)
+            val depTz = state.departureTimezone
+                ?: AirportTimezoneMap.getTimezone(state.departureCode)
             val zoneId = if (depTz != null) ZoneId.of(depTz) else ZoneId.systemDefault()
             val departureDateMillis = state.departureDateMillis ?: return@launch
             val departureDateEpochDay = Instant.ofEpochMilli(departureDateMillis)
@@ -150,7 +258,8 @@ class AddEditLogbookFlightViewModel @Inject constructor(
             }
 
             val distanceKm = AirportCoordinatesMap.greatCircleKm(state.departureCode, state.arrivalCode)
-            val arrTz = AirportTimezoneMap.getTimezone(state.arrivalCode)
+            val arrTz = state.arrivalTimezone
+                ?: AirportTimezoneMap.getTimezone(state.arrivalCode)
             val now = System.currentTimeMillis()
 
             val flight = LogbookFlight(
@@ -170,7 +279,7 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                 seatNumber = state.seatNumber.ifBlank { null },
                 distanceKm = distanceKm,
                 notes = state.notes.ifBlank { null },
-                createdAt = if (state.isEditMode) now else now,
+                createdAt = if (state.isEditMode) (state.originalCreatedAt ?: now) else now,
                 updatedAt = now
             )
 
@@ -191,6 +300,15 @@ class AddEditLogbookFlightViewModel @Inject constructor(
             val flight = repository.getById(state.editId) ?: return@launch
             repository.delete(flight)
             _formState.update { it.copy(isSaved = true) }
+        }
+    }
+
+    companion object {
+        /** Format a UTC epoch millis to a local time string for display. */
+        fun formatUtcMillisToLocalTime(millis: Long, timezone: String?): String {
+            val zone = timezone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneId.systemDefault()
+            val zdt = Instant.ofEpochMilli(millis).atZone(zone)
+            return zdt.format(DateTimeFormatter.ofPattern("HH:mm"))
         }
     }
 }

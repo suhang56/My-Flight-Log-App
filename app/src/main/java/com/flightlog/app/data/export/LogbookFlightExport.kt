@@ -17,11 +17,15 @@ data class LogbookFlightExport(
     @Json(name = "departure_timezone") val departureTimezone: String?,
     @Json(name = "arrival_timezone") val arrivalTimezone: String?,
     @Json(name = "duration_minutes") val durationMinutes: Long?,
-    @Json(name = "distance_nm") val distanceNm: Int?,
+    @Json(name = "distance_km") val distanceKm: Int?,
     @Json(name = "aircraft_type") val aircraftType: String?,
     @Json(name = "seat_class") val seatClass: String?,
     @Json(name = "seat_number") val seatNumber: String?,
-    val notes: String?
+    val notes: String?,
+    @Json(name = "created_at") val createdAt: Long? = null,
+    @Json(name = "updated_at") val updatedAt: Long? = null,
+    /** Legacy field kept for backwards-compatible reading of old backups. */
+    @Json(name = "distance_nm") val distanceNmLegacy: Int? = null
 )
 
 @JsonClass(generateAdapter = true)

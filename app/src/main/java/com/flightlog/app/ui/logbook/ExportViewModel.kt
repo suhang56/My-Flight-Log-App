@@ -45,6 +45,8 @@ class ExportViewModel @Inject constructor(
                     file
                 )
                 _exportState.value = ExportState.Ready(uri, "text/csv")
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _exportState.value = ExportState.Error("Export failed. Please try again.")
             }
@@ -64,6 +66,8 @@ class ExportViewModel @Inject constructor(
                     file
                 )
                 _exportState.value = ExportState.Ready(uri, "application/json")
+            } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _exportState.value = ExportState.Error("Export failed. Please try again.")
             }

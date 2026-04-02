@@ -173,16 +173,21 @@ class DriveBackupService @Inject constructor(
         }
     }
 
+    @Suppress("DEPRECATION")
     private fun buildDriveService(): Drive? {
         val user = authRepository.currentUser.value ?: return null
         if (!user.isGoogleProvider) return null
-        val email = user.email ?: return null
+
+        // Use the GoogleSignIn account which holds the actual Account object
+        // registered with AccountManager -- required by GoogleAccountCredential.
+        val googleAccount = com.google.android.gms.auth.api.signin.GoogleSignIn
+            .getLastSignedInAccount(context) ?: return null
 
         val credential = GoogleAccountCredential.usingOAuth2(
             context,
             listOf(DriveScopes.DRIVE_APPDATA)
         )
-        credential.selectedAccountName = email
+        credential.selectedAccount = googleAccount.account ?: return null
 
         return Drive.Builder(
             NetHttpTransport(),

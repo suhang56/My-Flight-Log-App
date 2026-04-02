@@ -1,6 +1,7 @@
 package com.flightlog.app.data.calendar
 
 import com.flightlog.app.data.airport.AirportCoordinatesMap
+import com.flightlog.app.data.airport.AirportNameMap
 import com.flightlog.app.data.airport.AirportTimezoneMap
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -212,22 +213,7 @@ class FlightEventParser @Inject constructor(
      * Tries exact match first, then substring match on known airport names.
      */
     private fun resolveAirportName(name: String): String? {
-        val lower = name.lowercase().trim()
-
-        // Direct match
-        AIRPORT_NAME_MAP[lower]?.let { return it }
-
-        // Substring match: check if any known name appears in the input
-        for ((key, code) in AIRPORT_NAME_MAP) {
-            if (lower.contains(key)) return code
-        }
-
-        // Check if it's already a 3-letter IATA code
-        if (lower.length == 3 && lower.all { it.isLetter() }) {
-            return lower.uppercase()
-        }
-
-        return null
+        return AirportNameMap.resolve(name)
     }
 
     /** Returns true if at least one of the codes is a known airport. */

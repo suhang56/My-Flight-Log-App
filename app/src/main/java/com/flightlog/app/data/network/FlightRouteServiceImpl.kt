@@ -12,39 +12,43 @@ class FlightRouteServiceImpl @Inject constructor(
 ) : FlightRouteService {
 
     override suspend fun lookupRoute(flightNumber: String, date: LocalDate): FlightRoute? {
+        return lookupAllRoutes(flightNumber, date).firstOrNull()
+    }
+
+    override suspend fun lookupAllRoutes(flightNumber: String, date: LocalDate): List<FlightRoute> {
         return try {
             // Try IATA flight number first
-            val route = fetchRoute(flightNumber, date)
-            if (route != null) return route
+            val routes = fetchAllRoutes(flightNumber, date)
+            if (routes.isNotEmpty()) return routes
 
             // FlightAware uses ICAO identifiers internally; some IATA codes
             // don't auto-map (e.g., JL5 fails but JAL5 works). Retry with ICAO.
             val icaoIdent = AirlineIcaoMap.toIcaoFlightNumber(flightNumber)
             if (icaoIdent != null) {
                 Log.d(TAG, "IATA lookup empty for $flightNumber, retrying as $icaoIdent")
-                fetchRoute(icaoIdent, date, originalFlightNumber = flightNumber)
+                fetchAllRoutes(icaoIdent, date, originalFlightNumber = flightNumber)
             } else {
-                null
+                emptyList()
             }
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
             if (BuildConfig.DEBUG) Log.e(TAG, "Failed to look up route for $flightNumber", e)
             else Log.e(TAG, "Failed to look up route for $flightNumber")
-            null
+            emptyList()
         }
     }
 
     /**
-     * Performs a single API call and maps the result to a [FlightRoute].
+     * Performs a single API call and maps all valid results to [FlightRoute]s.
      * [originalFlightNumber] preserves the user-facing IATA flight number in the
-     * returned route even when the API was called with an ICAO identifier.
+     * returned routes even when the API was called with an ICAO identifier.
      */
-    private suspend fun fetchRoute(
+    private suspend fun fetchAllRoutes(
         ident: String,
         date: LocalDate,
         originalFlightNumber: String = ident
-    ): FlightRoute? {
+    ): List<FlightRoute> {
         val response = api.getFlights(
             ident = ident,
             start = date.toString()
@@ -52,23 +56,23 @@ class FlightRouteServiceImpl @Inject constructor(
 
         if (!response.isSuccessful) {
             Log.w(TAG, "API returned ${response.code()} for $ident")
-            return null
+            return emptyList()
         }
 
-        val flight = response.body()?.flights
-            ?.firstOrNull { it.origin?.codeIata != null && it.destination?.codeIata != null }
-            ?: return null
-
-        return FlightRoute(
-            flightNumber = originalFlightNumber,
-            departureIata = flight.origin?.codeIata ?: return null,
-            arrivalIata = flight.destination?.codeIata ?: return null,
-            departureTimezone = flight.origin?.timezone,
-            arrivalTimezone = flight.destination?.timezone,
-            departureScheduledUtc = parseIsoToUtc(flight.scheduledOut),
-            arrivalScheduledUtc = parseIsoToUtc(flight.scheduledIn),
-            aircraftType = flight.aircraftType?.takeIf { it.isNotBlank() }
-        )
+        return response.body()?.flights
+            ?.filter { it.origin?.codeIata != null && it.destination?.codeIata != null }
+            ?.mapNotNull { flight ->
+                FlightRoute(
+                    flightNumber = originalFlightNumber,
+                    departureIata = flight.origin?.codeIata ?: return@mapNotNull null,
+                    arrivalIata = flight.destination?.codeIata ?: return@mapNotNull null,
+                    departureTimezone = flight.origin?.timezone,
+                    arrivalTimezone = flight.destination?.timezone,
+                    departureScheduledUtc = parseIsoToUtc(flight.scheduledOut),
+                    arrivalScheduledUtc = parseIsoToUtc(flight.scheduledIn),
+                    aircraftType = flight.aircraftType?.takeIf { it.isNotBlank() }
+                )
+            } ?: emptyList()
     }
 
     companion object {
