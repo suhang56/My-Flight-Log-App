@@ -1,6 +1,8 @@
 package com.flightlog.app.ui.auth
 
 import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -53,6 +55,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
 @Composable
 fun LoginScreen(
@@ -65,6 +70,24 @@ fun LoginScreen(
     var passwordVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val isLoading = uiState.authState is AuthUiState.Loading
+
+    // Google Sign-In via ActivityResult
+    val googleSignInLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        try {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            val account = task.getResult(ApiException::class.java)
+            val idToken = account.idToken
+            if (idToken != null) {
+                viewModel.signInWithGoogle(idToken)
+            } else {
+                viewModel.clearError()
+            }
+        } catch (e: ApiException) {
+            viewModel.clearError()
+        }
+    }
 
     LaunchedEffect(uiState.authState) {
         when (val state = uiState.authState) {
@@ -137,7 +160,15 @@ fun LoginScreen(
 
                 // Google Sign-In -- FilledTonalButton
                 FilledTonalButton(
-                    onClick = { /* Google sign-in handled via activity result */ },
+                    onClick = {
+                        val webClientId = context.getString(com.flightlog.app.R.string.default_web_client_id)
+                        val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+                            .requestIdToken(webClientId)
+                            .requestEmail()
+                            .build()
+                        val googleSignInClient = GoogleSignIn.getClient(context, gso)
+                        googleSignInLauncher.launch(googleSignInClient.signInIntent)
+                    },
                     enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth()
                 ) {
