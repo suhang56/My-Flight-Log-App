@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
@@ -205,13 +206,18 @@ class CalendarFlightsViewModel @Inject constructor(
                     // Auto-log new synced flights to logbook
                     val autoLoggedCount = withContext(Dispatchers.IO) {
                         var count = 0
-                        val allFlights = (upcomingFlights.value + pastFlights.value).distinctBy { it.id }
+                        // Query repository directly for fresh data (not stale UI StateFlows)
+                        val upcoming = repository.upcomingFlights().first()
+                        val past = repository.pastFlights().first()
+                        val allFlights = (upcoming + past).distinctBy { it.id }
                         for (flight in allFlights) {
                             if (!logbookRepository.isAlreadyLogged(flight.calendarEventId)) {
                                 try {
                                     logbookRepository.addFromCalendarFlight(flight)
                                     count++
-                                } catch (_: Exception) { /* skip failures */ }
+                                } catch (e: Exception) {
+                                    if (e is kotlinx.coroutines.CancellationException) throw e
+                                }
                             }
                         }
                         count
