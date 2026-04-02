@@ -32,6 +32,7 @@ object DatabaseModule {
                 FlightDatabase.MIGRATION_2_3,
                 FlightDatabase.MIGRATION_3_4
             )
+            .fallbackToDestructiveMigration()
             .build()
     }
 
