@@ -25,6 +25,7 @@ import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.CameraPositionState
 import com.google.maps.android.compose.GoogleMap
 import com.google.maps.android.compose.MapProperties
+import com.google.maps.android.compose.MapType
 import com.google.maps.android.compose.MapUiSettings
 import com.google.maps.android.compose.Marker
 import com.google.maps.android.compose.MarkerState
@@ -160,7 +161,7 @@ internal fun FlightMapView(
 
     val mapProperties = remember(mapStyleOptions) {
         MapProperties(
-            mapStyleOptions = mapStyleOptions,
+            mapType = MapType.HYBRID,
             isBuildingEnabled = false,
             isIndoorEnabled = false
         )
