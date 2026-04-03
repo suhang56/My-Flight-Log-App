@@ -6,8 +6,10 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.data.network.AircraftTypePhotoProvider
 import com.flightlog.app.data.repository.CalendarRepository
 import com.flightlog.app.data.repository.LogbookRepository
+import com.flightlog.app.ui.logbook.AircraftPhotoState
 import com.flightlog.app.data.repository.SyncResult
 import com.flightlog.app.worker.CalendarSyncWorker
 import android.Manifest
@@ -101,6 +103,35 @@ class CalendarFlightsViewModel @Inject constructor(
                     flight.rawTitle.contains(query, ignoreCase = true)
             }
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    // -- Aircraft photo for drawer --
+
+    private val _aircraftPhotoState = MutableStateFlow(AircraftPhotoState())
+    val aircraftPhotoState: StateFlow<AircraftPhotoState> = _aircraftPhotoState.asStateFlow()
+
+    /**
+     * Looks up an aircraft photo by ICAO type code using the static provider.
+     * Called when a flight is selected in the drawer and has a linked LogbookFlight with aircraftType.
+     */
+    fun fetchAircraftPhoto(aircraftType: String?) {
+        if (aircraftType.isNullOrBlank()) {
+            _aircraftPhotoState.value = AircraftPhotoState()
+            return
+        }
+
+        val photoInfo = AircraftTypePhotoProvider.getPhotoForType(aircraftType)
+        _aircraftPhotoState.value = AircraftPhotoState(
+            photoUrl = photoInfo?.photoUrl,
+            photographer = photoInfo?.photographer
+        )
+    }
+
+    /**
+     * Resets the aircraft photo state — called when the drawer is dismissed or a different flight is selected.
+     */
+    fun clearAircraftPhoto() {
+        _aircraftPhotoState.value = AircraftPhotoState()
+    }
 
     // -- Public API --
 

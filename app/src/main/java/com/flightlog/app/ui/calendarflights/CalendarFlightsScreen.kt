@@ -30,6 +30,7 @@ fun CalendarFlightsScreen(
     val upcomingFlights by viewModel.upcomingFlights.collectAsState()
     val pastFlights by viewModel.pastFlights.collectAsState()
     val filteredFlights by viewModel.filteredFlights.collectAsState()
+    val aircraftPhotoState by viewModel.aircraftPhotoState.collectAsState()
     val context = LocalContext.current
 
     val snackbarHostState = remember { SnackbarHostState() }
@@ -127,6 +128,8 @@ fun CalendarFlightsScreen(
         },
         onSyncClick = { viewModel.onRefresh(context.contentResolver) },
         getLinkedLogbookFlight = { viewModel.getLinkedLogbookFlight(it) },
-        onRatingChanged = { id, rating -> viewModel.updateLinkedRating(id, rating) }
+        onRatingChanged = { id, rating -> viewModel.updateLinkedRating(id, rating) },
+        aircraftPhotoState = aircraftPhotoState,
+        onAircraftTypeResolved = { viewModel.fetchAircraftPhoto(it) }
     )
 }

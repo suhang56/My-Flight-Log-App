@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.ui.logbook.AircraftPhotoState
 
 @Composable
 internal fun MapFlightsScreen(
@@ -35,6 +36,8 @@ internal fun MapFlightsScreen(
     onSyncClick: () -> Unit,
     getLinkedLogbookFlight: suspend (Long) -> LogbookFlight?,
     onRatingChanged: (Long, Int?) -> Unit,
+    aircraftPhotoState: AircraftPhotoState = AircraftPhotoState(),
+    onAircraftTypeResolved: (String?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -73,7 +76,9 @@ internal fun MapFlightsScreen(
             onLogbookSuccess = onLogbookSuccess,
             onSyncClick = onSyncClick,
             getLinkedLogbookFlight = getLinkedLogbookFlight,
-            onRatingChanged = onRatingChanged
+            onRatingChanged = onRatingChanged,
+            aircraftPhotoState = aircraftPhotoState,
+            onAircraftTypeResolved = onAircraftTypeResolved
         )
     }
 }

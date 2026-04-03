@@ -4,11 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.data.network.AircraftTypePhotoProvider
 import com.flightlog.app.data.network.PlanespottersApi
 import com.flightlog.app.data.repository.AirportRepository
 import com.flightlog.app.data.repository.LogbookRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -95,28 +95,14 @@ class FlightDetailViewModel @Inject constructor(
         }
     }
 
-    fun fetchAircraftPhoto(registration: String?) {
-        if (registration.isNullOrBlank()) return
-        if (_aircraftPhotoState.value.isLoading || _aircraftPhotoState.value.photoUrl != null) return
+    fun fetchAircraftPhoto(aircraftType: String?) {
+        if (aircraftType.isNullOrBlank()) return
+        if (_aircraftPhotoState.value.photoUrl != null) return
 
-        viewModelScope.launch {
-            _aircraftPhotoState.value = AircraftPhotoState(isLoading = true)
-            try {
-                val response = planespottersApi.getPhotosByRegistration(registration)
-                if (response.isSuccessful) {
-                    val firstPhoto = response.body()?.photos?.firstOrNull()
-                    _aircraftPhotoState.value = AircraftPhotoState(
-                        photoUrl = firstPhoto?.thumbnailLarge?.src,
-                        photographer = firstPhoto?.photographer
-                    )
-                } else {
-                    _aircraftPhotoState.value = AircraftPhotoState()
-                }
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                _aircraftPhotoState.value = AircraftPhotoState()
-            }
-        }
+        val photoInfo = AircraftTypePhotoProvider.getPhotoForType(aircraftType)
+        _aircraftPhotoState.value = AircraftPhotoState(
+            photoUrl = photoInfo?.photoUrl,
+            photographer = photoInfo?.photographer
+        )
     }
 }

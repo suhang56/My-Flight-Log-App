@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.ui.logbook.AircraftPhotoState
 import androidx.compose.runtime.SideEffect
 import kotlin.math.roundToInt
 
@@ -82,6 +83,8 @@ internal fun FlightBottomDrawer(
     onSyncClick: () -> Unit,
     getLinkedLogbookFlight: suspend (Long) -> LogbookFlight?,
     onRatingChanged: (Long, Int?) -> Unit,
+    aircraftPhotoState: AircraftPhotoState = AircraftPhotoState(),
+    onAircraftTypeResolved: (String?) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current
@@ -210,7 +213,9 @@ internal fun FlightBottomDrawer(
                         isAlreadyLogged = isAlreadyLogged,
                         onLogbookSuccess = onLogbookSuccess,
                         getLinkedLogbookFlight = getLinkedLogbookFlight,
-                        onRatingChanged = onRatingChanged
+                        onRatingChanged = onRatingChanged,
+                        aircraftPhotoState = aircraftPhotoState,
+                        onAircraftTypeResolved = onAircraftTypeResolved
                     )
                 }
             }
