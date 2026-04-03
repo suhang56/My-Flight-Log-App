@@ -199,7 +199,8 @@ class CalendarFlightsViewModel @Inject constructor(
         return try {
             logbookRepository.addFromCalendarFlight(calendarFlight)
             true
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             false
         }
     }
@@ -208,6 +209,28 @@ class CalendarFlightsViewModel @Inject constructor(
         // Synthetic flights (from logbook) are always already logged
         if (calendarEventId < 0) return true
         return logbookRepository.isAlreadyLogged(calendarEventId)
+    }
+
+    /**
+     * Returns the linked LogbookFlight for a given calendar event ID, or null if not logged.
+     * Synthetic flights (negative IDs) resolve via the original logbook ID.
+     */
+    suspend fun getLinkedLogbookFlight(calendarEventId: Long): LogbookFlight? {
+        if (calendarEventId < 0) {
+            // Synthetic flight: reverse the ID mapping from toSyntheticCalendarFlight()
+            val logbookId = -(calendarEventId + 1_000_000)
+            return logbookRepository.getById(logbookId)
+        }
+        return logbookRepository.findByCalendarEventId(calendarEventId)
+    }
+
+    /**
+     * Updates the rating on a linked LogbookFlight.
+     */
+    fun updateLinkedRating(logbookFlightId: Long, rating: Int?) {
+        viewModelScope.launch {
+            logbookRepository.setRating(logbookFlightId, rating)
+        }
     }
 
     // -- Private helpers --

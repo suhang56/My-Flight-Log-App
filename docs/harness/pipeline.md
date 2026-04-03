@@ -17,6 +17,7 @@
 
 ## Pipeline Rules
 - "pipeline" = `/spawn-team` with TeamCreate, never manual investigation
+- ALL agent work MUST go through a team (TeamCreate → named agents). NEVER use bare `Agent` tool directly — even hotfixes and single-file fixes spawn a team first
 - Only spawn the 5 defined agents — never generic Explore or general-purpose
 - Bug fix: **developer** + **code-reviewer**
 - Feature: **planner** → **developer** → **code-reviewer**

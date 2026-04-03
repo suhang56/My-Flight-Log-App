@@ -77,6 +77,10 @@ class LogbookRepository @Inject constructor(
         return logbookFlightDao.findByCalendarEventId(calendarEventId) != null
     }
 
+    suspend fun findByCalendarEventId(calendarEventId: Long): LogbookFlight? {
+        return logbookFlightDao.findByCalendarEventId(calendarEventId)
+    }
+
     suspend fun getById(id: Long): LogbookFlight? = logbookFlightDao.getById(id)
 
     fun getByIdFlow(id: Long): Flow<LogbookFlight?> = logbookFlightDao.getByIdFlow(id)

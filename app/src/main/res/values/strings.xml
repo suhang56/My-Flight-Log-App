@@ -38,6 +38,46 @@
     <string name="flight_detail_altitude_format">Alt: %1$s ft</string>
     <string name="flight_detail_speed_format">Speed: %1$d kts</string>
 
+    <!-- Profile screen -->
+    <string name="profile_title">My Profile</string>
+    <string name="profile_settings">Settings</string>
+    <string name="profile_guest">Guest</string>
+    <string name="profile_add_flight_manually">Add Flight Manually</string>
+    <string name="profile_section_account">Account</string>
+    <string name="profile_signed_in_as">Signed in as</string>
+    <string name="profile_sign_out">Sign Out</string>
+    <string name="profile_sign_in_prompt">Sign in to enable cloud backup</string>
+    <string name="profile_sign_in_providers">Supports Google, GitHub, and email sign-in</string>
+    <string name="profile_sign_in">Sign In</string>
+    <string name="profile_section_backup">Backup</string>
+    <string name="profile_drive_requires_google">Drive backup requires Google sign-in</string>
+    <string name="profile_drive_sign_in_hint">Sign in with Google to back up your flights to Google Drive</string>
+    <string name="profile_no_backup_yet">No backup yet</string>
+    <string name="profile_backup_hint">Back up your flights to Google Drive</string>
+    <string name="profile_back_up_now">Back Up Now</string>
+    <string name="profile_restore">Restore</string>
+    <string name="profile_sign_in_for_backup">Sign in to enable backup and restore</string>
+    <string name="profile_section_about">About</string>
+    <string name="profile_version_label">Version</string>
+    <string name="profile_version_value">1.0.0</string>
+    <string name="profile_restore_dialog_title">Restore from Drive</string>
+    <string name="profile_restore_dialog_message">This will import flights from your backup. Flights that already exist in your logbook will be skipped. No existing data will be deleted.</string>
+    <string name="profile_restore_confirm">Restore</string>
+    <string name="profile_cancel">Cancel</string>
+    <string name="profile_last_backup_format">Last backup: %1$s</string>
+    <string name="profile_backup_summary_format">%1$d flights, %2$s</string>
+
+    <!-- Flight detail sheet -->
+    <string name="flight_sheet_unknown">Unknown</string>
+    <string name="flight_sheet_route_pending">Route pending</string>
+    <string name="flight_sheet_arrives_format">Arrives: %1$s</string>
+    <string name="flight_sheet_duration_format">Duration: %1$dh %2$dm</string>
+    <string name="flight_sheet_calendar_format">Calendar: %1$s</string>
+    <string name="flight_sheet_dismiss">Dismiss</string>
+    <string name="flight_sheet_in_logbook">In Logbook</string>
+    <string name="flight_sheet_adding">Adding…</string>
+    <string name="flight_sheet_add_to_logbook">Add to Logbook</string>
+
     <!-- Aircraft card -->
     <string name="aircraft_info_title">Aircraft</string>
     <string name="aircraft_type_label">Type</string>

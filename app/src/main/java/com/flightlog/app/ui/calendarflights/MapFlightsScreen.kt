@@ -10,6 +10,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.flightlog.app.data.local.entity.CalendarFlight
+import com.flightlog.app.data.local.entity.LogbookFlight
 
 @Composable
 internal fun MapFlightsScreen(
@@ -32,6 +33,8 @@ internal fun MapFlightsScreen(
     isAlreadyLogged: suspend (Long) -> Boolean,
     onLogbookSuccess: () -> Unit,
     onSyncClick: () -> Unit,
+    getLinkedLogbookFlight: suspend (Long) -> LogbookFlight?,
+    onRatingChanged: (Long, Int?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -68,7 +71,9 @@ internal fun MapFlightsScreen(
             onAddToLogbook = onAddToLogbook,
             isAlreadyLogged = isAlreadyLogged,
             onLogbookSuccess = onLogbookSuccess,
-            onSyncClick = onSyncClick
+            onSyncClick = onSyncClick,
+            getLinkedLogbookFlight = getLinkedLogbookFlight,
+            onRatingChanged = onRatingChanged
         )
     }
 }

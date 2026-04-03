@@ -29,10 +29,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.flightlog.app.R
 import com.flightlog.app.data.local.entity.CalendarFlight
+import com.flightlog.app.data.local.entity.LogbookFlight
+import com.flightlog.app.ui.logbook.AircraftCard
+import com.flightlog.app.ui.logbook.AircraftPhotoState
+import com.flightlog.app.ui.logbook.RatingSection
 import com.flightlog.app.util.toRelativeTimeLabel
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -46,6 +52,8 @@ internal fun FlightDetailContent(
     onAddToLogbook: suspend (CalendarFlight) -> Boolean,
     isAlreadyLogged: suspend (Long) -> Boolean,
     onLogbookSuccess: () -> Unit,
+    getLinkedLogbookFlight: suspend (Long) -> LogbookFlight?,
+    onRatingChanged: (Long, Int?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val dateFormat = remember { SimpleDateFormat("EEEE, MMM d, yyyy  HH:mm", Locale.getDefault()) }
@@ -58,9 +66,11 @@ internal fun FlightDetailContent(
 
     var alreadyLogged by remember { mutableStateOf<Boolean?>(null) }
     var isAdding by remember { mutableStateOf(false) }
+    var linkedFlight by remember { mutableStateOf<LogbookFlight?>(null) }
 
     LaunchedEffect(flight.calendarEventId) {
         alreadyLogged = isAlreadyLogged(flight.calendarEventId)
+        linkedFlight = getLinkedLogbookFlight(flight.calendarEventId)
     }
 
     Column(
@@ -77,7 +87,7 @@ internal fun FlightDetailContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = flight.flightNumber.ifBlank { "Unknown" },
+                text = flight.flightNumber.ifBlank { stringResource(R.string.flight_sheet_unknown) },
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -93,7 +103,7 @@ internal fun FlightDetailContent(
         // Route row
         if (flight.departureCode.isBlank() && flight.arrivalCode.isBlank()) {
             Text(
-                text = "Route pending",
+                text = stringResource(R.string.flight_sheet_route_pending),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -138,7 +148,7 @@ internal fun FlightDetailContent(
         flight.endTime?.let { end ->
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Arrives: ${dateFormat.format(Date(end))}",
+                text = stringResource(R.string.flight_sheet_arrives_format, dateFormat.format(Date(end))),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -150,7 +160,7 @@ internal fun FlightDetailContent(
             val minutes = durationMinutes % 60
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Duration: ${hours}h ${minutes}m",
+                text = stringResource(R.string.flight_sheet_duration_format, hours, minutes),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -160,8 +170,32 @@ internal fun FlightDetailContent(
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Rating section — only show when flight is linked to logbook
+        if (linkedFlight != null) {
+            RatingSection(
+                currentRating = linkedFlight?.rating,
+                onRatingChanged = { newRating ->
+                    linkedFlight?.let { lf ->
+                        onRatingChanged(lf.id, newRating)
+                        linkedFlight = lf.copy(rating = newRating)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            AircraftCard(
+                aircraftType = linkedFlight?.aircraftType,
+                registration = null,
+                photoState = AircraftPhotoState()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
         Text(
-            text = "Calendar: ${flight.rawTitle}",
+            text = stringResource(R.string.flight_sheet_calendar_format, flight.rawTitle),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.outline
         )
@@ -176,7 +210,7 @@ internal fun FlightDetailContent(
                 onClick = { onDismissFlight(flight) },
                 modifier = Modifier.weight(1f)
             ) {
-                Text("Dismiss")
+                Text(stringResource(R.string.flight_sheet_dismiss))
             }
             when {
                 alreadyLogged == true -> {
@@ -185,7 +219,7 @@ internal fun FlightDetailContent(
                         enabled = false,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("In Logbook")
+                        Text(stringResource(R.string.flight_sheet_in_logbook))
                     }
                 }
                 else -> {
@@ -204,7 +238,7 @@ internal fun FlightDetailContent(
                         enabled = !isAdding && alreadyLogged == false,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text(if (isAdding) "Adding..." else "Add to Logbook")
+                        Text(stringResource(if (isAdding) R.string.flight_sheet_adding else R.string.flight_sheet_add_to_logbook))
                     }
                 }
             }

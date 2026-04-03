@@ -21,7 +21,7 @@ JAVA_HOME="D:/Android Studio/jbr" ./gradlew testDebugUnitTest # Unit tests
 - **Agents:** planner, uiux-designer, architect, developer, code-reviewer → `docs/harness/pipeline.md`
 - **Golden Principles:** → `docs/harness/golden-principles.md`
 - **Pipeline:** `/feature` (full) · `/review` · `/ship` · `/cleanup` · `/arch-check`
-- **"Pipeline"** = always `/spawn-team` with the 5 defined agents, never generic agents
+- **"Pipeline"** = always `/spawn-team` with TeamCreate + named team agents. NEVER use bare `Agent` tool directly — all work goes through the team. Even hotfixes spawn a team.
 - **Quality Gate:** CRITICAL/HIGH flags block shipping. Max 3 review-fix cycles.
 - **Conventions:** Push after every commit. Build APK after features. Worktrees for branches. Edge tests mandatory.
 - **Struggle Log:** `.claude/struggle-log.md` — track agent failures to evolve the harness

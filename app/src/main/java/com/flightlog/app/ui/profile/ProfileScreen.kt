@@ -53,9 +53,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.flightlog.app.R
 import com.flightlog.app.data.backup.BackupMetadata
 import com.flightlog.app.ui.settings.SettingsViewModel
 import java.text.DateFormat
@@ -66,6 +68,7 @@ import java.util.Date
 fun ProfileScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToAddFlight: () -> Unit,
+    onNavigateToLogin: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -95,10 +98,10 @@ fun ProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("My Profile") },
+                title = { Text(stringResource(R.string.profile_title)) },
                 actions = {
                     IconButton(onClick = onNavigateToSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.profile_settings))
                     }
                 }
             )
@@ -158,7 +161,7 @@ fun ProfileScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = authUser?.displayName ?: "Guest",
+                        text = authUser?.displayName ?: stringResource(R.string.profile_guest),
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface
                     )
@@ -194,44 +197,54 @@ fun ProfileScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Add Flight Manually")
+                Text(stringResource(R.string.profile_add_flight_manually))
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // -- Account Section --
-            SectionHeader("Account")
+            SectionHeader(stringResource(R.string.profile_section_account))
 
             if (authUser != null) {
                 ListItem(
-                    headlineContent = { Text("Signed in as") },
+                    headlineContent = { Text(stringResource(R.string.profile_signed_in_as)) },
                     supportingContent = { Text(authUser.email ?: authUser.displayName ?: "Unknown") }
                 )
                 ListItem(
                     headlineContent = {
                         OutlinedButton(onClick = { viewModel.signOut() }) {
-                            Text("Sign Out")
+                            Text(stringResource(R.string.profile_sign_out))
                         }
                     }
                 )
             } else {
                 ListItem(
-                    headlineContent = { Text("Sign in to enable cloud backup") },
-                    supportingContent = { Text("Supports Google, GitHub, and email sign-in") }
+                    headlineContent = { Text(stringResource(R.string.profile_sign_in_prompt)) },
+                    supportingContent = { Text(stringResource(R.string.profile_sign_in_providers)) }
                 )
+                Button(
+                    onClick = onNavigateToLogin,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                ) {
+                    Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(stringResource(R.string.profile_sign_in))
+                }
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // -- Backup Section --
-            SectionHeader("Backup")
+            SectionHeader(stringResource(R.string.profile_section_backup))
 
             val isGoogleUser = authUser?.isGoogleProvider == true
 
             if (!isGoogleUser && authUser != null) {
                 ListItem(
-                    headlineContent = { Text("Drive backup requires Google sign-in") },
-                    supportingContent = { Text("Sign in with Google to back up your flights to Google Drive") }
+                    headlineContent = { Text(stringResource(R.string.profile_drive_requires_google)) },
+                    supportingContent = { Text(stringResource(R.string.profile_drive_sign_in_hint)) }
                 )
             } else {
                 val metadata = uiState.backupMetadata
@@ -239,8 +252,8 @@ fun ProfileScreen(
                     BackupInfoItem(metadata)
                 } else {
                     ListItem(
-                        headlineContent = { Text("No backup yet") },
-                        supportingContent = { Text("Back up your flights to Google Drive") }
+                        headlineContent = { Text(stringResource(R.string.profile_no_backup_yet)) },
+                        supportingContent = { Text(stringResource(R.string.profile_backup_hint)) }
                     )
                 }
 
@@ -270,7 +283,7 @@ fun ProfileScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }
-                        Text("Back Up Now")
+                        Text(stringResource(R.string.profile_back_up_now))
                     }
 
                     OutlinedButton(
@@ -292,13 +305,13 @@ fun ProfileScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                         }
-                        Text("Restore")
+                        Text(stringResource(R.string.profile_restore))
                     }
                 }
 
                 if (authUser == null) {
                     Text(
-                        text = "Sign in to enable backup and restore",
+                        text = stringResource(R.string.profile_sign_in_for_backup),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp)
@@ -309,11 +322,11 @@ fun ProfileScreen(
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
             // -- About Section --
-            SectionHeader("About")
+            SectionHeader(stringResource(R.string.profile_section_about))
 
             ListItem(
-                headlineContent = { Text("Version") },
-                supportingContent = { Text("1.0.0") }
+                headlineContent = { Text(stringResource(R.string.profile_version_label)) },
+                supportingContent = { Text(stringResource(R.string.profile_version_value)) }
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -350,8 +363,8 @@ private fun BackupInfoItem(metadata: BackupMetadata) {
                 tint = MaterialTheme.colorScheme.primary
             )
         },
-        headlineContent = { Text("Last backup: $dateStr") },
-        supportingContent = { Text("${metadata.flightCount} flights, $sizeStr") }
+        headlineContent = { Text(stringResource(R.string.profile_last_backup_format, dateStr)) },
+        supportingContent = { Text(stringResource(R.string.profile_backup_summary_format, metadata.flightCount, sizeStr)) }
     )
 }
 
@@ -362,22 +375,18 @@ private fun RestoreConfirmDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Restore from Drive") },
+        title = { Text(stringResource(R.string.profile_restore_dialog_title)) },
         text = {
-            Text(
-                "This will import flights from your backup. " +
-                "Flights that already exist in your logbook will be skipped. " +
-                "No existing data will be deleted."
-            )
+            Text(stringResource(R.string.profile_restore_dialog_message))
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Restore")
+                Text(stringResource(R.string.profile_restore_confirm))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.profile_cancel))
             }
         }
     )

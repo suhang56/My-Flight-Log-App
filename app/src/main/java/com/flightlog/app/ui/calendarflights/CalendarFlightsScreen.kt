@@ -125,6 +125,8 @@ fun CalendarFlightsScreen(
                 snackbarHostState.showSnackbar("Added to Logbook")
             }
         },
-        onSyncClick = { viewModel.onRefresh(context.contentResolver) }
+        onSyncClick = { viewModel.onRefresh(context.contentResolver) },
+        getLinkedLogbookFlight = { viewModel.getLinkedLogbookFlight(it) },
+        onRatingChanged = { id, rating -> viewModel.updateLinkedRating(id, rating) }
     )
 }
