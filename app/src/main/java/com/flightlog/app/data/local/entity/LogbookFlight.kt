@@ -48,6 +48,9 @@ data class LogbookFlight(
 
     val notes: String? = null,
 
+    /** User rating 1–5 stars, or null if not rated. */
+    val rating: Int? = null,
+
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis()
 )

@@ -2,4 +2,48 @@
 <resources>
     <string name="app_name">Flight Log</string>
     <string name="widget_description">Quick flight stats at a glance</string>
+    <string name="rating_not_rated">Not rated</string>
+    <string name="rating_star_filled">Rated %1$d of 5 stars</string>
+    <string name="rating_star_button">Rate %1$d star</string>
+    <string name="rating_label">RATING</string>
+
+    <!-- Flight detail screen -->
+    <string name="flight_detail_title">Flight Detail</string>
+    <string name="flight_detail_back">Back</string>
+    <string name="flight_detail_share">Share</string>
+    <string name="flight_detail_edit">Edit</string>
+    <string name="flight_detail_delete">Delete</string>
+    <string name="flight_detail_delete_title">Delete flight?</string>
+    <string name="flight_detail_delete_message">This will permanently remove the flight from your logbook.</string>
+    <string name="flight_detail_cancel">Cancel</string>
+    <string name="flight_detail_departed">DEPARTED</string>
+    <string name="flight_detail_arrived">ARRIVED</string>
+    <string name="flight_detail_duration_format">%1$dh %2$dm</string>
+    <string name="flight_detail_distance_km">%1$s km</string>
+    <string name="flight_detail_not_found">Flight not found</string>
+    <string name="flight_detail_tracking">Tracking</string>
+    <string name="flight_detail_track_this_flight">Track This Flight</string>
+    <string name="flight_detail_flight_label">Flight</string>
+    <string name="flight_detail_aircraft_label">Aircraft</string>
+    <string name="flight_detail_distance_label">Distance</string>
+    <string name="flight_detail_added_label">Added</string>
+    <string name="flight_detail_source_label">Source</string>
+    <string name="flight_detail_source_calendar">Calendar sync</string>
+    <string name="flight_detail_source_manual">Manually added</string>
+    <string name="flight_detail_seat_class_label">Seat Class</string>
+    <string name="flight_detail_seat_number_label">Seat Number</string>
+    <string name="flight_detail_notes_label">NOTES</string>
+    <string name="flight_detail_gate_format">Gate: %1$s</string>
+    <string name="flight_detail_delayed_format">Delayed %1$dmin</string>
+    <string name="flight_detail_altitude_format">Alt: %1$s ft</string>
+    <string name="flight_detail_speed_format">Speed: %1$d kts</string>
+
+    <!-- Aircraft card -->
+    <string name="aircraft_info_title">Aircraft</string>
+    <string name="aircraft_type_label">Type</string>
+    <string name="aircraft_registration_label">Registration</string>
+    <string name="aircraft_photo_credit">Photo by %1$s</string>
+    <string name="aircraft_photo_content_desc">Aircraft photo</string>
+    <string name="aircraft_icon_content_desc">Aircraft</string>
+    <string name="aircraft_photo_unavailable">No photo available</string>
 </resources>

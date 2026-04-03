@@ -53,12 +53,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.flightlog.app.R
 import com.flightlog.app.data.airport.AirportCoordinatesMap
 import com.flightlog.app.data.local.entity.FlightStatus
 import com.flightlog.app.data.local.entity.LogbookFlight
@@ -79,6 +81,7 @@ fun FlightDetailScreen(
     val uiState by viewModel.uiState.collectAsState()
     val showDeleteConfirmation by viewModel.showDeleteConfirmation.collectAsState()
     val flightStatus by trackingViewModel.flightStatus.collectAsState()
+    val aircraftPhotoState by viewModel.aircraftPhotoState.collectAsState()
 
     LaunchedEffect(uiState) {
         viewModel.onUiStateChanged(uiState)
@@ -90,16 +93,16 @@ fun FlightDetailScreen(
     if (showDeleteConfirmation) {
         AlertDialog(
             onDismissRequest = { viewModel.cancelDelete() },
-            title = { Text("Delete flight?") },
-            text = { Text("This will permanently remove the flight from your logbook.") },
+            title = { Text(stringResource(R.string.flight_detail_delete_title)) },
+            text = { Text(stringResource(R.string.flight_detail_delete_message)) },
             confirmButton = {
                 TextButton(onClick = { viewModel.confirmDelete { onNavigateBack() } }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.flight_detail_delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { viewModel.cancelDelete() }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.flight_detail_cancel))
                 }
             }
         )
@@ -119,10 +122,10 @@ fun FlightDetailScreen(
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = { Text("Flight Detail") },
+                        title = { Text(stringResource(R.string.flight_detail_title)) },
                         navigationIcon = {
                             IconButton(onClick = onNavigateBack) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.flight_detail_back))
                             }
                         }
                     )
@@ -143,7 +146,7 @@ fun FlightDetailScreen(
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
-                            text = "Flight not found",
+                            text = stringResource(R.string.flight_detail_not_found),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -158,19 +161,23 @@ fun FlightDetailScreen(
             val arrivalCityName = state.arrivalCityName
             val context = LocalContext.current
 
+            LaunchedEffect(flight.id) {
+                viewModel.fetchAircraftPhoto(flight.aircraftType)
+            }
+
             Scaffold(
                 topBar = {
                     TopAppBar(
                         title = {
                             Text(
-                                text = if (flight.flightNumber.isNotBlank()) flight.flightNumber else "Flight Detail",
+                                text = if (flight.flightNumber.isNotBlank()) flight.flightNumber else stringResource(R.string.flight_detail_title),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         },
                         navigationIcon = {
                             IconButton(onClick = onNavigateBack) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.flight_detail_back))
                             }
                         },
                         actions = {
@@ -182,10 +189,10 @@ fun FlightDetailScreen(
                                 }
                                 context.startActivity(Intent.createChooser(intent, null))
                             }) {
-                                Icon(Icons.Default.Share, contentDescription = "Share")
+                                Icon(Icons.Default.Share, contentDescription = stringResource(R.string.flight_detail_share))
                             }
                             IconButton(onClick = { onNavigateToEdit(flight.id) }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Edit")
+                                Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.flight_detail_edit))
                             }
                         }
                     )
@@ -226,6 +233,17 @@ fun FlightDetailScreen(
 
                     FlightInfoSection(flight = flight)
 
+                    if (!flight.aircraftType.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        HorizontalDivider()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        AircraftCard(
+                            aircraftType = flight.aircraftType,
+                            registration = null,
+                            photoState = aircraftPhotoState
+                        )
+                    }
+
                     val hasSeatInfo = !flight.seatClass.isNullOrBlank() || !flight.seatNumber.isNullOrBlank()
                     if (hasSeatInfo) {
                         Spacer(modifier = Modifier.height(16.dp))
@@ -240,6 +258,15 @@ fun FlightDetailScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         NotesSection(notes = flight.notes.orEmpty())
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    HorizontalDivider()
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    RatingSection(
+                        currentRating = flight.rating,
+                        onRatingChanged = { viewModel.setRating(it) }
+                    )
 
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider()
@@ -351,7 +378,7 @@ private fun TimelineSection(flight: LogbookFlight) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "DEPARTED",
+                text = stringResource(R.string.flight_detail_departed),
                 style = MaterialTheme.typography.labelMedium,
                 letterSpacing = 1.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -370,7 +397,7 @@ private fun TimelineSection(flight: LogbookFlight) {
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "ARRIVED",
+                text = stringResource(R.string.flight_detail_arrived),
                 style = MaterialTheme.typography.labelMedium,
                 letterSpacing = 1.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -440,7 +467,7 @@ private fun TimelineSection(flight: LogbookFlight) {
                 }
                 if (hasDistance) {
                     Text(
-                        text = "%,d NM".format(flight.distanceKm),
+                        text = stringResource(R.string.flight_detail_distance_km, String.format("%,d", flight.distanceKm)),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSecondaryContainer
@@ -454,21 +481,21 @@ private fun TimelineSection(flight: LogbookFlight) {
 @Composable
 private fun FlightInfoSection(flight: LogbookFlight) {
     if (flight.flightNumber.isNotBlank()) {
-        InfoRow(label = "Flight", value = flight.flightNumber)
+        InfoRow(label = stringResource(R.string.flight_detail_flight_label), value = flight.flightNumber)
     }
     if (!flight.aircraftType.isNullOrBlank()) {
-        InfoRow(label = "Aircraft", value = flight.aircraftType.orEmpty())
+        InfoRow(label = stringResource(R.string.flight_detail_aircraft_label), value = flight.aircraftType.orEmpty())
     }
     flight.distanceKm?.let { km ->
-        InfoRow(label = "Distance", value = "%,d km".format(km))
+        InfoRow(label = stringResource(R.string.flight_detail_distance_label), value = stringResource(R.string.flight_detail_distance_km, String.format("%,d", km)))
     }
     InfoRow(
-        label = "Added",
+        label = stringResource(R.string.flight_detail_added_label),
         value = formatInZone(flight.createdAt, null, DATE_FORMATTER)
     )
     InfoRow(
-        label = "Source",
-        value = if (flight.sourceCalendarEventId != null) "Calendar sync" else "Manually added"
+        label = stringResource(R.string.flight_detail_source_label),
+        value = if (flight.sourceCalendarEventId != null) stringResource(R.string.flight_detail_source_calendar) else stringResource(R.string.flight_detail_source_manual)
     )
 }
 
@@ -496,17 +523,17 @@ private fun InfoRow(label: String, value: String) {
 @Composable
 private fun SeatInfoSection(flight: LogbookFlight) {
     if (!flight.seatClass.isNullOrBlank()) {
-        InfoRow(label = "Seat Class", value = flight.seatClass.orEmpty())
+        InfoRow(label = stringResource(R.string.flight_detail_seat_class_label), value = flight.seatClass.orEmpty())
     }
     if (!flight.seatNumber.isNullOrBlank()) {
-        InfoRow(label = "Seat Number", value = flight.seatNumber.orEmpty())
+        InfoRow(label = stringResource(R.string.flight_detail_seat_number_label), value = flight.seatNumber.orEmpty())
     }
 }
 
 @Composable
 private fun NotesSection(notes: String) {
     Text(
-        text = "NOTES",
+        text = stringResource(R.string.flight_detail_notes_label),
         style = MaterialTheme.typography.labelMedium,
         letterSpacing = 1.sp,
         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -537,7 +564,7 @@ private fun ActionRow(onDelete: () -> Unit, onEdit: () -> Unit) {
                 tint = MaterialTheme.colorScheme.error
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Delete", color = MaterialTheme.colorScheme.error)
+            Text(stringResource(R.string.flight_detail_delete), color = MaterialTheme.colorScheme.error)
         }
         Button(
             onClick = onEdit,
@@ -549,7 +576,7 @@ private fun ActionRow(onDelete: () -> Unit, onEdit: () -> Unit) {
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
-            Text("Edit")
+            Text(stringResource(R.string.flight_detail_edit))
         }
     }
 }
@@ -590,7 +617,7 @@ private fun TrackingSection(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Tracking")
+                Text(stringResource(R.string.flight_detail_tracking))
             }
         } else {
             OutlinedButton(
@@ -609,7 +636,7 @@ private fun TrackingSection(
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Track This Flight")
+                Text(stringResource(R.string.flight_detail_track_this_flight))
             }
         }
     }
@@ -639,10 +666,10 @@ private fun LiveStatusCard(status: FlightStatus) {
             }
 
             val parts = mutableListOf<String>()
-            status.departureGate?.let { parts.add("Gate: $it") }
-            status.departureDelayMin?.takeIf { it > 0 }?.let { parts.add("Delayed ${it}min") }
-            status.liveAltitude?.let { parts.add("Alt: %,d ft".format(it)) }
-            status.liveSpeedKnots?.let { parts.add("Speed: ${it} kts") }
+            status.departureGate?.let { parts.add(stringResource(R.string.flight_detail_gate_format, it)) }
+            status.departureDelayMin?.takeIf { it > 0 }?.let { parts.add(stringResource(R.string.flight_detail_delayed_format, it)) }
+            status.liveAltitude?.let { parts.add(stringResource(R.string.flight_detail_altitude_format, String.format("%,d", it))) }
+            status.liveSpeedKnots?.let { parts.add(stringResource(R.string.flight_detail_speed_format, it)) }
 
             if (parts.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(4.dp))
@@ -691,7 +718,7 @@ fun buildShareText(flight: LogbookFlight): String {
         }
     }
     flight.distanceKm?.let { nm ->
-        parts3 += "Distance: %,d NM".format(nm)
+        parts3 += "Distance: %,d km".format(nm)
     }
     if (parts3.isNotEmpty()) {
         lines += parts3.joinToString("  \u2022  ")
@@ -710,6 +737,10 @@ fun buildShareText(flight: LogbookFlight): String {
     }
     if (parts4.isNotEmpty()) {
         lines += parts4.joinToString("  \u2022  ")
+    }
+
+    flight.rating?.let { rating ->
+        lines += "Rating: ${"★".repeat(rating)}${"☆".repeat(5 - rating)}"
     }
 
     lines += "Logged with My Flight Log"

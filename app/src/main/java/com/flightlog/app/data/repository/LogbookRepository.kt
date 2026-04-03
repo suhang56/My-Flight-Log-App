@@ -89,6 +89,11 @@ class LogbookRepository @Inject constructor(
 
     suspend fun delete(id: Long) = logbookFlightDao.deleteById(id)
 
+    suspend fun setRating(id: Long, rating: Int?) {
+        val clamped = rating?.coerceIn(1, 5)
+        logbookFlightDao.updateRating(id, clamped)
+    }
+
     // --- Stats flows ---
 
     fun getFlightCount(): Flow<Int> = logbookFlightDao.getFlightCount()

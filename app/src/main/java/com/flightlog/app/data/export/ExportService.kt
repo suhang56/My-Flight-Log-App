@@ -25,7 +25,7 @@ class ExportService @Inject constructor(
         val sb = StringBuilder()
         // UTF-8 BOM for Windows Excel
         sb.append('\uFEFF')
-        sb.appendLine("date,flight_number,departure,arrival,departure_time_local,arrival_time_local,duration_minutes,distance_nm,aircraft_type,seat_class,seat_number,notes")
+        sb.appendLine("date,flight_number,departure,arrival,departure_time_local,arrival_time_local,duration_minutes,distance_km,aircraft_type,seat_class,seat_number,notes,rating")
 
         for (flight in flights) {
             val date = formatLocalDate(flight.departureTimeMillis, flight.departureTimezone)
@@ -45,7 +45,8 @@ class ExportService @Inject constructor(
             sb.append(csvQuote(flight.aircraftType ?: "")).append(',')
             sb.append(csvQuote(flight.seatClass ?: "")).append(',')
             sb.append(csvQuote(flight.seatNumber ?: "")).append(',')
-            sb.append(csvQuote(flight.notes ?: ""))
+            sb.append(csvQuote(flight.notes ?: "")).append(',')
+            sb.append(flight.rating?.toString() ?: "")
             sb.appendLine()
         }
 
@@ -91,6 +92,7 @@ class ExportService @Inject constructor(
             seatClass = flight.seatClass?.ifBlank { null },
             seatNumber = flight.seatNumber?.ifBlank { null },
             notes = flight.notes?.ifBlank { null },
+            rating = flight.rating,
             createdAt = flight.createdAt,
             updatedAt = flight.updatedAt
         )

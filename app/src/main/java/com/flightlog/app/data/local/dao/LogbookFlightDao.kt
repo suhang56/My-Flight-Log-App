@@ -32,6 +32,9 @@ interface LogbookFlightDao {
     @Query("SELECT COUNT(*) FROM logbook_flights WHERE flightNumber = :flightNumber AND departureTimeMillis = :departureTimeMillis")
     suspend fun countByFlightAndTime(flightNumber: String, departureTimeMillis: Long): Int
 
+    @Query("UPDATE logbook_flights SET rating = :rating WHERE id = :id")
+    suspend fun updateRating(id: Long, rating: Int?)
+
     @Insert
     suspend fun insert(flight: LogbookFlight): Long
 

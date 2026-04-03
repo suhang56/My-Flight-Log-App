@@ -1,11 +1,13 @@
 package com.flightlog.app.di
 
+import android.content.Context
 import com.flightlog.app.data.auth.AuthRepository
 import com.flightlog.app.data.auth.AuthRepositoryImpl
 import com.google.firebase.auth.FirebaseAuth
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
@@ -19,6 +21,9 @@ object AuthModule {
 
     @Provides
     @Singleton
-    fun provideAuthRepository(firebaseAuth: FirebaseAuth): AuthRepository =
-        AuthRepositoryImpl(firebaseAuth)
+    fun provideAuthRepository(
+        firebaseAuth: FirebaseAuth,
+        @ApplicationContext context: Context
+    ): AuthRepository =
+        AuthRepositoryImpl(firebaseAuth, context)
 }

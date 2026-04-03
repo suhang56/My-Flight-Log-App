@@ -136,6 +136,9 @@ dependencies {
     implementation(libs.moshi.core)
     implementation(libs.moshi.kotlin)
 
+    // Image loading
+    implementation(libs.coil.compose)
+
     // Glance (App Widget)
     implementation(libs.androidx.glance.appwidget)
     implementation(libs.androidx.glance.material3)

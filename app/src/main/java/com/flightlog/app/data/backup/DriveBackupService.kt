@@ -8,7 +8,10 @@ import com.flightlog.app.data.export.ExportService
 import com.flightlog.app.data.export.LogbookFlightExportWrapper
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.repository.LogbookRepository
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.common.api.Scope
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
+import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException
 import com.google.api.client.http.FileContent
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
@@ -20,6 +23,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import kotlin.math.roundToInt
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -81,10 +85,16 @@ class DriveBackupService @Inject constructor(
             BackupResult.Success(flightCount = flights.size, fileSizeBytes = fileSize)
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
+        } catch (e: UserRecoverableAuthIOException) {
+            Log.e(TAG, "Backup failed: Drive scope not granted")
+            BackupResult.Failure("Please re-authorise Google Drive access")
+        } catch (e: IOException) {
+            Log.e(TAG, "Backup failed: network error", e)
+            BackupResult.Failure("Network error — check connection")
         } catch (e: Exception) {
             if (BuildConfig.DEBUG) Log.e(TAG, "Backup failed", e)
             else Log.e(TAG, "Backup failed")
-            BackupResult.Failure(e.message ?: "Unknown error")
+            BackupResult.Failure(e.message ?: "Backup failed (${e.javaClass.simpleName})")
         }
     }
 
@@ -132,6 +142,7 @@ class DriveBackupService @Inject constructor(
                     seatClass = exportFlight.seatClass,
                     seatNumber = exportFlight.seatNumber,
                     notes = exportFlight.notes,
+                    rating = exportFlight.rating,
                     createdAt = exportFlight.createdAt ?: now,
                     updatedAt = exportFlight.updatedAt ?: now
                 )
@@ -144,10 +155,16 @@ class DriveBackupService @Inject constructor(
             RestoreResult.Success(imported = imported, skipped = skipped)
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
+        } catch (e: UserRecoverableAuthIOException) {
+            Log.e(TAG, "Restore failed: Drive scope not granted")
+            RestoreResult.Failure("Please re-authorise Google Drive access")
+        } catch (e: IOException) {
+            Log.e(TAG, "Restore failed: network error", e)
+            RestoreResult.Failure("Network error — check connection")
         } catch (e: Exception) {
             if (BuildConfig.DEBUG) Log.e(TAG, "Restore failed", e)
             else Log.e(TAG, "Restore failed")
-            RestoreResult.Failure(e.message ?: "Unknown error")
+            RestoreResult.Failure(e.message ?: "Restore failed (${e.javaClass.simpleName})")
         }
     }
 
@@ -188,8 +205,11 @@ class DriveBackupService @Inject constructor(
 
         // Use the GoogleSignIn account which holds the actual Account object
         // registered with AccountManager -- required by GoogleAccountCredential.
-        val googleAccount = com.google.android.gms.auth.api.signin.GoogleSignIn
-            .getLastSignedInAccount(context) ?: return null
+        val googleAccount = GoogleSignIn.getLastSignedInAccount(context) ?: return null
+
+        // Verify Drive appdata scope is granted before building the client
+        val driveScope = Scope(DriveScopes.DRIVE_APPDATA)
+        if (!GoogleSignIn.hasPermissions(googleAccount, driveScope)) return null
 
         val credential = GoogleAccountCredential.usingOAuth2(
             context,

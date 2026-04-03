@@ -4,6 +4,7 @@ import com.flightlog.app.BuildConfig
 import com.flightlog.app.data.network.FlightAwareApi
 import com.flightlog.app.data.network.FlightRouteService
 import com.flightlog.app.data.network.FlightRouteServiceImpl
+import com.flightlog.app.data.network.PlanespottersApi
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Binds
@@ -15,6 +16,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -72,6 +74,42 @@ object NetworkModule {
     @Singleton
     fun provideFlightAwareApi(retrofit: Retrofit): FlightAwareApi {
         return retrofit.create(FlightAwareApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    @Named("planespotters")
+    fun providePlanespottersOkHttpClient(): OkHttpClient {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    @PlanespottersRetrofit
+    fun providePlanespottersRetrofit(
+        @Named("planespotters") client: OkHttpClient,
+        moshi: Moshi
+    ): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://api.planespotters.net/")
+            .client(client)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun providePlanespottersApi(@PlanespottersRetrofit retrofit: Retrofit): PlanespottersApi {
+        return retrofit.create(PlanespottersApi::class.java)
     }
 }
 

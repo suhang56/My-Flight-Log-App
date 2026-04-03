@@ -1,0 +1,496 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 5,
+    "identityHash": "be3655c73e1eb2c86179c56c3a72fb0b",
+    "entities": [
+      {
+        "tableName": "calendar_flights",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `calendarEventId` INTEGER NOT NULL, `legIndex` INTEGER NOT NULL, `flightNumber` TEXT NOT NULL, `departureCode` TEXT NOT NULL, `arrivalCode` TEXT NOT NULL, `rawTitle` TEXT NOT NULL, `scheduledTime` INTEGER NOT NULL, `endTime` INTEGER, `syncedAt` INTEGER NOT NULL, `departureTimezone` TEXT, `arrivalTimezone` TEXT, `isManuallyDismissed` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "calendarEventId",
+            "columnName": "calendarEventId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "legIndex",
+            "columnName": "legIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "flightNumber",
+            "columnName": "flightNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "departureCode",
+            "columnName": "departureCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "arrivalCode",
+            "columnName": "arrivalCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawTitle",
+            "columnName": "rawTitle",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scheduledTime",
+            "columnName": "scheduledTime",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endTime",
+            "columnName": "endTime",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "syncedAt",
+            "columnName": "syncedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "departureTimezone",
+            "columnName": "departureTimezone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "arrivalTimezone",
+            "columnName": "arrivalTimezone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isManuallyDismissed",
+            "columnName": "isManuallyDismissed",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_calendar_flights_calendarEventId_legIndex",
+            "unique": true,
+            "columnNames": [
+              "calendarEventId",
+              "legIndex"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_calendar_flights_calendarEventId_legIndex` ON `${TABLE_NAME}` (`calendarEventId`, `legIndex`)"
+          },
+          {
+            "name": "index_calendar_flights_scheduledTime",
+            "unique": false,
+            "columnNames": [
+              "scheduledTime"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_calendar_flights_scheduledTime` ON `${TABLE_NAME}` (`scheduledTime`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "logbook_flights",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceCalendarEventId` INTEGER, `flightNumber` TEXT NOT NULL, `departureCode` TEXT NOT NULL, `arrivalCode` TEXT NOT NULL, `departureDateEpochDay` INTEGER NOT NULL, `departureTimeMillis` INTEGER NOT NULL, `arrivalTimeMillis` INTEGER, `durationMinutes` INTEGER, `departureTimezone` TEXT, `arrivalTimezone` TEXT, `aircraftType` TEXT, `seatClass` TEXT, `seatNumber` TEXT, `distanceKm` INTEGER, `notes` TEXT, `rating` INTEGER, `createdAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourceCalendarEventId",
+            "columnName": "sourceCalendarEventId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "flightNumber",
+            "columnName": "flightNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "departureCode",
+            "columnName": "departureCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "arrivalCode",
+            "columnName": "arrivalCode",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "departureDateEpochDay",
+            "columnName": "departureDateEpochDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "departureTimeMillis",
+            "columnName": "departureTimeMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "arrivalTimeMillis",
+            "columnName": "arrivalTimeMillis",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "durationMinutes",
+            "columnName": "durationMinutes",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "departureTimezone",
+            "columnName": "departureTimezone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "arrivalTimezone",
+            "columnName": "arrivalTimezone",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "aircraftType",
+            "columnName": "aircraftType",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "seatClass",
+            "columnName": "seatClass",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "seatNumber",
+            "columnName": "seatNumber",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "distanceKm",
+            "columnName": "distanceKm",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "notes",
+            "columnName": "notes",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_logbook_flights_departureDateEpochDay",
+            "unique": false,
+            "columnNames": [
+              "departureDateEpochDay"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_logbook_flights_departureDateEpochDay` ON `${TABLE_NAME}` (`departureDateEpochDay`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "achievements",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `unlockedAt` INTEGER, `seenByUser` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "unlockedAt",
+            "columnName": "unlockedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "seenByUser",
+            "columnName": "seenByUser",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "airports",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`iata` TEXT NOT NULL, `icao` TEXT, `name` TEXT NOT NULL, `city` TEXT NOT NULL, `country` TEXT NOT NULL, `lat` REAL NOT NULL, `lng` REAL NOT NULL, `timezone` TEXT, PRIMARY KEY(`iata`))",
+        "fields": [
+          {
+            "fieldPath": "iata",
+            "columnName": "iata",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "icao",
+            "columnName": "icao",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "city",
+            "columnName": "city",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "country",
+            "columnName": "country",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lat",
+            "columnName": "lat",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lng",
+            "columnName": "lng",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "timezone",
+            "columnName": "timezone",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "iata"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "flight_status",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `logbookFlightId` INTEGER NOT NULL, `flightNumber` TEXT NOT NULL, `statusEnum` TEXT NOT NULL, `departureDelayMin` INTEGER, `arrivalDelayMin` INTEGER, `departureGate` TEXT, `arrivalGate` TEXT, `estimatedDepartureUtc` INTEGER, `estimatedArrivalUtc` INTEGER, `actualDepartureUtc` INTEGER, `actualArrivalUtc` INTEGER, `liveLat` REAL, `liveLng` REAL, `liveAltitude` INTEGER, `liveSpeedKnots` INTEGER, `liveHeading` INTEGER, `lastPolledAt` INTEGER NOT NULL, `trackingEnabled` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "logbookFlightId",
+            "columnName": "logbookFlightId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "flightNumber",
+            "columnName": "flightNumber",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "statusEnum",
+            "columnName": "statusEnum",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "departureDelayMin",
+            "columnName": "departureDelayMin",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "arrivalDelayMin",
+            "columnName": "arrivalDelayMin",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "departureGate",
+            "columnName": "departureGate",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "arrivalGate",
+            "columnName": "arrivalGate",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "estimatedDepartureUtc",
+            "columnName": "estimatedDepartureUtc",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "estimatedArrivalUtc",
+            "columnName": "estimatedArrivalUtc",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "actualDepartureUtc",
+            "columnName": "actualDepartureUtc",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "actualArrivalUtc",
+            "columnName": "actualArrivalUtc",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "liveLat",
+            "columnName": "liveLat",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "liveLng",
+            "columnName": "liveLng",
+            "affinity": "REAL",
+            "notNull": false
+          },
+          {
+            "fieldPath": "liveAltitude",
+            "columnName": "liveAltitude",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "liveSpeedKnots",
+            "columnName": "liveSpeedKnots",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "liveHeading",
+            "columnName": "liveHeading",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "lastPolledAt",
+            "columnName": "lastPolledAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trackingEnabled",
+            "columnName": "trackingEnabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_flight_status_logbookFlightId",
+            "unique": true,
+            "columnNames": [
+              "logbookFlightId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_flight_status_logbookFlightId` ON `${TABLE_NAME}` (`logbookFlightId`)"
+          }
+        ],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'be3655c73e1eb2c86179c56c3a72fb0b')"
+    ]
+  }
+}

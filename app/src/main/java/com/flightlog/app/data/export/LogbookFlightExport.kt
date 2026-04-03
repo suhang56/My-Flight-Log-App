@@ -22,6 +22,7 @@ data class LogbookFlightExport(
     @Json(name = "seat_class") val seatClass: String?,
     @Json(name = "seat_number") val seatNumber: String?,
     val notes: String?,
+    @Json(name = "rating") val rating: Int? = null,
     @Json(name = "created_at") val createdAt: Long? = null,
     @Json(name = "updated_at") val updatedAt: Long? = null,
     /** Legacy field kept for backwards-compatible reading of old backups. */

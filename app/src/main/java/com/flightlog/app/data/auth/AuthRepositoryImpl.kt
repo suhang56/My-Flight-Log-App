@@ -1,17 +1,21 @@
 package com.flightlog.app.data.auth
 
 import android.app.Activity
+import android.content.Context
+import com.flightlog.app.data.backup.AutoBackupWorker
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.auth.OAuthProvider
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.tasks.await
 
 class AuthRepositoryImpl(
-    private val firebaseAuth: FirebaseAuth
+    private val firebaseAuth: FirebaseAuth,
+    private val appContext: Context
 ) : AuthRepository {
 
     private val _currentUser = MutableStateFlow(firebaseAuth.currentUser?.toAuthUser())
@@ -29,7 +33,10 @@ class AuthRepositoryImpl(
             val result = firebaseAuth.signInWithCredential(credential).await()
             val user = result.user?.toAuthUser()
                 ?: return Result.failure(IllegalStateException("Sign-in succeeded but user is null"))
+            AutoBackupWorker.enqueueIfSignedIn(appContext)
             Result.success(user)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -42,6 +49,8 @@ class AuthRepositoryImpl(
             val user = result.user?.toAuthUser()
                 ?: return Result.failure(IllegalStateException("Sign-in succeeded but user is null"))
             Result.success(user)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -53,6 +62,8 @@ class AuthRepositoryImpl(
             val user = result.user?.toAuthUser()
                 ?: return Result.failure(IllegalStateException("Sign-in succeeded but user is null"))
             Result.success(user)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -64,6 +75,8 @@ class AuthRepositoryImpl(
             val user = result.user?.toAuthUser()
                 ?: return Result.failure(IllegalStateException("Account created but user is null"))
             Result.success(user)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
