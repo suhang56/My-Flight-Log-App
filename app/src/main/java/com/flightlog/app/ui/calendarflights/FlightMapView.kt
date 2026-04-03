@@ -3,6 +3,7 @@ package com.flightlog.app.ui.calendarflights
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Typeface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -32,10 +33,13 @@ import com.google.maps.android.compose.MarkerState
 import com.google.maps.android.compose.Polyline
 import com.google.maps.android.compose.rememberCameraPositionState
 
-private val ROUTE_COLOR_PRIMARY = Color(0xFF9ECAFF)
-private val ROUTE_COLOR_UNSELECTED = Color.White.copy(alpha = 0.25f)
-private val ROUTE_COLOR_DIMMED = Color.White.copy(alpha = 0.15f)
-private val MARKER_COLOR_WHITE = Color.White.copy(alpha = 0.8f)
+// Golden amber routes (matches aviation map style)
+private val ROUTE_COLOR_PRIMARY = Color(0xFFE8B634)
+private val ROUTE_COLOR_UNSELECTED = Color(0xFFD4A12A).copy(alpha = 0.45f)
+private val ROUTE_COLOR_DIMMED = Color(0xFFD4A12A).copy(alpha = 0.18f)
+// Cyan/teal airport labels
+private val MARKER_COLOR_LABEL = Color(0xFF00D4E0)
+private val MARKER_COLOR_SELECTED = Color(0xFFFFFFFF)
 
 internal data class FlightRoute(
     val flightId: Long,
@@ -101,24 +105,17 @@ internal fun FlightMapView(
         selectedRoute?.let { setOf(it.depCode, it.arrCode) } ?: emptySet()
     }
 
-    // Pre-create raw bitmaps outside GoogleMap; wrap with BitmapDescriptorFactory
-    // inside the map content where the Maps SDK is guaranteed to be initialized.
-    val unselectedMarkerBitmap = remember(density) {
-        createCircleBitmap(
-            radiusDp = 4f,
-            color = MARKER_COLOR_WHITE.toArgb(),
-            density = density.density
-        )
-    }
-
-    val selectedMarkerBitmap = remember(density) {
-        createCircleBitmap(
-            radiusDp = 5f,
-            color = ROUTE_COLOR_PRIMARY.toArgb(),
-            density = density.density,
-            strokeColor = Color.White.toArgb(),
-            strokeWidth = 1f
-        )
+    // Pre-create label bitmaps for each airport code
+    val labelBitmaps = remember(allAirports, selectedAirports, density) {
+        allAirports.mapValues { (code, _) ->
+            val isSelected = code in selectedAirports
+            createAirportLabelBitmap(
+                code = code,
+                textColor = if (isSelected) MARKER_COLOR_SELECTED.toArgb() else MARKER_COLOR_LABEL.toArgb(),
+                density = density.density,
+                isSelected = isSelected
+            )
+        }
     }
 
     val cameraPositionState = rememberCameraPositionState {
@@ -183,14 +180,6 @@ internal fun FlightMapView(
         uiSettings = mapUiSettings,
         onMapClick = { onMapTapped() }
     ) {
-        // BitmapDescriptorFactory is only safe inside GoogleMap content
-        val unselectedMarkerIcon = remember(unselectedMarkerBitmap) {
-            BitmapDescriptorFactory.fromBitmap(unselectedMarkerBitmap)
-        }
-        val selectedMarkerIcon = remember(selectedMarkerBitmap) {
-            BitmapDescriptorFactory.fromBitmap(selectedMarkerBitmap)
-        }
-
         // Draw polylines
         routes.forEach { route ->
             val isSelected = route.flightId == selectedFlight?.id
@@ -201,21 +190,25 @@ internal fun FlightMapView(
                 hasSelection -> ROUTE_COLOR_DIMMED
                 else -> ROUTE_COLOR_UNSELECTED
             }
-            val width = if (isSelected) 6f else 3f
+            val width = if (isSelected) 5f else 2.5f
 
             Polyline(
                 points = route.arcPoints,
                 color = color,
-                width = with(density) { width.dp.toPx() }
+                width = with(density) { width.dp.toPx() },
+                geodesic = true
             )
         }
 
-        // Draw airport markers
+        // Draw airport labels with IATA codes
         allAirports.forEach { (code, latLng) ->
-            val isSelected = code in selectedAirports
+            val bitmap = labelBitmaps[code] ?: return@forEach
+            val icon = remember(bitmap) {
+                BitmapDescriptorFactory.fromBitmap(bitmap)
+            }
             Marker(
                 state = MarkerState(position = latLng),
-                icon = if (isSelected) selectedMarkerIcon else unselectedMarkerIcon,
+                icon = icon,
                 title = code,
                 anchor = Offset(0.5f, 0.5f),
                 flat = true
@@ -246,34 +239,63 @@ private fun buildRouteBounds(dep: LatLng, arr: LatLng): LatLngBounds {
     return builder.build()
 }
 
-private fun createCircleBitmap(
-    radiusDp: Float,
-    color: Int,
+private fun createAirportLabelBitmap(
+    code: String,
+    textColor: Int,
     density: Float,
-    strokeColor: Int? = null,
-    strokeWidth: Float = 0f
+    isSelected: Boolean
 ): Bitmap {
-    val radiusPx = (radiusDp * density).toInt().coerceAtLeast(1)
-    val totalStroke = if (strokeColor != null) (strokeWidth * density).toInt() else 0
-    val size = (radiusPx + totalStroke) * 2
-    val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-    val cx = size / 2f
-    val cy = size / 2f
+    val textSizeDp = if (isSelected) 12f else 10f
+    val textSizePx = textSizeDp * density
+    val paddingH = (6f * density).toInt()
+    val paddingV = (3f * density).toInt()
 
-    if (strokeColor != null && totalStroke > 0) {
-        val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            this.color = strokeColor
-            style = Paint.Style.FILL
-        }
-        canvas.drawCircle(cx, cy, radiusPx.toFloat() + totalStroke, strokePaint)
+    val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = textColor
+        this.textSize = textSizePx
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+        textAlign = Paint.Align.LEFT
     }
 
-    val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        this.color = color
+    val textWidth = textPaint.measureText(code).toInt()
+    val fm = textPaint.fontMetrics
+    val textHeight = (fm.descent - fm.ascent).toInt()
+
+    // Small airplane icon size
+    val iconSize = (textSizePx * 0.9f).toInt()
+    val iconGap = (2f * density).toInt()
+
+    val totalWidth = iconSize + iconGap + textWidth + paddingH * 2
+    val totalHeight = textHeight + paddingV * 2
+
+    val bitmap = Bitmap.createBitmap(totalWidth, totalHeight, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+
+    // Semi-transparent dark background
+    val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0x80000000.toInt()
         style = Paint.Style.FILL
     }
-    canvas.drawCircle(cx, cy, radiusPx.toFloat(), fillPaint)
+    val cornerRadius = 4f * density
+    canvas.drawRoundRect(
+        0f, 0f, totalWidth.toFloat(), totalHeight.toFloat(),
+        cornerRadius, cornerRadius, bgPaint
+    )
+
+    // Draw small arrow (→) as airplane indicator
+    val arrowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = textColor
+        this.textSize = textSizePx * 0.8f
+        typeface = Typeface.DEFAULT_BOLD
+        textAlign = Paint.Align.LEFT
+    }
+    val arrowY = paddingV - fm.ascent
+    canvas.drawText("✈", paddingH.toFloat(), arrowY, arrowPaint)
+
+    // Draw IATA code text
+    val textX = (paddingH + iconSize + iconGap).toFloat()
+    val textY = paddingV - fm.ascent
+    canvas.drawText(code, textX, textY, textPaint)
 
     return bitmap
 }

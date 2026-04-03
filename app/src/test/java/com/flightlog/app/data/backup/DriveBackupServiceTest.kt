@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import kotlin.math.roundToInt
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -73,7 +74,7 @@ class DriveBackupServiceTest {
             arrivalTimeMillis = export.arrivalTimeUtc,
             departureTimezone = export.departureTimezone,
             arrivalTimezone = export.arrivalTimezone,
-            distanceKm = export.distanceKm ?: export.distanceNmLegacy,
+            distanceKm = export.distanceKm ?: export.distanceNmLegacy?.let { nm -> (nm * 1.852).roundToInt() },
             aircraftType = export.aircraftType,
             seatClass = export.seatClass,
             seatNumber = export.seatNumber,
@@ -127,7 +128,7 @@ class DriveBackupServiceTest {
             arrivalTimeMillis = export.arrivalTimeUtc,
             departureTimezone = export.departureTimezone,
             arrivalTimezone = export.arrivalTimezone,
-            distanceKm = export.distanceKm ?: export.distanceNmLegacy,
+            distanceKm = export.distanceKm ?: export.distanceNmLegacy?.let { nm -> (nm * 1.852).roundToInt() },
             aircraftType = export.aircraftType,
             seatClass = export.seatClass,
             seatNumber = export.seatNumber,
@@ -143,6 +144,65 @@ class DriveBackupServiceTest {
         assertEquals(null, logbookFlight.departureTimezone)
         assertEquals(null, logbookFlight.arrivalTimezone)
         assertEquals(null, logbookFlight.distanceKm)
+    }
+
+    @Test
+    fun `legacy distanceNm is converted to km when distanceKm is null`() {
+        val export = LogbookFlightExport(
+            id = 1,
+            date = "2026-01-01",
+            flightNumber = "UA100",
+            departure = "SFO",
+            arrival = "NRT",
+            departureTimeUtc = 1711555200000L,
+            arrivalTimeUtc = 1711591200000L,
+            departureTimeLocal = "08:00",
+            arrivalTimeLocal = "16:00",
+            departureTimezone = "America/Los_Angeles",
+            arrivalTimezone = "Asia/Tokyo",
+            durationMinutes = 660,
+            distanceKm = null,
+            distanceNmLegacy = 4500,
+            aircraftType = "B777",
+            seatClass = "Economy",
+            seatNumber = "32A",
+            notes = null
+        )
+
+        val distance = export.distanceKm
+            ?: export.distanceNmLegacy?.let { nm -> (nm * 1.852).roundToInt() }
+
+        // 4500 nm * 1.852 = 8334 km
+        assertEquals(8334, distance)
+    }
+
+    @Test
+    fun `distanceKm takes priority over distanceNmLegacy when both present`() {
+        val export = LogbookFlightExport(
+            id = 1,
+            date = "2026-01-01",
+            flightNumber = "UA100",
+            departure = "SFO",
+            arrival = "NRT",
+            departureTimeUtc = 1711555200000L,
+            arrivalTimeUtc = null,
+            departureTimeLocal = "08:00",
+            arrivalTimeLocal = null,
+            departureTimezone = null,
+            arrivalTimezone = null,
+            durationMinutes = null,
+            distanceKm = 8334,
+            distanceNmLegacy = 4500,
+            aircraftType = null,
+            seatClass = null,
+            seatNumber = null,
+            notes = null
+        )
+
+        val distance = export.distanceKm
+            ?: export.distanceNmLegacy?.let { nm -> (nm * 1.852).roundToInt() }
+
+        assertEquals(8334, distance)
     }
 
     @Test

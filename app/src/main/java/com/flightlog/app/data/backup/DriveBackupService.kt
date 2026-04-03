@@ -20,6 +20,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import kotlin.math.roundToInt
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -113,7 +114,8 @@ class DriveBackupService @Inject constructor(
                     .atZone(depZone).toLocalDate().toEpochDay()
 
                 // Prefer new distance_km field; fall back to legacy distance_nm for old backups
-                val distance = exportFlight.distanceKm ?: exportFlight.distanceNmLegacy
+                val distance = exportFlight.distanceKm
+                    ?: exportFlight.distanceNmLegacy?.let { nm -> (nm * 1.852).roundToInt() }
 
                 LogbookFlight(
                     id = 0,

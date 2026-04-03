@@ -5,6 +5,7 @@ import android.content.ContentResolver
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.local.entity.CalendarFlight
+import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.repository.CalendarRepository
 import com.flightlog.app.data.repository.LogbookRepository
 import com.flightlog.app.data.repository.SyncResult
@@ -50,13 +51,21 @@ class CalendarFlightsViewModel @Inject constructor(
     /** Drives the PullToRefreshBox indicator directly. */
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
 
-    // -- Flight lists --
+    // -- Flight lists (merged: calendar + logbook-only flights) --
 
-    val upcomingFlights: StateFlow<List<CalendarFlight>> = repository.upcomingFlights()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val upcomingFlights: StateFlow<List<CalendarFlight>> = combine(
+        repository.upcomingFlights(),
+        logbookRepository.allFlights
+    ) { calFlights, logFlights ->
+        mergeFlights(calFlights, logFlights) { it.scheduledTime >= System.currentTimeMillis() }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val pastFlights: StateFlow<List<CalendarFlight>> = repository.pastFlights()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val pastFlights: StateFlow<List<CalendarFlight>> = combine(
+        repository.pastFlights(),
+        logbookRepository.allFlights
+    ) { calFlights, logFlights ->
+        mergeFlights(calFlights, logFlights) { it.scheduledTime < System.currentTimeMillis() }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     // -- General UI state --
 
@@ -172,7 +181,10 @@ class CalendarFlightsViewModel @Inject constructor(
 
     fun dismissFlight(id: Long) {
         viewModelScope.launch {
-            repository.dismiss(id)
+            // Synthetic flights (from logbook, negative IDs) can't be dismissed via CalendarRepository
+            if (id >= 0) {
+                repository.dismiss(id)
+            }
             _uiState.update {
                 it.copy(drawerAnchor = DrawerAnchor.COLLAPSED, selectedFlight = null)
             }
@@ -182,6 +194,8 @@ class CalendarFlightsViewModel @Inject constructor(
     // -- Logbook integration --
 
     suspend fun addToLogbook(calendarFlight: CalendarFlight): Boolean {
+        // Synthetic flights (from logbook) already exist — nothing to add
+        if (calendarFlight.id < 0) return true
         return try {
             logbookRepository.addFromCalendarFlight(calendarFlight)
             true
@@ -191,10 +205,32 @@ class CalendarFlightsViewModel @Inject constructor(
     }
 
     suspend fun isAlreadyLogged(calendarEventId: Long): Boolean {
+        // Synthetic flights (from logbook) are always already logged
+        if (calendarEventId < 0) return true
         return logbookRepository.isAlreadyLogged(calendarEventId)
     }
 
     // -- Private helpers --
+
+    /**
+     * Merges calendar flights with logbook-only flights (those not already linked to a calendar event).
+     * Logbook flights are converted to synthetic CalendarFlight objects for display.
+     * [timeFilter] selects upcoming vs past based on the synthetic scheduledTime.
+     */
+    private fun mergeFlights(
+        calendarFlights: List<CalendarFlight>,
+        logbookFlights: List<LogbookFlight>,
+        timeFilter: (CalendarFlight) -> Boolean
+    ): List<CalendarFlight> {
+        val linkedCalendarEventIds = calendarFlights.map { it.calendarEventId }.toSet()
+
+        val logbookOnly = logbookFlights
+            .filter { lb -> lb.sourceCalendarEventId == null || lb.sourceCalendarEventId !in linkedCalendarEventIds }
+            .map { it.toSyntheticCalendarFlight() }
+            .filter(timeFilter)
+
+        return (calendarFlights + logbookOnly).distinctBy { it.id }
+    }
 
     private fun performSync(contentResolver: ContentResolver) {
         viewModelScope.launch {
@@ -253,3 +289,22 @@ class CalendarFlightsViewModel @Inject constructor(
         }
     }
 }
+
+/**
+ * Converts a [LogbookFlight] into a synthetic [CalendarFlight] for display on the home map/drawer.
+ * Uses negative ID space to avoid collisions with real CalendarFlight rows.
+ */
+private fun LogbookFlight.toSyntheticCalendarFlight(): CalendarFlight = CalendarFlight(
+    id = -id,  // negative to avoid collision with real CalendarFlight IDs
+    calendarEventId = -(id + 1_000_000),  // won't match any real calendar event
+    flightNumber = flightNumber,
+    departureCode = departureCode,
+    arrivalCode = arrivalCode,
+    rawTitle = if (flightNumber.isNotBlank()) "$flightNumber $departureCode-$arrivalCode"
+               else "$departureCode-$arrivalCode",
+    scheduledTime = departureTimeMillis,
+    endTime = arrivalTimeMillis,
+    departureTimezone = departureTimezone,
+    arrivalTimezone = arrivalTimezone,
+    isManuallyDismissed = false
+)
