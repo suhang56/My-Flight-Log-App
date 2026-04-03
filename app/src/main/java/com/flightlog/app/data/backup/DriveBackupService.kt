@@ -9,6 +9,7 @@ import com.flightlog.app.data.export.LogbookFlightExportWrapper
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.repository.LogbookRepository
 import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.Scope
 import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccountCredential
 import com.google.api.client.googleapis.extensions.android.gms.auth.UserRecoverableAuthIOException
@@ -51,7 +52,9 @@ class DriveBackupService @Inject constructor(
     suspend fun backup(): BackupResult = withContext(Dispatchers.IO) {
         try {
             val driveService = buildDriveService()
-                ?: return@withContext BackupResult.Failure("Drive backup requires Google sign-in")
+                ?: return@withContext BackupResult.Failure(
+                    "Please sign in again with Google to grant Drive access"
+                )
 
             val flights = repository.getAllOnce()
             val jsonFile = exportService.exportToJson(flights)
@@ -89,8 +92,8 @@ class DriveBackupService @Inject constructor(
             Log.e(TAG, "Backup failed: Drive scope not granted")
             BackupResult.Failure("Please re-authorise Google Drive access")
         } catch (e: IOException) {
-            Log.e(TAG, "Backup failed: network error", e)
-            BackupResult.Failure("Network error — check connection")
+            Log.e(TAG, "Backup failed: network/auth error", e)
+            BackupResult.Failure("Network error — check connection and try signing in again")
         } catch (e: Exception) {
             if (BuildConfig.DEBUG) Log.e(TAG, "Backup failed", e)
             else Log.e(TAG, "Backup failed")
@@ -101,7 +104,9 @@ class DriveBackupService @Inject constructor(
     suspend fun restore(): RestoreResult = withContext(Dispatchers.IO) {
         try {
             val driveService = buildDriveService()
-                ?: return@withContext RestoreResult.Failure("Drive backup requires Google sign-in")
+                ?: return@withContext RestoreResult.Failure(
+                    "Please sign in again with Google to grant Drive access"
+                )
 
             val fileId = findBackupFileId(driveService)
                 ?: return@withContext RestoreResult.Failure("No backup found on Drive")
@@ -159,8 +164,8 @@ class DriveBackupService @Inject constructor(
             Log.e(TAG, "Restore failed: Drive scope not granted")
             RestoreResult.Failure("Please re-authorise Google Drive access")
         } catch (e: IOException) {
-            Log.e(TAG, "Restore failed: network error", e)
-            RestoreResult.Failure("Network error — check connection")
+            Log.e(TAG, "Restore failed: network/auth error", e)
+            RestoreResult.Failure("Network error — check connection and try signing in again")
         } catch (e: Exception) {
             if (BuildConfig.DEBUG) Log.e(TAG, "Restore failed", e)
             else Log.e(TAG, "Restore failed")
@@ -207,9 +212,17 @@ class DriveBackupService @Inject constructor(
         // registered with AccountManager -- required by GoogleAccountCredential.
         val googleAccount = GoogleSignIn.getLastSignedInAccount(context) ?: return null
 
-        // Verify Drive appdata scope is granted before building the client
+        // Verify Drive appdata scope is granted before building the client.
+        // If the user signed in before the scope was added, the cached session
+        // won't have DRIVE_APPDATA. Sign out the stale session so the next
+        // login re-requests the scope via GoogleSignInOptions.
         val driveScope = Scope(DriveScopes.DRIVE_APPDATA)
-        if (!GoogleSignIn.hasPermissions(googleAccount, driveScope)) return null
+        if (!GoogleSignIn.hasPermissions(googleAccount, driveScope)) {
+            val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN).build()
+            GoogleSignIn.getClient(context, gso).signOut()
+            Log.w(TAG, "Drive scope not granted on cached account — signed out stale session")
+            return null
+        }
 
         val credential = GoogleAccountCredential.usingOAuth2(
             context,

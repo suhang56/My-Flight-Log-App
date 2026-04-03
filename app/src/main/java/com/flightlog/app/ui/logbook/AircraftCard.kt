@@ -35,9 +35,13 @@ fun AircraftCard(
     aircraftType: String?,
     registration: String?,
     photoState: AircraftPhotoState,
+    flightNumber: String? = null,
     modifier: Modifier = Modifier
 ) {
-    if (aircraftType.isNullOrBlank()) return
+    // Show card when we have aircraft type OR a flight number to display
+    val hasAircraftType = !aircraftType.isNullOrBlank()
+    val hasFlightNumber = !flightNumber.isNullOrBlank()
+    if (!hasAircraftType && !hasFlightNumber) return
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
@@ -54,67 +58,78 @@ fun AircraftCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (photoState.isLoading) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                }
-            } else if (photoState.photoUrl != null) {
-                SubcomposeAsyncImage(
-                    model = photoState.photoUrl,
-                    contentDescription = stringResource(R.string.aircraft_photo_content_desc),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp)
-                        .clip(MaterialTheme.shapes.small),
-                    loading = {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(140.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
-                        }
-                    },
-                    error = {
-                        AircraftIconPlaceholder()
+            if (hasAircraftType) {
+                if (photoState.isLoading) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
                     }
-                )
-                if (!photoState.photographer.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(4.dp))
+                } else if (photoState.photoUrl != null) {
+                    SubcomposeAsyncImage(
+                        model = photoState.photoUrl,
+                        contentDescription = stringResource(R.string.aircraft_photo_content_desc),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(140.dp)
+                            .clip(MaterialTheme.shapes.small),
+                        loading = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(140.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                            }
+                        },
+                        error = {
+                            AircraftIconPlaceholder()
+                        }
+                    )
+                    if (!photoState.photographer.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.aircraft_photo_credit, photoState.photographer),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                } else {
+                    AircraftIconPlaceholder()
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
                     Text(
-                        text = stringResource(R.string.aircraft_photo_credit, photoState.photographer),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        text = stringResource(R.string.aircraft_type_label),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = aircraftType,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             } else {
+                // No aircraft type known — show placeholder with flight info
                 AircraftIconPlaceholder()
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+                Spacer(modifier = Modifier.height(12.dp))
                 Text(
-                    text = stringResource(R.string.aircraft_type_label),
+                    text = stringResource(R.string.aircraft_photo_unavailable),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text(
-                    text = aircraftType,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium
                 )
             }
 

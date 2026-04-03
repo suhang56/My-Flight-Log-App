@@ -187,7 +187,8 @@ internal fun FlightDetailContent(
             AircraftCard(
                 aircraftType = linkedFlight?.aircraftType,
                 registration = null,
-                photoState = AircraftPhotoState()
+                photoState = AircraftPhotoState(),
+                flightNumber = linkedFlight?.flightNumber
             )
             Spacer(modifier = Modifier.height(16.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
