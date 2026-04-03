@@ -13,6 +13,7 @@ interface FlightAwareApi {
     suspend fun getFlights(
         @Path("ident") ident: String,
         @Query("start") start: String? = null,
+        @Query("end") end: String? = null,
         @Query("max_pages") maxPages: Int = 1
     ): Response<FlightAwareFlightsResponse>
 
