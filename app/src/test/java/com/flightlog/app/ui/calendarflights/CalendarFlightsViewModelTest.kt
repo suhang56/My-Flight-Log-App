@@ -6,6 +6,7 @@ import android.content.ContentResolver
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.flightlog.app.data.local.entity.CalendarFlight
+import com.flightlog.app.data.network.PlanespottersApi
 import com.flightlog.app.data.repository.CalendarRepository
 import com.flightlog.app.data.repository.LogbookRepository
 import com.flightlog.app.data.repository.SyncResult
@@ -42,6 +43,7 @@ class CalendarFlightsViewModelTest {
     private lateinit var contentResolver: ContentResolver
     private lateinit var calendarRepository: CalendarRepository
     private lateinit var logbookRepository: LogbookRepository
+    private lateinit var planespottersApi: PlanespottersApi
 
     private val upcomingFlow = MutableStateFlow<List<CalendarFlight>>(emptyList())
     private val pastFlow = MutableStateFlow<List<CalendarFlight>>(emptyList())
@@ -56,6 +58,7 @@ class CalendarFlightsViewModelTest {
 
         calendarRepository = mockk(relaxed = true)
         logbookRepository = mockk(relaxed = true)
+        planespottersApi = mockk(relaxed = true)
 
         every { calendarRepository.upcomingFlights(any()) } returns upcomingFlow
         every { calendarRepository.pastFlights(any()) } returns pastFlow
@@ -78,7 +81,7 @@ class CalendarFlightsViewModelTest {
         unmockkObject(CalendarSyncWorker)
     }
 
-    private fun createViewModel() = CalendarFlightsViewModel(application, calendarRepository, logbookRepository)
+    private fun createViewModel() = CalendarFlightsViewModel(application, calendarRepository, logbookRepository, planespottersApi)
 
     private fun calendarFlight(
         id: Long = 1,

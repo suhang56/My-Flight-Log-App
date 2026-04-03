@@ -23,7 +23,7 @@ import com.flightlog.app.data.local.entity.LogbookFlight
         Airport::class,
         FlightStatus::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = true
 )
 abstract class FlightDatabase : RoomDatabase() {
@@ -79,6 +79,12 @@ abstract class FlightDatabase : RoomDatabase() {
         val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE logbook_flights ADD COLUMN rating INTEGER")
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE logbook_flights ADD COLUMN registration TEXT")
             }
         }
 

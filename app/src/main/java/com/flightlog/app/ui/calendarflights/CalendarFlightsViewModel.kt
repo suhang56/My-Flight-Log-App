@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.local.entity.LogbookFlight
 import com.flightlog.app.data.network.AircraftTypePhotoProvider
+import com.flightlog.app.data.network.PlanespottersApi
 import com.flightlog.app.data.repository.CalendarRepository
 import com.flightlog.app.data.repository.LogbookRepository
 import com.flightlog.app.ui.logbook.AircraftPhotoState
@@ -36,7 +37,8 @@ import javax.inject.Inject
 class CalendarFlightsViewModel @Inject constructor(
     private val application: Application,
     private val repository: CalendarRepository,
-    private val logbookRepository: LogbookRepository
+    private val logbookRepository: LogbookRepository,
+    private val planespottersApi: PlanespottersApi
 ) : AndroidViewModel(application) {
 
     // -- Permission --
@@ -110,16 +112,44 @@ class CalendarFlightsViewModel @Inject constructor(
     val aircraftPhotoState: StateFlow<AircraftPhotoState> = _aircraftPhotoState.asStateFlow()
 
     /**
-     * Looks up an aircraft photo by ICAO type code using the static provider.
-     * Called when a flight is selected in the drawer and has a linked LogbookFlight with aircraftType.
+     * Looks up an aircraft photo. Prefers Planespotters API by registration for real photos;
+     * falls back to static AircraftTypePhotoProvider when registration is unavailable.
      */
-    fun fetchAircraftPhoto(aircraftType: String?) {
-        if (aircraftType.isNullOrBlank()) {
+    fun fetchAircraftPhoto(aircraftType: String?, registration: String? = null) {
+        if (aircraftType.isNullOrBlank() && registration.isNullOrBlank()) {
             _aircraftPhotoState.value = AircraftPhotoState()
             return
         }
 
-        val photoInfo = AircraftTypePhotoProvider.getPhotoForType(aircraftType)
+        if (!registration.isNullOrBlank()) {
+            _aircraftPhotoState.value = AircraftPhotoState(isLoading = true)
+            viewModelScope.launch {
+                try {
+                    val response = planespottersApi.getPhotosByRegistration(registration)
+                    val photo = response.body()?.photos?.firstOrNull()
+                    if (photo?.thumbnailLarge?.src != null) {
+                        _aircraftPhotoState.value = AircraftPhotoState(
+                            photoUrl = photo.thumbnailLarge.src,
+                            photographer = photo.photographer
+                        )
+                    } else {
+                        fallbackToTypePhoto(aircraftType)
+                    }
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    fallbackToTypePhoto(aircraftType)
+                }
+            }
+        } else {
+            fallbackToTypePhoto(aircraftType)
+        }
+    }
+
+    private fun fallbackToTypePhoto(aircraftType: String?) {
+        val photoInfo = if (!aircraftType.isNullOrBlank()) {
+            AircraftTypePhotoProvider.getPhotoForType(aircraftType)
+        } else null
         _aircraftPhotoState.value = AircraftPhotoState(
             photoUrl = photoInfo?.photoUrl,
             photographer = photoInfo?.photographer

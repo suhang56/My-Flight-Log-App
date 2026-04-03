@@ -84,7 +84,7 @@ internal fun FlightBottomDrawer(
     getLinkedLogbookFlight: suspend (Long) -> LogbookFlight?,
     onRatingChanged: (Long, Int?) -> Unit,
     aircraftPhotoState: AircraftPhotoState = AircraftPhotoState(),
-    onAircraftTypeResolved: (String?) -> Unit = {},
+    onAircraftTypeResolved: (aircraftType: String?, registration: String?) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val density = LocalDensity.current

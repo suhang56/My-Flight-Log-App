@@ -130,6 +130,6 @@ fun CalendarFlightsScreen(
         getLinkedLogbookFlight = { viewModel.getLinkedLogbookFlight(it) },
         onRatingChanged = { id, rating -> viewModel.updateLinkedRating(id, rating) },
         aircraftPhotoState = aircraftPhotoState,
-        onAircraftTypeResolved = { viewModel.fetchAircraftPhoto(it) }
+        onAircraftTypeResolved = { type, reg -> viewModel.fetchAircraftPhoto(type, reg) }
     )
 }

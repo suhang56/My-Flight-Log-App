@@ -42,6 +42,7 @@ data class LogbookFormState(
     val departureTimeMillis: Long? = null,
     val arrivalTimeMillis: Long? = null,
     val aircraftType: String = "",
+    val registration: String = "",
     val departureTimezone: String? = null,
     val arrivalTimezone: String? = null,
 
@@ -91,6 +92,7 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                     departureTimeMillis = flight.departureTimeMillis,
                     arrivalTimeMillis = flight.arrivalTimeMillis,
                     aircraftType = flight.aircraftType ?: "",
+                    registration = flight.registration ?: "",
                     departureTimezone = flight.departureTimezone,
                     arrivalTimezone = flight.arrivalTimezone,
                     seatClass = flight.seatClass ?: "",
@@ -194,6 +196,7 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                 departureTimeMillis = route.departureScheduledUtc,
                 arrivalTimeMillis = route.arrivalScheduledUtc,
                 aircraftType = route.aircraftType ?: "",
+                registration = route.registration ?: "",
                 departureTimezone = route.departureTimezone,
                 arrivalTimezone = route.arrivalTimezone,
                 lookupState = LookupState.Success(route)
@@ -211,6 +214,7 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                 departureTimeMillis = null,
                 arrivalTimeMillis = null,
                 aircraftType = "",
+                registration = "",
                 departureTimezone = null,
                 arrivalTimezone = null
             )
@@ -275,6 +279,7 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                 departureTimezone = depTz,
                 arrivalTimezone = arrTz,
                 aircraftType = state.aircraftType.ifBlank { null },
+                registration = state.registration.ifBlank { null },
                 seatClass = state.seatClass.ifBlank { null },
                 seatNumber = state.seatNumber.ifBlank { null },
                 distanceKm = distanceKm,

@@ -144,6 +144,7 @@ class DriveBackupService @Inject constructor(
                     arrivalTimezone = exportFlight.arrivalTimezone,
                     distanceKm = distance,
                     aircraftType = exportFlight.aircraftType,
+                    registration = exportFlight.registration,
                     seatClass = exportFlight.seatClass,
                     seatNumber = exportFlight.seatNumber,
                     notes = exportFlight.notes,

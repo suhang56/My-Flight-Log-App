@@ -19,6 +19,7 @@ data class LogbookFlightExport(
     @Json(name = "duration_minutes") val durationMinutes: Long?,
     @Json(name = "distance_km") val distanceKm: Int?,
     @Json(name = "aircraft_type") val aircraftType: String?,
+    @Json(name = "registration") val registration: String? = null,
     @Json(name = "seat_class") val seatClass: String?,
     @Json(name = "seat_number") val seatNumber: String?,
     val notes: String?,

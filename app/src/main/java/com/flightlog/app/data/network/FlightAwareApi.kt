@@ -45,7 +45,8 @@ data class FlightAwareFlight(
     @Json(name = "actual_in") val actualIn: String?,
     @Json(name = "gate_origin") val gateOrigin: String?,
     @Json(name = "gate_destination") val gateDestination: String?,
-    @Json(name = "aircraft_type") val aircraftType: String?
+    @Json(name = "aircraft_type") val aircraftType: String?,
+    @Json(name = "registration") val registration: String? = null
 )
 
 @JsonClass(generateAdapter = true)

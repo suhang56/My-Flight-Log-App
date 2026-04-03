@@ -38,6 +38,9 @@ data class LogbookFlight(
 
     val aircraftType: String? = null,
 
+    /** Aircraft registration / tail number (e.g. "JA812A"). */
+    val registration: String? = null,
+
     /** One of: economy, premium_economy, business, first. */
     val seatClass: String? = null,
 

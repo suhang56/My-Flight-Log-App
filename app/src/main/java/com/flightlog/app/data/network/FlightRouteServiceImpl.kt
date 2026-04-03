@@ -70,7 +70,8 @@ class FlightRouteServiceImpl @Inject constructor(
                     arrivalTimezone = flight.destination?.timezone,
                     departureScheduledUtc = parseIsoToUtc(flight.scheduledOut),
                     arrivalScheduledUtc = parseIsoToUtc(flight.scheduledIn),
-                    aircraftType = flight.aircraftType?.takeIf { it.isNotBlank() }
+                    aircraftType = flight.aircraftType?.takeIf { it.isNotBlank() },
+                    registration = flight.registration?.takeIf { it.isNotBlank() }
                 )
             } ?: emptyList()
     }

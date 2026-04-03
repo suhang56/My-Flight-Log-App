@@ -162,7 +162,7 @@ fun FlightDetailScreen(
             val context = LocalContext.current
 
             LaunchedEffect(flight.id) {
-                viewModel.fetchAircraftPhoto(flight.aircraftType)
+                viewModel.fetchAircraftPhoto(flight.aircraftType, flight.registration)
             }
 
             Scaffold(
@@ -239,7 +239,7 @@ fun FlightDetailScreen(
                         Spacer(modifier = Modifier.height(16.dp))
                         AircraftCard(
                             aircraftType = flight.aircraftType,
-                            registration = null,
+                            registration = flight.registration,
                             photoState = aircraftPhotoState
                         )
                     }

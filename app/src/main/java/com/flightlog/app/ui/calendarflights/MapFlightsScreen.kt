@@ -37,7 +37,7 @@ internal fun MapFlightsScreen(
     getLinkedLogbookFlight: suspend (Long) -> LogbookFlight?,
     onRatingChanged: (Long, Int?) -> Unit,
     aircraftPhotoState: AircraftPhotoState = AircraftPhotoState(),
-    onAircraftTypeResolved: (String?) -> Unit = {},
+    onAircraftTypeResolved: (aircraftType: String?, registration: String?) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     Box(modifier = modifier.fillMaxSize()) {

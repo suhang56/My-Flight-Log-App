@@ -55,7 +55,7 @@ internal fun FlightDetailContent(
     getLinkedLogbookFlight: suspend (Long) -> LogbookFlight?,
     onRatingChanged: (Long, Int?) -> Unit,
     aircraftPhotoState: AircraftPhotoState = AircraftPhotoState(),
-    onAircraftTypeResolved: (String?) -> Unit = {},
+    onAircraftTypeResolved: (aircraftType: String?, registration: String?) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier
 ) {
     val dateFormat = remember { SimpleDateFormat("EEEE, MMM d, yyyy  HH:mm", Locale.getDefault()) }
@@ -74,7 +74,7 @@ internal fun FlightDetailContent(
         alreadyLogged = isAlreadyLogged(flight.calendarEventId)
         val linked = getLinkedLogbookFlight(flight.calendarEventId)
         linkedFlight = linked
-        onAircraftTypeResolved(linked?.aircraftType)
+        onAircraftTypeResolved(linked?.aircraftType, linked?.registration)
     }
 
     Column(
@@ -190,7 +190,7 @@ internal fun FlightDetailContent(
 
             AircraftCard(
                 aircraftType = linkedFlight?.aircraftType,
-                registration = null,
+                registration = linkedFlight?.registration,
                 photoState = aircraftPhotoState,
                 flightNumber = linkedFlight?.flightNumber
             )

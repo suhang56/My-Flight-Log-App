@@ -95,11 +95,39 @@ class FlightDetailViewModel @Inject constructor(
         }
     }
 
-    fun fetchAircraftPhoto(aircraftType: String?) {
-        if (aircraftType.isNullOrBlank()) return
+    fun fetchAircraftPhoto(aircraftType: String?, registration: String? = null) {
+        if (aircraftType.isNullOrBlank() && registration.isNullOrBlank()) return
         if (_aircraftPhotoState.value.photoUrl != null) return
 
-        val photoInfo = AircraftTypePhotoProvider.getPhotoForType(aircraftType)
+        if (!registration.isNullOrBlank()) {
+            _aircraftPhotoState.value = AircraftPhotoState(isLoading = true)
+            viewModelScope.launch {
+                try {
+                    val response = planespottersApi.getPhotosByRegistration(registration)
+                    val photo = response.body()?.photos?.firstOrNull()
+                    if (photo?.thumbnailLarge?.src != null) {
+                        _aircraftPhotoState.value = AircraftPhotoState(
+                            photoUrl = photo.thumbnailLarge.src,
+                            photographer = photo.photographer
+                        )
+                    } else {
+                        fallbackToTypePhoto(aircraftType)
+                    }
+                } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    fallbackToTypePhoto(aircraftType)
+                }
+            }
+        } else {
+            fallbackToTypePhoto(aircraftType)
+        }
+    }
+
+    private fun fallbackToTypePhoto(aircraftType: String?) {
+        val photoInfo = if (!aircraftType.isNullOrBlank()) {
+            AircraftTypePhotoProvider.getPhotoForType(aircraftType)
+        } else null
         _aircraftPhotoState.value = AircraftPhotoState(
             photoUrl = photoInfo?.photoUrl,
             photographer = photoInfo?.photographer
