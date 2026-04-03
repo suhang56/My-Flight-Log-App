@@ -9,28 +9,41 @@ import java.time.ZoneOffset
 import javax.inject.Inject
 
 class FlightRouteServiceImpl @Inject constructor(
-    private val api: FlightAwareApi
+    private val api: FlightAwareApi,
+    private val aviationStackApi: AviationStackApi
 ) : FlightRouteService {
 
-    override suspend fun lookupRoute(flightNumber: String, date: LocalDate): FlightRoute? {
-        return lookupAllRoutes(flightNumber, date).firstOrNull()
+    // Client-side throttle: track last AviationStack call to enforce 60s minimum interval
+    @Volatile
+    private var lastAviationStackCallMillis: Long = 0L
+
+    override suspend fun lookupRoute(
+        flightNumber: String,
+        date: LocalDate,
+        departureAirport: String?
+    ): FlightRoute? {
+        return lookupAllRoutes(flightNumber, date, departureAirport).firstOrNull()
     }
 
-    override suspend fun lookupAllRoutes(flightNumber: String, date: LocalDate): List<FlightRoute> {
+    override suspend fun lookupAllRoutes(
+        flightNumber: String,
+        date: LocalDate,
+        departureAirport: String?
+    ): List<FlightRoute> {
         return try {
-            // Try IATA flight number first
-            val routes = fetchAllRoutes(flightNumber, date)
-            if (routes.isNotEmpty()) return routes
-
-            // FlightAware uses ICAO identifiers internally; some IATA codes
-            // don't auto-map (e.g., JL5 fails but JAL5 works). Retry with ICAO.
-            val icaoIdent = AirlineIcaoMap.toIcaoFlightNumber(flightNumber)
-            if (icaoIdent != null) {
-                Log.d(TAG, "IATA lookup empty for $flightNumber, retrying as $icaoIdent")
-                fetchAllRoutes(icaoIdent, date, originalFlightNumber = flightNumber)
-            } else {
-                emptyList()
+            val primary = selectApi(date)
+            val results = when (primary) {
+                ApiSource.FLIGHTAWARE -> fetchFlightAwareRoutes(flightNumber, date)
+                ApiSource.AVIATION_STACK -> fetchAviationStackRoutes(flightNumber, date, departureAirport)
             }
+            // Fallback to the other API if primary returned empty
+            if (results.isNotEmpty()) return results
+
+            val fallback = when (primary) {
+                ApiSource.FLIGHTAWARE -> fetchAviationStackRoutes(flightNumber, date, departureAirport)
+                ApiSource.AVIATION_STACK -> fetchFlightAwareRoutes(flightNumber, date)
+            }
+            fallback
         } catch (e: kotlin.coroutines.cancellation.CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -40,17 +53,39 @@ class FlightRouteServiceImpl @Inject constructor(
         }
     }
 
-    /**
-     * Fetches routes using a multi-strategy approach to handle FlightAware's
-     * limited date window. The API returns 400 for dates too far in the future.
-     *
-     * Strategy:
-     * 1. For recent/future flights (within 7 days): call without date params first,
-     *    then filter results client-side to match the target date.
-     * 2. If no results: fall back to a date-bounded query (start + end params).
-     * 3. If the date-bounded query returns 400: retry without date params as last resort.
-     */
-    private suspend fun fetchAllRoutes(
+    internal fun selectApi(date: LocalDate): ApiSource {
+        val today = LocalDate.now(ZoneOffset.UTC)
+        val daysDiff = date.toEpochDay() - today.toEpochDay()
+        return if (daysDiff <= FLIGHTAWARE_WINDOW_DAYS) ApiSource.FLIGHTAWARE else ApiSource.AVIATION_STACK
+    }
+
+    // -- FlightAware fetch (existing logic) --
+
+    private suspend fun fetchFlightAwareRoutes(
+        flightNumber: String,
+        date: LocalDate
+    ): List<FlightRoute> {
+        return try {
+            val routes = fetchAllFlightAwareRoutes(flightNumber, date)
+            if (routes.isNotEmpty()) return routes
+
+            // Retry with ICAO identifier
+            val icaoIdent = AirlineIcaoMap.toIcaoFlightNumber(flightNumber)
+            if (icaoIdent != null) {
+                Log.d(TAG, "IATA lookup empty for $flightNumber, retrying as $icaoIdent")
+                fetchAllFlightAwareRoutes(icaoIdent, date, originalFlightNumber = flightNumber)
+            } else {
+                emptyList()
+            }
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) Log.e(TAG, "FlightAware lookup failed for $flightNumber", e)
+            emptyList()
+        }
+    }
+
+    private suspend fun fetchAllFlightAwareRoutes(
         ident: String,
         date: LocalDate,
         originalFlightNumber: String = ident
@@ -59,30 +94,25 @@ class FlightRouteServiceImpl @Inject constructor(
         val daysDiff = date.toEpochDay() - today.toEpochDay()
         val isRecentOrFuture = daysDiff >= -RECENT_DAYS_THRESHOLD
 
-        // Strategy 1: For recent/future dates, try without date params first.
-        // The undated endpoint returns recent + scheduled flights without 400 risk.
         if (isRecentOrFuture) {
-            val undatedRoutes = callApi(ident, start = null, end = null, originalFlightNumber)
+            val undatedRoutes = callFlightAwareApi(ident, start = null, end = null, originalFlightNumber)
             val matched = filterByDate(undatedRoutes, date)
             if (matched.isNotEmpty()) return matched
         }
 
-        // Strategy 2: Date-bounded query for historical or when undated had no match.
         val startDate = date.toString()
         val endDate = date.plusDays(1).toString()
         val datedResponse = api.getFlights(ident = ident, start = startDate, end = endDate)
 
         if (datedResponse.isSuccessful) {
-            val routes = mapResponse(datedResponse, originalFlightNumber)
+            val routes = mapFlightAwareResponse(datedResponse, originalFlightNumber)
             if (routes.isNotEmpty()) return routes
         } else {
             Log.w(TAG, "Dated API returned ${datedResponse.code()} for $ident on $date")
         }
 
-        // Strategy 3: If dated query failed (e.g., 400 for future dates) and we
-        // haven't tried undated yet, try it now as a last resort.
         if (!isRecentOrFuture) {
-            val undatedRoutes = callApi(ident, start = null, end = null, originalFlightNumber)
+            val undatedRoutes = callFlightAwareApi(ident, start = null, end = null, originalFlightNumber)
             val matched = filterByDate(undatedRoutes, date)
             if (matched.isNotEmpty()) return matched
         }
@@ -90,8 +120,7 @@ class FlightRouteServiceImpl @Inject constructor(
         return emptyList()
     }
 
-    /** Calls the API and maps the response to [FlightRoute]s. */
-    private suspend fun callApi(
+    private suspend fun callFlightAwareApi(
         ident: String,
         start: String?,
         end: String?,
@@ -102,11 +131,10 @@ class FlightRouteServiceImpl @Inject constructor(
             Log.w(TAG, "API returned ${response.code()} for $ident (start=$start, end=$end)")
             return emptyList()
         }
-        return mapResponse(response, originalFlightNumber)
+        return mapFlightAwareResponse(response, originalFlightNumber)
     }
 
-    /** Maps a successful API response to a list of [FlightRoute]s. */
-    private fun mapResponse(
+    private fun mapFlightAwareResponse(
         response: retrofit2.Response<FlightAwareFlightsResponse>,
         originalFlightNumber: String
     ): List<FlightRoute> {
@@ -127,10 +155,84 @@ class FlightRouteServiceImpl @Inject constructor(
             } ?: emptyList()
     }
 
-    /**
-     * Filters routes to those whose scheduled departure falls within ±1 day of [targetDate].
-     * This handles timezone differences where a flight's UTC time falls on an adjacent day.
-     */
+    // -- AviationStack fetch --
+
+    private suspend fun fetchAviationStackRoutes(
+        flightNumber: String,
+        date: LocalDate,
+        departureAirport: String?
+    ): List<FlightRoute> {
+        // AviationStack requires a departure airport IATA code
+        if (departureAirport.isNullOrBlank()) {
+            Log.d(TAG, "Skipping AviationStack: no departure airport provided")
+            return emptyList()
+        }
+
+        val apiKey = BuildConfig.AVIATION_STACK_KEY
+        if (apiKey.isBlank()) {
+            Log.w(TAG, "AviationStack API key not configured")
+            return emptyList()
+        }
+
+        // Client-side 60s throttle
+        val now = System.currentTimeMillis()
+        if (now - lastAviationStackCallMillis < AVIATION_STACK_THROTTLE_MS) {
+            Log.d(TAG, "AviationStack throttled (last call <60s ago)")
+            return emptyList()
+        }
+
+        return try {
+            lastAviationStackCallMillis = System.currentTimeMillis()
+            val response = aviationStackApi.getScheduledFlights(
+                accessKey = apiKey,
+                iataCode = departureAirport.uppercase(),
+                type = "departure",
+                date = date.toString(),
+                flightIata = flightNumber.uppercase()
+            )
+
+            if (!response.isSuccessful) {
+                val code = response.code()
+                when (code) {
+                    429 -> Log.w(TAG, "AviationStack rate limited (429)")
+                    in 400..499 -> Log.w(TAG, "AviationStack client error ($code)")
+                    else -> Log.w(TAG, "AviationStack error ($code)")
+                }
+                return emptyList()
+            }
+
+            mapAviationStackResponse(response, flightNumber)
+        } catch (e: kotlin.coroutines.cancellation.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (BuildConfig.DEBUG) Log.e(TAG, "AviationStack lookup failed for $flightNumber", e)
+            emptyList()
+        }
+    }
+
+    internal fun mapAviationStackResponse(
+        response: retrofit2.Response<AviationStackResponse>,
+        originalFlightNumber: String
+    ): List<FlightRoute> {
+        return response.body()?.data
+            ?.filter { it.departure?.iata != null && it.arrival?.iata != null }
+            ?.mapNotNull { flight ->
+                FlightRoute(
+                    flightNumber = originalFlightNumber,
+                    departureIata = flight.departure?.iata ?: return@mapNotNull null,
+                    arrivalIata = flight.arrival?.iata ?: return@mapNotNull null,
+                    departureTimezone = flight.departure?.timezone,
+                    arrivalTimezone = flight.arrival?.timezone,
+                    departureScheduledUtc = parseIsoToUtc(flight.departure?.scheduled),
+                    arrivalScheduledUtc = parseIsoToUtc(flight.arrival?.scheduled),
+                    aircraftType = flight.aircraft?.modelCode?.takeIf { it.isNotBlank() },
+                    registration = null // AviationStack does not provide registration
+                )
+            } ?: emptyList()
+    }
+
+    // -- Shared utilities --
+
     internal fun filterByDate(routes: List<FlightRoute>, targetDate: LocalDate): List<FlightRoute> {
         val minEpochDay = targetDate.minusDays(DATE_TOLERANCE_DAYS).toEpochDay()
         val maxEpochDay = targetDate.plusDays(DATE_TOLERANCE_DAYS).toEpochDay()
@@ -144,10 +246,14 @@ class FlightRouteServiceImpl @Inject constructor(
         }
     }
 
+    internal enum class ApiSource { FLIGHTAWARE, AVIATION_STACK }
+
     companion object {
         private const val TAG = "FlightRouteService"
         private const val RECENT_DAYS_THRESHOLD = 7L
         private const val DATE_TOLERANCE_DAYS = 1L
+        internal const val FLIGHTAWARE_WINDOW_DAYS = 7L
+        internal const val AVIATION_STACK_THROTTLE_MS = 60_000L
 
         fun parseIsoToUtc(iso: String?): Long? =
             iso?.let { runCatching { OffsetDateTime.parse(it).toInstant().toEpochMilli() }.getOrNull() }

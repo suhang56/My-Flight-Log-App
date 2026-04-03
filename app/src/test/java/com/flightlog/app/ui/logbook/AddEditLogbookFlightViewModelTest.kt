@@ -112,7 +112,7 @@ class AddEditLogbookFlightViewModelTest {
             arrivalScheduledUtc = 1743603600000L,
             aircraftType = "B789"
         )
-        coEvery { flightRouteService.lookupAllRoutes("NH211", any()) } returns listOf(route)
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), any()) } returns listOf(route)
 
         val vm = createViewModel()
         vm.updateFlightNumber("NH211")
@@ -135,7 +135,7 @@ class AddEditLogbookFlightViewModelTest {
     fun `lookupFlight with multiple results enters disambiguation state`() = runTest {
         val route1 = FlightRoute("NH211", "NRT", "SFO", departureScheduledUtc = 1743570000000L, arrivalScheduledUtc = 1743603600000L)
         val route2 = FlightRoute("NH211", "NRT", "LAX", departureScheduledUtc = 1743580000000L, arrivalScheduledUtc = 1743613600000L)
-        coEvery { flightRouteService.lookupAllRoutes("NH211", any()) } returns listOf(route1, route2)
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), any()) } returns listOf(route1, route2)
 
         val vm = createViewModel()
         vm.updateFlightNumber("NH211")
@@ -154,7 +154,7 @@ class AddEditLogbookFlightViewModelTest {
     fun `selectRoute from disambiguation populates fields`() = runTest {
         val route1 = FlightRoute("NH211", "NRT", "SFO", aircraftType = "B789")
         val route2 = FlightRoute("NH211", "NRT", "LAX", aircraftType = "B77W")
-        coEvery { flightRouteService.lookupAllRoutes("NH211", any()) } returns listOf(route1, route2)
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), any()) } returns listOf(route1, route2)
 
         val vm = createViewModel()
         vm.updateFlightNumber("NH211")
@@ -174,7 +174,7 @@ class AddEditLogbookFlightViewModelTest {
 
     @Test
     fun `lookupFlight with no results shows error`() = runTest {
-        coEvery { flightRouteService.lookupAllRoutes("XX999", any()) } returns emptyList()
+        coEvery { flightRouteService.lookupAllRoutes("XX999", any(), any()) } returns emptyList()
 
         val vm = createViewModel()
         vm.updateFlightNumber("XX999")
@@ -191,7 +191,7 @@ class AddEditLogbookFlightViewModelTest {
     @Test
     fun `resetLookup clears auto-populated fields`() = runTest {
         val route = FlightRoute("NH211", "NRT", "SFO", aircraftType = "B789")
-        coEvery { flightRouteService.lookupAllRoutes("NH211", any()) } returns listOf(route)
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), any()) } returns listOf(route)
 
         val vm = createViewModel()
         vm.updateFlightNumber("NH211")
@@ -224,7 +224,7 @@ class AddEditLogbookFlightViewModelTest {
             arrivalScheduledUtc = 1743603600000L,
             aircraftType = "B789"
         )
-        coEvery { flightRouteService.lookupAllRoutes("NH211", any()) } returns listOf(route)
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), any()) } returns listOf(route)
         coEvery { repository.insert(any()) } returns 1L
 
         val vm = createViewModel()
@@ -292,7 +292,7 @@ class AddEditLogbookFlightViewModelTest {
         val route = FlightRoute("NH211", "NRT", "SFO",
             departureTimezone = "Asia/Tokyo",
             departureScheduledUtc = 1743570000000L)
-        coEvery { flightRouteService.lookupAllRoutes("NH211", any()) } returns listOf(route)
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), any()) } returns listOf(route)
         coEvery { repository.insert(any()) } returns 1L
 
         val vm = createViewModel()
@@ -322,7 +322,7 @@ class AddEditLogbookFlightViewModelTest {
             departureScheduledUtc = null,
             arrivalScheduledUtc = null,
             aircraftType = null)
-        coEvery { flightRouteService.lookupAllRoutes("NH211", any()) } returns listOf(route)
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), any()) } returns listOf(route)
 
         val vm = createViewModel()
         vm.updateFlightNumber("NH211")
@@ -403,6 +403,92 @@ class AddEditLogbookFlightViewModelTest {
         coVerify(exactly = 0) { repository.delete(any<LogbookFlight>()) }
     }
 
+    // -- Departure airport field visibility for dual-API --
+
+    @Test
+    fun `showDepartureAirportLookupField is false for near-future date`() = runTest {
+        val vm = createViewModel()
+        // Date within 7 days — FlightAware window
+        val nearFuture = LocalDate.now(java.time.ZoneOffset.UTC).plusDays(3)
+        val millis = nearFuture.atStartOfDay().toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
+        vm.updateDepartureDate(millis)
+        assertFalse(vm.formState.value.showDepartureAirportLookupField)
+    }
+
+    @Test
+    fun `showDepartureAirportLookupField is false for exactly 7 days out`() = runTest {
+        val vm = createViewModel()
+        val boundaryDate = LocalDate.now(java.time.ZoneOffset.UTC).plusDays(7)
+        val millis = boundaryDate.atStartOfDay().toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
+        vm.updateDepartureDate(millis)
+        assertFalse(vm.formState.value.showDepartureAirportLookupField)
+    }
+
+    @Test
+    fun `showDepartureAirportLookupField is true for 8 days out`() = runTest {
+        val vm = createViewModel()
+        val futureDate = LocalDate.now(java.time.ZoneOffset.UTC).plusDays(8)
+        val millis = futureDate.atStartOfDay().toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
+        vm.updateDepartureDate(millis)
+        assertTrue(vm.formState.value.showDepartureAirportLookupField)
+    }
+
+    @Test
+    fun `showDepartureAirportLookupField is false for null date`() = runTest {
+        val vm = createViewModel()
+        vm.updateDepartureDate(null)
+        assertFalse(vm.formState.value.showDepartureAirportLookupField)
+    }
+
+    @Test
+    fun `showDepartureAirportLookupField is false for past date`() = runTest {
+        val vm = createViewModel()
+        val pastDate = LocalDate.now(java.time.ZoneOffset.UTC).minusDays(10)
+        val millis = pastDate.atStartOfDay().toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
+        vm.updateDepartureDate(millis)
+        assertFalse(vm.formState.value.showDepartureAirportLookupField)
+    }
+
+    @Test
+    fun `updateDepartureAirportForLookup uppercases and trims`() = runTest {
+        val vm = createViewModel()
+        vm.updateDepartureAirportForLookup("  nrt  ")
+        assertEquals("NRT", vm.formState.value.departureAirportForLookup)
+    }
+
+    @Test
+    fun `departure airport is passed to lookupAllRoutes`() = runTest {
+        val route = FlightRoute("NH211", "NRT", "SFO", aircraftType = "B789")
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), eq("NRT")) } returns listOf(route)
+
+        val vm = createViewModel()
+        vm.updateFlightNumber("NH211")
+        val futureDate = LocalDate.now(java.time.ZoneOffset.UTC).plusDays(15)
+        val millis = futureDate.atStartOfDay().toInstant(java.time.ZoneOffset.UTC).toEpochMilli()
+        vm.updateDepartureDate(millis)
+        vm.updateDepartureAirportForLookup("NRT")
+        vm.lookupFlight()
+        advanceUntilIdle()
+
+        val state = vm.formState.value
+        assertTrue(state.lookupState is LookupState.Success)
+        assertEquals("NRT", state.departureCode)
+        coVerify { flightRouteService.lookupAllRoutes("NH211", any(), "NRT") }
+    }
+
+    @Test
+    fun `departure airport is null when field is blank`() = runTest {
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), isNull()) } returns emptyList()
+
+        val vm = createViewModel()
+        vm.updateFlightNumber("NH211")
+        vm.updateDepartureDate(april2Date)
+        vm.lookupFlight()
+        advanceUntilIdle()
+
+        coVerify { flightRouteService.lookupAllRoutes("NH211", any(), isNull()) }
+    }
+
     // -- Edge case: formatUtcMillisToLocalTime --
 
     @Test
@@ -440,7 +526,7 @@ class AddEditLogbookFlightViewModelTest {
             departureScheduledUtc = 1743570000000L,    // 05:00 UTC
             arrivalScheduledUtc = 1743603600000L       // 14:20 UTC (+9h20m = 560 min)
         )
-        coEvery { flightRouteService.lookupAllRoutes("NH211", any()) } returns listOf(route)
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), any()) } returns listOf(route)
         coEvery { repository.insert(any()) } returns 1L
 
         val vm = createViewModel()
@@ -463,7 +549,7 @@ class AddEditLogbookFlightViewModelTest {
             departureScheduledUtc = 1743570000000L,
             arrivalScheduledUtc = null
         )
-        coEvery { flightRouteService.lookupAllRoutes("NH211", any()) } returns listOf(route)
+        coEvery { flightRouteService.lookupAllRoutes("NH211", any(), any()) } returns listOf(route)
         coEvery { repository.insert(any()) } returns 1L
 
         val vm = createViewModel()

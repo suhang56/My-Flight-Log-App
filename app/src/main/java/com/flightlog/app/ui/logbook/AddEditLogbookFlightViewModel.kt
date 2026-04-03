@@ -35,6 +35,8 @@ data class LogbookFormState(
     // -- User input (Step 1) --
     val flightNumber: String = "",
     val departureDateMillis: Long? = null,
+    val departureAirportForLookup: String = "",
+    val showDepartureAirportLookupField: Boolean = false,
 
     // -- Auto-populated from API --
     val departureCode: String = "",
@@ -113,7 +115,26 @@ class AddEditLogbookFlightViewModel @Inject constructor(
     }
 
     fun updateDepartureDate(millis: Long?) {
-        _formState.update { it.copy(departureDateMillis = millis, departureDateError = null) }
+        val showField = millis != null && isFutureBeyondFlightAwareWindow(millis)
+        _formState.update {
+            it.copy(
+                departureDateMillis = millis,
+                departureDateError = null,
+                showDepartureAirportLookupField = showField
+            )
+        }
+    }
+
+    fun updateDepartureAirportForLookup(value: String) {
+        _formState.update { it.copy(departureAirportForLookup = value.uppercase().trim()) }
+    }
+
+    private fun isFutureBeyondFlightAwareWindow(dateMillis: Long): Boolean {
+        val date = Instant.ofEpochMilli(dateMillis)
+            .atZone(ZoneOffset.UTC)
+            .toLocalDate()
+        val today = LocalDate.now(ZoneOffset.UTC)
+        return date.toEpochDay() - today.toEpochDay() > FLIGHTAWARE_WINDOW_DAYS
     }
 
     fun updateSeatClass(value: String) {
@@ -163,7 +184,8 @@ class AddEditLogbookFlightViewModel @Inject constructor(
                 .atZone(ZoneOffset.UTC)
                 .toLocalDate()
 
-            val routes = flightRouteService.lookupAllRoutes(state.flightNumber, date)
+            val depAirport = state.departureAirportForLookup.takeIf { it.isNotBlank() }
+            val routes = flightRouteService.lookupAllRoutes(state.flightNumber, date, depAirport)
 
             when {
                 routes.isEmpty() -> {
@@ -309,6 +331,8 @@ class AddEditLogbookFlightViewModel @Inject constructor(
     }
 
     companion object {
+        private const val FLIGHTAWARE_WINDOW_DAYS = 7L
+
         /** Format a UTC epoch millis to a local time string for display. */
         fun formatUtcMillisToLocalTime(millis: Long, timezone: String?): String {
             val zone = timezone?.let { runCatching { ZoneId.of(it) }.getOrNull() } ?: ZoneId.systemDefault()

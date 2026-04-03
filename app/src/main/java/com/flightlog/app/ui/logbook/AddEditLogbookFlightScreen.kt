@@ -61,6 +61,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.ui.res.stringResource
+import com.flightlog.app.R
 import com.flightlog.app.data.network.FlightRoute
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -145,6 +147,31 @@ fun AddEditLogbookFlightScreen(
                     }
                 }
             )
+
+            // Departure airport (shown when date is >7 days in the future)
+            AnimatedVisibility(
+                visible = formState.showDepartureAirportLookupField,
+                enter = fadeIn() + expandVertically(),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Column {
+                    OutlinedTextField(
+                        value = formState.departureAirportForLookup,
+                        onValueChange = viewModel::updateDepartureAirportForLookup,
+                        label = { Text(stringResource(R.string.add_flight_departure_airport_label)) },
+                        placeholder = { Text(stringResource(R.string.add_flight_departure_airport_placeholder)) },
+                        leadingIcon = { Icon(Icons.Default.FlightTakeoff, contentDescription = null) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Text(
+                        text = stringResource(R.string.add_flight_departure_airport_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+                    )
+                }
+            }
 
             // Lookup button (only in add mode or when editing with Idle state)
             if (!formState.isEditMode || formState.lookupState is LookupState.Idle) {

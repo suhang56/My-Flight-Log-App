@@ -1,6 +1,7 @@
 package com.flightlog.app.di
 
 import com.flightlog.app.BuildConfig
+import com.flightlog.app.data.network.AviationStackApi
 import com.flightlog.app.data.network.FlightAwareApi
 import com.flightlog.app.data.network.FlightRouteService
 import com.flightlog.app.data.network.FlightRouteServiceImpl
@@ -110,6 +111,47 @@ object NetworkModule {
     @Singleton
     fun providePlanespottersApi(@PlanespottersRetrofit retrofit: Retrofit): PlanespottersApi {
         return retrofit.create(PlanespottersApi::class.java)
+    }
+
+    // -- AviationStack (HTTP-only free tier) --
+    // AviationStack free tier does not support HTTPS. The access_key is a
+    // low-risk free-tier key passed as a query parameter per-request, so no
+    // auth interceptor is needed. Cleartext is allowed via network_security_config.xml.
+
+    @Provides
+    @Singleton
+    @Named("aviationStack")
+    fun provideAviationStackOkHttpClient(): OkHttpClient {
+        val loggingInterceptor = HttpLoggingInterceptor().apply {
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BASIC
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
+        }
+        return OkHttpClient.Builder()
+            .addInterceptor(loggingInterceptor)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    @AviationStackRetrofit
+    fun provideAviationStackRetrofit(
+        @Named("aviationStack") client: OkHttpClient,
+        moshi: Moshi
+    ): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("http://api.aviationstack.com/v1/")
+            .client(client)
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAviationStackApi(@AviationStackRetrofit retrofit: Retrofit): AviationStackApi {
+        return retrofit.create(AviationStackApi::class.java)
     }
 }
 

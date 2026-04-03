@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- No cleartext exceptions needed. All API traffic uses HTTPS. -->
+    <base-config cleartextTrafficPermitted="false" />
+    <!-- AviationStack free tier only supports HTTP (no HTTPS).
+         The access_key is a free-tier API key with low risk exposure.
+         Cleartext is permitted for this single domain only. -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">api.aviationstack.com</domain>
+    </domain-config>
 </network-security-config>

@@ -78,6 +78,12 @@
     <string name="flight_sheet_adding">Adding…</string>
     <string name="flight_sheet_add_to_logbook">Add to Logbook</string>
 
+    <!-- Add/Edit flight screen -->
+    <string name="add_flight_departure_airport_label">Departure Airport (IATA)</string>
+    <string name="add_flight_departure_airport_placeholder">NRT</string>
+    <string name="add_flight_departure_airport_hint">Required for flights more than 7 days out</string>
+    <string name="add_flight_rate_limit_error">Too many requests, please wait 60 seconds</string>
+
     <!-- Aircraft card -->
     <string name="aircraft_info_title">Aircraft</string>
     <string name="aircraft_type_label">Type</string>
