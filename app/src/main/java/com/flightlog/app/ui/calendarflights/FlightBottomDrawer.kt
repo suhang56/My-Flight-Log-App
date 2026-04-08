@@ -6,6 +6,7 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.AnchoredDraggableState
 import androidx.compose.foundation.gestures.DraggableAnchors
@@ -26,7 +27,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
@@ -48,13 +52,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import com.flightlog.app.data.local.entity.CalendarFlight
 import com.flightlog.app.data.local.entity.LogbookFlight
@@ -141,6 +150,74 @@ internal fun FlightBottomDrawer(
 
     val currentAnchor = anchoredDraggableState.currentValue
 
+    // Scroll states for inner content — shared so the NestedScrollConnection can query them
+    val lazyListState = rememberLazyListState()
+    val detailScrollState = rememberScrollState()
+
+    // Reset detail scroll position when the selected flight changes
+    LaunchedEffect(selectedFlight?.id) {
+        detailScrollState.scrollTo(0)
+    }
+
+    // Keyed on the stable anchoredDraggableState reference — reads currentValue fresh
+    // inside each callback to avoid capturing a stale anchor during transitions.
+    val nestedScrollConnection = remember(anchoredDraggableState) {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                val dy = available.y
+                if (dy == 0f) return Offset.Zero
+                val anchor = anchoredDraggableState.currentValue
+
+                // Dragging down (dy > 0): inner content scrolls toward start.
+                // Only let the drawer consume if inner content is already at the top.
+                if (dy > 0) {
+                    val canScrollUp = when (anchor) {
+                        DrawerAnchor.COLLAPSED -> lazyListState.canScrollBackward
+                        DrawerAnchor.FULL_EXPANDED -> detailScrollState.canScrollBackward
+                        else -> false
+                    }
+                    if (canScrollUp) return Offset.Zero
+                }
+
+                // Dragging up (dy < 0): inner content scrolls toward end.
+                // Only let the drawer consume if inner content is already at the bottom.
+                if (dy < 0) {
+                    val canScrollDown = when (anchor) {
+                        DrawerAnchor.COLLAPSED -> lazyListState.canScrollForward
+                        DrawerAnchor.FULL_EXPANDED -> detailScrollState.canScrollForward
+                        else -> false
+                    }
+                    if (canScrollDown) return Offset.Zero
+                }
+
+                // Inner content is at its boundary — let the drawer draggable handle it
+                val consumed = anchoredDraggableState.dispatchRawDelta(dy)
+                return Offset(0f, consumed)
+            }
+
+            override suspend fun onPreFling(available: Velocity): Velocity {
+                val vy = available.y
+                val anchor = anchoredDraggableState.currentValue
+
+                val innerCanScroll = when (anchor) {
+                    DrawerAnchor.COLLAPSED ->
+                        if (vy > 0) lazyListState.canScrollBackward
+                        else lazyListState.canScrollForward
+                    DrawerAnchor.FULL_EXPANDED ->
+                        if (vy > 0) detailScrollState.canScrollBackward
+                        else detailScrollState.canScrollForward
+                    else -> false
+                }
+
+                if (innerCanScroll) return Velocity.Zero
+
+                // Inner content at edge — animate the drawer to the target anchor
+                anchoredDraggableState.animateTo(anchoredDraggableState.targetValue)
+                return Velocity(0f, vy)
+            }
+        }
+    }
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -152,6 +229,7 @@ internal fun FlightBottomDrawer(
                         .roundToInt()
                 )
             }
+            .nestedScroll(nestedScrollConnection)
             .anchoredDraggable(
                 state = anchoredDraggableState,
                 orientation = Orientation.Vertical,
@@ -193,7 +271,8 @@ internal fun FlightBottomDrawer(
                         onSearchQueryChanged = onSearchQueryChanged,
                         onTabChanged = onTabChanged,
                         onFlightCardTapped = onFlightCardTapped,
-                        onSyncClick = onSyncClick
+                        onSyncClick = onSyncClick,
+                        lazyListState = lazyListState
                     )
                 }
                 currentAnchor == DrawerAnchor.HALF_EXPANDED -> {
@@ -215,7 +294,8 @@ internal fun FlightBottomDrawer(
                         getLinkedLogbookFlight = getLinkedLogbookFlight,
                         onRatingChanged = onRatingChanged,
                         aircraftPhotoState = aircraftPhotoState,
-                        onAircraftTypeResolved = onAircraftTypeResolved
+                        onAircraftTypeResolved = onAircraftTypeResolved,
+                        scrollState = detailScrollState
                     )
                 }
             }
@@ -233,7 +313,8 @@ private fun CollapsedContent(
     onSearchQueryChanged: (String) -> Unit,
     onTabChanged: (FlightTab) -> Unit,
     onFlightCardTapped: (CalendarFlight) -> Unit,
-    onSyncClick: () -> Unit
+    onSyncClick: () -> Unit,
+    lazyListState: LazyListState = rememberLazyListState()
 ) {
     // Search bar
     DrawerSearchBar(
@@ -292,6 +373,7 @@ private fun CollapsedContent(
             }
         } else {
             LazyColumn(
+                state = lazyListState,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {

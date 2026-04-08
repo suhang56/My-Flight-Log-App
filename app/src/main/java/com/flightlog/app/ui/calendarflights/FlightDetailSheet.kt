@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -56,6 +57,7 @@ internal fun FlightDetailContent(
     onRatingChanged: (Long, Int?) -> Unit,
     aircraftPhotoState: AircraftPhotoState = AircraftPhotoState(),
     onAircraftTypeResolved: (aircraftType: String?, registration: String?) -> Unit = { _, _ -> },
+    scrollState: ScrollState = rememberScrollState(),
     modifier: Modifier = Modifier
 ) {
     val dateFormat = remember { SimpleDateFormat("EEEE, MMM d, yyyy  HH:mm", Locale.getDefault()) }
@@ -64,7 +66,6 @@ internal fun FlightDetailContent(
     val isUpcoming = flight.scheduledTime >= now
     val isToday = relativeLabel == "Today"
     val scope = rememberCoroutineScope()
-    val scrollState = rememberScrollState()
 
     var alreadyLogged by remember { mutableStateOf<Boolean?>(null) }
     var isAdding by remember { mutableStateOf(false) }
